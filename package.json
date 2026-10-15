@@ -1,0 +1,15 @@
+{
+  "name": "yongil-translator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules tests/run.mjs",
+    "check": "node --experimental-vm-modules scripts/check.mjs",
+    "package": "node scripts/package.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

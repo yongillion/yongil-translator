@@ -1,0 +1,11 @@
+import {selectionUITests} from './selection-ui.mjs';
+import {i18nTests} from './i18n.mjs';
+import {runTests} from './suite.mjs';
+import {integrationTests} from './integration.mjs';
+import {contentJobTests} from './content-jobs.mjs';
+import {uiStateTests} from './ui-state.mjs';
+const reports=[await runTests(),await integrationTests(),await contentJobTests(),await uiStateTests(),await i18nTests(),await selectionUITests()];
+for(const report of reports)for(const row of report.results)console.log((row.passed?'PASS ':'FAIL ')+row.name+(row.error?' — '+row.error:''));
+const failed=reports.reduce((n,r)=>n+r.failed,0);
+console.log(reports.reduce((n,r)=>n+r.passed,0)+' passed; '+failed+' failed');
+if(failed)throw new Error('Regression tests failed');

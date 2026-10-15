@@ -1,0 +1,656 @@
+{
+  "uiLocale": {
+    "message": "en"
+  },
+  "extensionDescription": {
+    "message": "Translate pages and blocks with your ChatGPT subscription, and restore the original text."
+  },
+  "settings": {
+    "message": "Settings"
+  },
+  "siteAccessTitle": {
+    "message": "Always enable block selection on this site"
+  },
+  "siteAccessNote": {
+    "message": "Allow access to select blocks on new pages without opening the popup."
+  },
+  "allowAlways": {
+    "message": "Always allow"
+  },
+  "translatePage": {
+    "message": "Translate page"
+  },
+  "translateBlock": {
+    "message": "Translate block"
+  },
+  "restoreOriginal": {
+    "message": "Restore original"
+  },
+  "stopTranslation": {
+    "message": "Stop translation"
+  },
+  "retryFailed": {
+    "message": "Retry failed blocks"
+  },
+  "targetLanguage": {
+    "message": "Target language"
+  },
+  "openLanguages": {
+    "message": "Open language list"
+  },
+  "model": {
+    "message": "Model"
+  },
+  "refreshModels": {
+    "message": "Refresh model list"
+  },
+  "refresh": {
+    "message": "Refresh"
+  },
+  "connectFirst": {
+    "message": "Connect your account"
+  },
+  "customInstructions": {
+    "message": "Custom instructions"
+  },
+  "configureInstructions": {
+    "message": "Configure →"
+  },
+  "connectChatGPT": {
+    "message": "Connect ChatGPT"
+  },
+  "subscriptionPrompt": {
+    "message": "Translate with your subscription"
+  },
+  "continueChatGPT": {
+    "message": "Continue with ChatGPT"
+  },
+  "cancelLogin": {
+    "message": "Cancel sign-in"
+  },
+  "disconnect": {
+    "message": "Disconnect"
+  },
+  "subscriptionUse": {
+    "message": "Uses your ChatGPT subscription"
+  },
+  "manageUsage": {
+    "message": "Manage usage ↗"
+  },
+  "translationNav": {
+    "message": "Translation"
+  },
+  "instructionsNav": {
+    "message": "Instructions"
+  },
+  "shortcuts": {
+    "message": "Shortcuts"
+  },
+  "sitesNav": {
+    "message": "Sites"
+  },
+  "accountNav": {
+    "message": "Account"
+  },
+  "dataNav": {
+    "message": "Data & appearance"
+  },
+  "sidebarNote": {
+    "message": "Read in your language.\nReturn to the original anytime."
+  },
+  "makeItYours": {
+    "message": "MAKE IT YOURS"
+  },
+  "settingsHeading": {
+    "message": "Translation, your way."
+  },
+  "settingsIntro": {
+    "message": "Choose the language and style that make reading feel natural."
+  },
+  "translationSettings": {
+    "message": "Translation settings"
+  },
+  "translationSettingsNote": {
+    "message": "Choose your preferred language and model."
+  },
+  "concurrencyLabel": {
+    "message": "Concurrent translation requests"
+  },
+  "concurrencyNote": {
+    "message": "1–16 requests, 8 by default. All tabs share this limit. Changes apply when a new translation starts."
+  },
+  "instructionsNote": {
+    "message": "Set the tone and style of your translations."
+  },
+  "enabled": {
+    "message": "Enable"
+  },
+  "translationInstructions": {
+    "message": "Translation instructions"
+  },
+  "instructionsPlaceholder": {
+    "message": "Use a natural, polite tone. Keep product names and code identifiers unchanged, and do not summarize."
+  },
+  "saveInstructions": {
+    "message": "Save instructions"
+  },
+  "shortcutsNote": {
+    "message": "Click a shortcut button, then press your preferred keys. Allow site access or activate the page from the popup to use shortcuts."
+  },
+  "holdBlockKeys": {
+    "message": "Hold to select a block"
+  },
+  "holdBlockNote": {
+    "message": "Hold the keys and click a block to translate or restore it."
+  },
+  "clear": {
+    "message": "Clear"
+  },
+  "cancelSelection": {
+    "message": "Cancel selection mode"
+  },
+  "cancelSelectionNote": {
+    "message": "Exit block selection and hide the highlight."
+  },
+  "shortcutTest": {
+    "message": "Test a shortcut"
+  },
+  "shortcutTestPlaceholder": {
+    "message": "Click here and press a key combination."
+  },
+  "osShortcutNote": {
+    "message": "Key combinations reserved by your operating system may not be detected."
+  },
+  "siteAccess": {
+    "message": "Site access"
+  },
+  "siteAccessHelp": {
+    "message": "On allowed sites, use the shortcut to select blocks immediately."
+  },
+  "allowAllSites": {
+    "message": "Allow on all websites"
+  },
+  "excludedSites": {
+    "message": "Excluded sites"
+  },
+  "excludedSitesHelp": {
+    "message": "Enter one domain name per line."
+  },
+  "saveExcludedSites": {
+    "message": "Save exclusions"
+  },
+  "accountConnection": {
+    "message": "Account connection"
+  },
+  "privacyNote": {
+    "message": "Text selected for translation and your instructions are sent to OpenAI. Translations count toward the connected account’s subscription usage. You can still restore the original text on the current page after disconnecting."
+  },
+  "manageSubscriptionUsage": {
+    "message": "Manage subscription usage ↗"
+  },
+  "dataAppearance": {
+    "message": "Data & appearance"
+  },
+  "theme": {
+    "message": "Theme"
+  },
+  "themeSystem": {
+    "message": "System"
+  },
+  "themeLight": {
+    "message": "Light"
+  },
+  "themeDark": {
+    "message": "Dark"
+  },
+  "clearCache": {
+    "message": "Clear translation cache"
+  },
+  "exportSettings": {
+    "message": "Export settings"
+  },
+  "importSettings": {
+    "message": "Import settings"
+  },
+  "resetSettings": {
+    "message": "Reset settings"
+  },
+  "dataHelp": {
+    "message": "Exports exclude account credentials. Clearing the cache keeps the data needed to restore original text."
+  },
+  "openSourceFooter": {
+    "message": "Yongil Translator · Open source · MIT"
+  },
+  "connectionCheck": {
+    "message": "Check the extension connection."
+  },
+  "chatGPTConnected": {
+    "message": "ChatGPT connected"
+  },
+  "signingIn": {
+    "message": "Signing in"
+  },
+  "connectedSubscription": {
+    "message": "Connected subscription account"
+  },
+  "finishSignIn": {
+    "message": "Complete sign-in in the opened tab"
+  },
+  "chooseModel": {
+    "message": "Select a model"
+  },
+  "modelUnavailable": {
+    "message": "$1 (not in the current list)"
+  },
+  "cachedModelList": {
+    "message": "Showing a saved model list. $1"
+  },
+  "browserLanguage": {
+    "message": "Browser language"
+  },
+  "disconnectedMessage": {
+    "message": "Account disconnected in this browser."
+  },
+  "noWebpage": {
+    "message": "No webpage tab was found."
+  },
+  "progressRunning": {
+    "message": "$1 translated · Working"
+  },
+  "progressTranslated": {
+    "message": "$1 translated"
+  },
+  "progressFailed": {
+    "message": "$1 failed"
+  },
+  "noSitesAllowed": {
+    "message": "No sites have been allowed yet."
+  },
+  "siteAccessDenied": {
+    "message": "Site access was not allowed."
+  },
+  "siteAccessGranted": {
+    "message": "Site access enabled. Use Translate block to start on this page."
+  },
+  "recordKeys": {
+    "message": "Press and release the keys"
+  },
+  "shortcutSaved": {
+    "message": "Shortcut saved."
+  },
+  "instructionsActive": {
+    "message": "Enabled · Edit →"
+  },
+  "localeSuggestion": {
+    "message": "Suggested default: $1 · Based on your browser UI language"
+  },
+  "instructionsSaved": {
+    "message": "Instructions saved. They will apply to the next translation."
+  },
+  "excludedSitesSaved": {
+    "message": "Excluded sites saved."
+  },
+  "concurrencySaved": {
+    "message": "Request limit saved. It will apply to new translations."
+  },
+  "cacheCleared": {
+    "message": "Cache cleared. Original-text restoration data is preserved."
+  },
+  "settingsTooLarge": {
+    "message": "The settings file is too large."
+  },
+  "settingsImported": {
+    "message": "Settings imported."
+  },
+  "resetConfirm": {
+    "message": "Reset translation settings and all shortcuts? Your account connection will be kept."
+  },
+  "settingsReset": {
+    "message": "Settings reset."
+  },
+  "shortcutUnassigned": {
+    "message": "Not set"
+  },
+  "pageToolbarDescription": {
+    "message": "Translate pages and restore originals"
+  },
+  "selectBlock": {
+    "message": "Select block"
+  },
+  "stop": {
+    "message": "Stop"
+  },
+  "retry": {
+    "message": "Retry"
+  },
+  "close": {
+    "message": "Close"
+  },
+  "restoreBlock": {
+    "message": "Restore this block"
+  },
+  "translateAgain": {
+    "message": "Translate again"
+  },
+  "connectionLost": {
+    "message": "Extension connection lost. Reload the page."
+  },
+  "selectBlockPrompt": {
+    "message": "Select a block to translate or restore"
+  },
+  "translating": {
+    "message": "Translating"
+  },
+  "translationVisible": {
+    "message": "Translated text is displayed"
+  },
+  "pageProgress": {
+    "message": "$1 translated · $2 pending"
+  },
+  "translatedBlocks": {
+    "message": "$1 blocks translated"
+  },
+  "originalText": {
+    "message": "Original text"
+  },
+  "skippedText": {
+    "message": "$1 oversized or excess items skipped"
+  },
+  "clickRestoreBlock": {
+    "message": "Click to restore this block"
+  },
+  "clickTranslateBlock": {
+    "message": "Click to translate this block"
+  },
+  "stopKeepOriginal": {
+    "message": "Stop and keep original"
+  },
+  "translationFailed": {
+    "message": "Translation failed."
+  },
+  "restoreConflicts": {
+    "message": "$1 text items changed by the site were left untouched."
+  },
+  "blockRestored": {
+    "message": "Original text restored for this block"
+  },
+  "translationStopped": {
+    "message": "Translation stopped"
+  },
+  "pageRestored": {
+    "message": "Original page text restored"
+  },
+  "nothingToRetry": {
+    "message": "No blocks to retry"
+  },
+  "nothingToTranslate": {
+    "message": "No new text to translate"
+  },
+  "translatingTo": {
+    "message": "Translating into $1"
+  },
+  "permissionsChanged": {
+    "message": "Site permissions changed. Enable translation again from the popup."
+  },
+  "pageChanged": {
+    "message": "Page changed"
+  },
+  "pageContentChanged": {
+    "message": "The page content changed."
+  },
+  "resultNotApplied": {
+    "message": "The site content changed, so the result was not applied."
+  },
+  "partialRestore": {
+    "message": "Some text changed by the site was left untouched."
+  },
+  "invalidSetting": {
+    "message": "Check the value for $1."
+  },
+  "languageField": {
+    "message": "language"
+  },
+  "defaultLanguageField": {
+    "message": "default language"
+  },
+  "shortcutInvalid": {
+    "message": "Check the shortcut format."
+  },
+  "shortcutEmpty": {
+    "message": "Set a shortcut or clear it."
+  },
+  "shortcutUnsupported": {
+    "message": "This key is not supported."
+  },
+  "settingsInvalid": {
+    "message": "The settings file format is invalid."
+  },
+  "settingsUnknown": {
+    "message": "The settings contain an unknown field."
+  },
+  "settingsVersion": {
+    "message": "This settings version is not supported."
+  },
+  "concurrencyInvalid": {
+    "message": "Concurrent requests must be a whole number from 1 to 16."
+  },
+  "instructionsInvalid": {
+    "message": "Check the instructions setting."
+  },
+  "themeInvalid": {
+    "message": "Check the theme setting."
+  },
+  "excludedSitesInvalid": {
+    "message": "Enter excluded sites as domain names."
+  },
+  "authNetwork": {
+    "message": "Cannot connect to the sign-in server. Please try again later."
+  },
+  "authExpired": {
+    "message": "Your sign-in expired or was denied. Please sign in again."
+  },
+  "authResponse": {
+    "message": "The sign-in response could not be verified."
+  },
+  "authTimedOut": {
+    "message": "Sign-in timed out. Please sign in again."
+  },
+  "authAccount": {
+    "message": "Your subscription account could not be verified."
+  },
+  "authRefreshMissing": {
+    "message": "No credentials for staying signed in were received."
+  },
+  "authLoginFailed": {
+    "message": "Sign-in failed. Please sign in again."
+  },
+  "authRequired": {
+    "message": "Connect your ChatGPT account first."
+  },
+  "authChanged": {
+    "message": "The account connection changed."
+  },
+  "authState": {
+    "message": "Sign-in verification did not match. Please sign in again."
+  },
+  "authDenied": {
+    "message": "Sign-in was canceled or denied."
+  },
+  "authCodeMissing": {
+    "message": "The sign-in code is missing."
+  },
+  "authIdentity": {
+    "message": "Account verification failed. Please sign in again."
+  },
+  "authReconnect": {
+    "message": "Please reconnect your account."
+  },
+  "inputBlocks": {
+    "message": "Check the blocks selected for translation."
+  },
+  "inputBlockFormat": {
+    "message": "The block format is invalid."
+  },
+  "inputTextFormat": {
+    "message": "The text format is invalid."
+  },
+  "inputTooLong": {
+    "message": "There is too much text for one request."
+  },
+  "resultFormat": {
+    "message": "The translation response format is invalid. Please try again."
+  },
+  "resultBlockCount": {
+    "message": "The translation response has an incorrect block count."
+  },
+  "resultBlockMissing": {
+    "message": "The translation response contains missing or duplicate blocks."
+  },
+  "resultTextMissing": {
+    "message": "Text is missing from the translation response."
+  },
+  "resultTooLarge": {
+    "message": "The translation response is too large."
+  },
+  "streamNoBody": {
+    "message": "The response body is missing."
+  },
+  "streamTooLarge": {
+    "message": "The response is too large."
+  },
+  "streamInvalid": {
+    "message": "The streamed response format is invalid."
+  },
+  "streamIncompleteRetry": {
+    "message": "The translation response was incomplete. Please try again."
+  },
+  "streamIncomplete": {
+    "message": "The translation response was incomplete."
+  },
+  "streamDisconnected": {
+    "message": "The connection was lost before translation finished. The original text is preserved."
+  },
+  "translationNetwork": {
+    "message": "Cannot connect to the translation server. Please try again."
+  },
+  "usageLimit": {
+    "message": "Your subscription usage or request limit was reached. Please try again later."
+  },
+  "modelAccess": {
+    "message": "This model is unavailable for the connected account."
+  },
+  "modelRequest": {
+    "message": "The selected model or subscription request format is unavailable. Refresh the model list."
+  },
+  "providerFailed": {
+    "message": "The translation server could not process the request."
+  },
+  "modelListFormat": {
+    "message": "The model list format could not be recognized."
+  },
+  "modelListEmpty": {
+    "message": "No available models were found."
+  },
+  "accountChangedJob": {
+    "message": "The account changed, so the translation was stopped."
+  },
+  "modelRequired": {
+    "message": "Select a model first."
+  },
+  "webpagesOnly": {
+    "message": "Use the extension on a regular webpage."
+  },
+  "noTranslationTab": {
+    "message": "No tab was found to translate."
+  },
+  "pageAccess": {
+    "message": "Cannot access this page. Check site permissions or reload the page."
+  },
+  "documentUnsupported": {
+    "message": "This document is not supported."
+  },
+  "siteNotAllowed": {
+    "message": "Site access is unavailable. Start from the popup or allow this site."
+  },
+  "siteExcluded": {
+    "message": "This site is excluded from translation."
+  },
+  "requestInvalid": {
+    "message": "The request is invalid."
+  },
+  "requestDenied": {
+    "message": "This request is not allowed."
+  },
+  "notDocument": {
+    "message": "This request must come from a webpage."
+  },
+  "connectAccountFirst": {
+    "message": "Connect your ChatGPT account first."
+  },
+  "selectModelPopup": {
+    "message": "Select a model in the popup."
+  },
+  "backgroundRestarted": {
+    "message": "The background connection restarted. Start the translation again."
+  },
+  "extensionOnly": {
+    "message": "This action is available only in the extension UI."
+  },
+  "requestUnknown": {
+    "message": "Unknown request."
+  },
+  "jobCancelled": {
+    "message": "The operation was stopped."
+  },
+  "unexpectedError": {
+    "message": "An error occurred. Please try again."
+  },
+  "badgePageAccess": {
+    "message": "Cannot access this page. Check permissions in the popup."
+  },
+  "uiLanguage": {
+    "message": "UI language"
+  },
+  "uiLanguageAuto": {
+    "message": "Follow browser settings"
+  },
+  "uiLanguageHelp": {
+    "message": "Uses your browser language by default. Unsupported languages fall back to English."
+  },
+  "uiLanguageInvalid": {
+    "message": "Check the UI language setting."
+  },
+  "translateSelection": {
+    "message": "Translate selection"
+  },
+  "selectionResult": {
+    "message": "Selection translation"
+  },
+  "selectionMove": {
+    "message": "Drag the title to move"
+  },
+  "selectionResize": {
+    "message": "Drag the bottom-right corner to resize."
+  },
+  "selectionTooLong": {
+    "message": "The selection is too long. Select up to 16,000 characters."
+  },
+  "selectionEmpty": {
+    "message": "Select some text to translate."
+  },
+  "versionLabel": {
+    "message": "VERSION"
+  },
+  "exitBlockSelection": {
+    "message": "Exit block selection"
+  },
+  "commandToggle": {
+    "message": "Translate/Restore the current page"
+  },
+  "pageToggleNote": {
+    "message": "Restore the entire page if any block is translated; otherwise translate the page."
+  },
+  "pageShortcutKeyRequired": {
+    "message": "Include a letter, number, or other non-modifier key for the page shortcut."
+  }
+}
