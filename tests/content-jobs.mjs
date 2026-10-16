@@ -8,16 +8,20 @@ const core=await readFile(new URL('../extension/document-core.js',import.meta.ur
 // Run the real page job and restoration functions with fake DOM references and a deferred transport.
 const start=source.indexOf(' function cancelEmptyJobs('),end=source.indexOf(' function matching(');
 assert.ok(start>=0&&end>start,'Content job entry points must be available');
-const jobSource=source.slice(source.indexOf(' function setPicking('),source.indexOf(' const own='))+source.slice(start,end);
+const jobSource=source.slice(source.indexOf(' function setPicking('),source.indexOf(' const own='))+
+ source.slice(source.indexOf(' function prioritizePending('),source.indexOf(' function knownFor('))+source.slice(start,end);
 const tick=()=>new Promise(r=>setTimeout(r,0));
-function harness(limit=8,count=80,ignoreCancel=false){
+const rect=(top,left=20,width=600,height=30)=>({top,left,width,height,bottom:top+height,right:left+width});
+function harness(limit=8,count=80,ignoreCancel=false,configure=()=>{}){
  const requests=[],jobInfo={fingerprint:fingerprint({...defaults(),modelId:'model-a'})+'|account-a',target:'Korean',maxConcurrentBatches:limit};let live=0,peak=0,sequence=0,onMessage;
  const context=vm.createContext({chrome:{i18n:mockI18n(),runtime:{id:'test',onMessage:{addListener(fn){onMessage=fn;}}}},selectionUI:{stop(){}},enabled:true,epoch:0,barVisible:false,lastError:'',starting:false,label:'',picking:false,
-  jobs:new Map(),cache:new Map(),render(){},status(){return {};},error(e){throw e;},setInterval:()=>0,clearInterval(){}});
+  jobs:new Map(),cache:new Map(),viewportVersion:0,innerWidth:1200,innerHeight:800,document:{documentElement:{clientWidth:1200,clientHeight:800}},paintHover(){},
+  render(){},status(){return {};},error(e){throw e;},setInterval:()=>0,clearInterval(){}});
  vm.runInContext(core,context);const store=new context.YTDocument.SnapshotStore();context.store=store;context.t=context.YTDocument.t;
  vm.runInContext(source.slice(source.indexOf(' function status(){'),source.indexOf(' const allChanged=')),context);
  const originals=Array.from({length:count},(_,i)=>'Source paragraph '+i);
- const blocks=originals.map(text=>store.register({},[{nodeValue:text,isConnected:true}]));
+ let geometryReads=0;
+ const blocks=originals.map((text,index)=>store.register({rect:rect(index*40),getBoundingClientRect(){geometryReads++;return this.rect;}},[{nodeValue:text,isConnected:true}]));
  context.blocksFor=elements=>blocks.filter(b=>!elements||elements.includes(b.element));context.knownFor=el=>blocks.filter(b=>b.element===el);
  context.send=async(type,data)=>{
   if(type==='job.begin')return{id:'test-job-'+(++sequence),...jobInfo};
@@ -29,9 +33,9 @@ function harness(limit=8,count=80,ignoreCancel=false){
    reject(e){if(r.settled)return;r.settled=true;live--;reject(e);}};requests.push(r);});
  };
  vm.runInContext(jobSource+source.slice(source.indexOf(' chrome.runtime.onMessage.addListener('),source.indexOf(' setInterval(()=>{')),context);
- const done=context.translateElements(null);
+ configure({context,blocks});const done=context.translateElements(null);
  async function finish(pending=done){for(let i=0;i<100;i++){await tick();for(const r of requests)r.resolve();await tick();if(!context.starting&&!context.jobs.size){await pending;return;}}throw Error('Translation did not finish');}
- return {context,store,blocks,originals,requests,jobInfo,done,finish,peak:()=>peak,message(type){onMessage({type},{id:'test'},()=>{});}};
+ return {context,store,blocks,originals,requests,jobInfo,done,finish,peak:()=>peak,geometryReads:()=>geometryReads,message(type){onMessage({type},{id:'test'},()=>{});}};
 }
 // Exercise the real click/keyboard listeners and snapshot restoration without a browser.
 function selectionHarness(){
@@ -45,7 +49,7 @@ function selectionHarness(){
  }
  const html=new Element('HTML'),body=new Element('BODY',html),own=new Element('DIV',html);
  const context=vm.createContext({chrome:{i18n:mockI18n(),runtime:{id:'test',onMessage:{addListener(fn){onMessage=fn;}}}},selectionUI:{stop(){}},Element,own,enabled:true,held:false,picking:false,hover:null,selected:null,
-  settings:defaults(),jobs:new Map(),cache:new Map(),
+  settings:defaults(),jobs:new Map(),cache:new Map(),viewportVersion:0,
   addEventListener(type,listener){listeners.set('window:'+type,listener);},
   document:{body,documentElement:html,addEventListener(type,listener){listeners.set(type,listener);}},
   getComputedStyle:el=>({display:el.tagName==='SPAN'?'inline':'block',visibility:'visible',opacity:'1'}),paintHover(){},render(){},error(e){throw e;},
@@ -68,6 +72,57 @@ function selectionHarness(){
 }
 export async function contentJobTests(){
  const results=[];async function test(name,fn){try{await fn();results.push({name,passed:true});}catch(e){results.push({name,passed:false,error:e.stack||e.message});}}
+ await test('Visible blocks precede closer offscreen text, including partially visible tall blocks',async()=>{
+  const h=harness(1,24,false,({blocks})=>{
+   blocks.forEach((b,i)=>{b.element.rect=rect(-2000-i*40);});
+   blocks[0].element.rect=rect(-5,20,600,2);blocks[1].element.rect=rect(0,1300);blocks[2].element.rect=rect(0,20,0,0);
+   for(let i=16;i<24;i++)blocks[i].element.rect=rect((i-16)*40);
+   blocks[16].element.rect=rect(-1000,20,600,1100);blocks[23].element.rect=rect(799);
+  });
+  await tick();assert.deepEqual(Array.from(h.requests[0].data.blocks,b=>b.id),h.blocks.slice(16,24).map(b=>b.id));
+  assert.equal(h.context.status().completed,0);assert.equal(h.context.status().total,24);
+  await h.finish();assert.equal(h.store.translatedCount(),24);assert.equal(h.requests.length,3);
+ });
+ await test('Offscreen blocks nearest the viewport follow visible blocks',async()=>{
+  const h=harness(1,24,false,({blocks})=>{
+   for(let i=8;i<16;i++)blocks[i].element.rect=rect(5000+i*40);
+   for(let i=16;i<24;i++)blocks[i].element.rect=rect(800+(i-16)*40);
+  });
+  await tick();assert.deepEqual(Array.from(h.requests[0].data.blocks,b=>b.id),h.blocks.slice(0,8).map(b=>b.id));
+  h.requests[0].resolve();await tick();assert.deepEqual(Array.from(h.requests[1].data.blocks,b=>b.id),h.blocks.slice(16,24).map(b=>b.id));
+  await h.finish();assert.equal(h.store.translatedCount(),24);
+ });
+ await test('Scrolling reprioritizes only unsent blocks without duplicate requests or exceeding concurrency',async()=>{
+  const h=harness(2,64);await tick();const inflight=Array.from(h.requests[1].data.blocks,b=>b.id);
+  h.blocks.forEach((b,i)=>{b.element.rect=rect((i-40)*40);});h.context.viewportChanged();
+  h.requests[0].resolve();await tick();assert.deepEqual(Array.from(h.requests[2].data.blocks,b=>b.id),h.blocks.slice(40,48).map(b=>b.id));
+  assert.deepEqual(Array.from(h.requests[1].data.blocks,b=>b.id),inflight);assert.equal(h.requests[1].settled,false);
+  await h.finish();const ids=h.requests.flatMap(r=>Array.from(r.data.blocks,b=>b.id));
+  assert.equal(ids.length,64);assert.equal(new Set(ids).size,64);assert.equal(h.peak(),2);assert.equal(h.context.status().completed,64);
+ });
+ await test('Applied translations refresh layout priority before the next batch',async()=>{
+  const h=harness(1,40);await tick();
+  h.blocks.forEach((b,i)=>{b.element.rect=rect((i-32)*40);});
+  h.requests[0].resolve();await tick();assert.deepEqual(Array.from(h.requests[1].data.blocks,b=>b.id),h.blocks.slice(32,40).map(b=>b.id));
+  await h.finish();assert.equal(h.store.translatedCount(),40);
+ });
+ await test('Zoomed viewport offsets and resizes determine which pending blocks are visible',async()=>{
+  const h=harness(1,24,false,({context,blocks})=>{
+   context.visualViewport={offsetTop:400,offsetLeft:500,width:200,height:200};
+   blocks.forEach((b,i)=>{b.element.rect=rect(0,0,100,30);});
+   for(let i=8;i<16;i++)blocks[i].element.rect=rect(410+(i-8)*20,510,100,20);
+  });
+  await tick();assert.deepEqual(Array.from(h.requests[0].data.blocks,b=>b.id),h.blocks.slice(8,16).map(b=>b.id));
+  h.context.visualViewport={offsetTop:0,offsetLeft:0,width:200,height:200};h.context.viewportChanged();
+  h.requests[0].resolve();await tick();assert.deepEqual(Array.from(h.requests[1].data.blocks,b=>b.id),h.blocks.slice(0,8).map(b=>b.id));
+  await h.finish();assert.equal(h.store.translatedCount(),24);
+ });
+ await test('Initial parallel dispatch measures each block only once and preserves document order for ties',async()=>{
+  const h=harness(16,136,false,({blocks})=>{blocks.forEach(b=>{b.element.rect=rect(10);});});
+  await tick();assert.equal(h.geometryReads(),136);assert.equal(h.requests.length,16);
+  assert.deepEqual(h.requests.flatMap(r=>Array.from(r.data.blocks,b=>b.id)),h.blocks.slice(0,128).map(b=>b.id));
+  await h.finish();assert.equal(h.store.translatedCount(),136);
+ });
  await test('Live job progress counts all queued blocks and reused cached results',async()=>{
   const h=harness(8,120);await tick();assert.equal(h.context.status().total,120);assert.equal(h.context.status().completed,0);
   h.requests[2].resolve();h.requests[4].resolve();await tick();assert.equal(h.context.status().completed,16);

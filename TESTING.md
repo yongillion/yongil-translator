@@ -6,7 +6,7 @@ Review date: 2026-10-16
 
 - Unit and regression tests: **39 passed**
 - Mock service-worker integration tests: **22 passed**
-- Page-job and block-interaction regression tests: **24 passed**
+- Page-job and block-interaction regression tests: **30 passed**
 - UI state tests with mock DOM and browser APIs: **23 passed**
 - Localization catalog and preference tests: **8 passed**
 - Selected-text popup regression tests: **6 passed**
@@ -35,6 +35,7 @@ Key coverage:
 - Original text as the input for retranslation; preservation across site edits, node replacement, and DOM restructuring
 - Configurable concurrency (1–64, default 16), shared limits across tabs, and draining active requests after a lower limit is selected
 - Out-of-order batch completion, page and block restoration during parallel requests, cancellation, usage-limit failures, and recoverable batch errors
+- Viewport-first request ordering, partially visible/tall blocks, horizontal exclusion, nearest offscreen work, scroll/resize/zoom updates, layout changes after applying translations, stable document-order ties, and one geometry read per element per priority pass
 - Blocking account-management access from content scripts and keeping tokens private
 - Recognizing the options page when Chrome supplies tab metadata, including query strings and hash anchors; sharing the popup account and settings; rejecting unrelated URLs and extension identities
 - Rejecting job ID reuse across documents and fixing settings at job start
@@ -96,11 +97,12 @@ The raw execution results are stored in [test-results.json](test-results.json).
 19. Translate a block, restore it, and translate it again with both Alt-click and button-activated selection. Verify that the cached result appears without another inference request. Repeat with page restoration on a page containing more than 200 blocks. Change one source block and verify that only that block sends a new request. Change the target, model, enabled instructions, or account connection to verify separate cache entries. Refresh the page and verify that translation requires a fresh request. Clearing the cache must preserve restoration snapshots.
 20. In Settings → Shortcuts, verify separate translation and restoration rows with the same recording/Clear controls as block selection and cancellation. Alt+T must translate on both an original page and a partially translated page without restoring completed blocks. Alt+R must stop pending work and restore all translated blocks, including accessible frames. Holding either shortcut must not repeat the action. Change and clear each shortcut independently, then verify reopening settings and export/import. Editors and the address bar must not trigger either action. Site access remains required.
 21. In Korean UI, verify 한국어 appears once; English (United States), English (United Kingdom), English (Australia), Português (Brasil), and Português (Portugal) show native and Korean labels with regional names. Switch to English UI and confirm English entries appear once and the selected translation target keeps its country. Verify browser-language ordering, filtering by native/localized country names and locale codes, keyboard selection, and free-text targets. Review wrapping in the popup and options page.
-22. Repeat equivalent checks in Edge and Brave and record the actual compatibility results.
+22. On a long page, set concurrency to 1, scroll to the middle, and start a fresh translation. Verify that requests contain visible blocks before offscreen blocks, including paragraphs that are only partly visible. Scroll elsewhere while a request is in flight: after it finishes, the next request should prioritize the new viewport. Repeat with window resizing, zooming, and several concurrent requests. In-flight requests must continue, every eligible block must eventually translate once, and the progress counter must increase only after results are applied. Repeat from a cold cache to distinguish request ordering from cache reuse.
+23. Repeat equivalent checks in Edge and Brave and record the actual compatibility results.
 
 ## Store preparation checks
 
-All 126 automated checks pass after the GitHub links, Alt defaults and 1–64 concurrency changes. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
+All 132 automated checks pass, including viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
 
 ## Page toolbar progress
 

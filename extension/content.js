@@ -5,7 +5,7 @@
  // Cache successful results for this document only; restoration keeps them, navigation discards them.
  const store=new YTDocument.SnapshotStore(),jobs=new Map(),cache=new Map();
  let settings=null,enabled=true,held=false,picking=false,hover=null,barVisible=false,lastError='',label='',skipped=0,href=location.href,epoch=0,starting=false;
- let labelMessage=null,errorMessage=null;
+ let labelMessage=null,errorMessage=null,viewportVersion=0;
  function setPicking(active,notify=true){
   const leaving=picking&&!active;picking=active;
   if(leaving&&notify)void send('selection.finished').catch(()=>{});
@@ -81,7 +81,32 @@
    for(const node of nodes){if(chunk.length&&(size+node.nodeValue.length>12000||chunk.length>=120))flush();chunk.push(node);size+=node.nodeValue.length;}
    flush();
   }
-  return result.sort((a,b)=>Math.abs(a.element.getBoundingClientRect().top)-Math.abs(b.element.getBoundingClientRect().top));
+  return result;
+ }
+ function prioritizePending(tickets,offset,order){
+  const view=globalThis.visualViewport,left=view?.offsetLeft||0,top=view?.offsetTop||0;
+  const right=left+(view?.width||document.documentElement.clientWidth||innerWidth);
+  const bottom=top+(view?.height||document.documentElement.clientHeight||innerHeight);
+  const priorities=new Map();
+  const ranked=tickets.slice(offset).map(ticket=>{
+   const element=store.blocks.get(ticket.id)?.element;
+   if(!priorities.has(element)){
+    const r=element?.getBoundingClientRect();
+    let visible=false,distance=Infinity;
+    if(r?.width>0&&r.height>0){
+     visible=r.right>left&&r.left<right&&r.bottom>top&&r.top<bottom;
+     distance=Math.hypot(Math.max(left-r.right,r.left-right,0),Math.max(top-r.bottom,r.top-bottom,0));
+    }
+    priorities.set(element,{visible,distance});
+   }
+   return {ticket,...priorities.get(element)};
+  });
+  // Measure each element once, then sort without more layout reads. Keep document order for ties.
+  ranked.sort((a,b)=>Number(b.visible)-Number(a.visible)||a.distance-b.distance||order.get(a.ticket)-order.get(b.ticket));
+  ranked.forEach(({ticket},index)=>{tickets[offset+index]=ticket;});
+ }
+ function viewportChanged(){
+  viewportVersion++;paintHover();
  }
  function knownFor(el){return [...store.blocks.values()].filter(b=>b.element===el||el?.contains(b.element));}
  function isTranslated(el){return knownFor(el).some(b=>b.nodes.some(n=>n.ref.isConnected&&n.applied!==n.original&&n.ref.nodeValue===n.applied));}
@@ -129,6 +154,7 @@
  }
  function restoreElement(el){
   let conflicts=0;for(const b of knownFor(el))conflicts+=store.restore(b).conflicts;
+  viewportVersion++;
   cancelEmptyJobs();if(conflicts)setError('restoreConflicts',[conflicts]);else lastError='';
   setLabel('blockRestored');barVisible=true;render();
  }
@@ -139,6 +165,7 @@
  }
  function restoreAll(){
   stopAll();const {conflicts}=store.restoreAll();if(conflicts)setError('restoreConflicts',[conflicts]);else lastError='';
+  viewportVersion++;
   setLabel('pageRestored');barVisible=true;render();
  }
  async function translatePage(failedOnly=false){
@@ -157,17 +184,20 @@
    const job={tickets,cancelled:false,page:!elements};jobs.set(id,job);starting=false;setLabel('translatingTo',[jobInfo.target]);render();
    const heartbeat=setInterval(()=>void send('job.ping').catch(()=>{}),20000);
    try{
-    let offset=0,fatal=false;
+    let offset=0,fatal=false,orderVersion=-1;
+    const order=new Map(tickets.map((ticket,index)=>[ticket,index]));
     const active=()=>!job.cancelled&&!fatal&&localEpoch===epoch;
     const worker=async()=>{
      while(offset<tickets.length&&active()){
+      // Reorder only unsent work after scrolling, resizing, or translated text changes layout.
+      if(orderVersion!==viewportVersion){prioritizePending(tickets,offset,order);orderVersion=viewportVersion;}
       const batch=[];let size=0;
       while(offset<tickets.length&&batch.length<8){
        const t=tickets[offset],length=t.nodes.reduce((n,x)=>n+x.text.length,0);
        if(batch.length&&size+length>16000)break;
        offset++;if(store.blocks.get(t.id)?.generation!==t.generation)continue;
        const b=store.blocks.get(t.id),cacheKey=JSON.stringify([jobInfo.fingerprint,t.nodes]);
-       if(cache.has(cacheKey)){store.apply(t,cache.get(cacheKey));continue;}
+       if(cache.has(cacheKey)){if(store.apply(t,cache.get(cacheKey)))viewportVersion++;continue;}
        b.state='translating';batch.push(t);size+=length;
       }
       render();if(!batch.length)continue;
@@ -176,6 +206,7 @@
        for(const t of batch){
         if(!active())break;
         if(store.apply(t,output[t.id])){
+         viewportVersion++;
          const key=JSON.stringify([jobInfo.fingerprint,t.nodes]);cache.set(key,output[t.id]);
         }
        }
@@ -234,7 +265,9 @@
  },true);
  addEventListener('blur',()=>{held=false;paintHover();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){held=false;setPicking(false);}});
- addEventListener('scroll',paintHover,{passive:true,capture:true});addEventListener('resize',paintHover,{passive:true});
+ addEventListener('scroll',viewportChanged,{passive:true,capture:true});addEventListener('resize',viewportChanged,{passive:true});
+ globalThis.visualViewport?.addEventListener('scroll',viewportChanged,{passive:true});
+ globalThis.visualViewport?.addEventListener('resize',viewportChanged,{passive:true});
  chrome.runtime.onMessage.addListener((message,sender,reply)=>{
   if(sender.id!==chrome.runtime.id)return;
   switch(message.type){

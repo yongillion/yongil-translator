@@ -2,7 +2,7 @@
   "date": "2026-10-16",
   "version": "0.1.0",
   "automatedTests": {
-    "passed": 126,
+    "passed": 132,
     "failed": 0,
     "suites": [
       {
@@ -17,7 +17,7 @@
       },
       {
         "name": "content-jobs",
-        "passed": 24,
+        "passed": 30,
         "failed": 0
       },
       {
@@ -49,8 +49,8 @@
   "package": {
     "file": "../dist/yongil-translator-0.1.0.zip",
     "files": 27,
-    "bytes": 171219,
-    "sha256": "ffbf131d99f37f3ce6e463e5d6ab3646045fcb7c45169ac18fe7cf76ac0f412c",
+    "bytes": 172939,
+    "sha256": "91943c01e55ed1a352e7d25f959aef2d8a57f0bcf7064c41157f77614e8c473b",
     "archiveContentsMatchSource": true,
     "containsStoreFixtures": false
   },
