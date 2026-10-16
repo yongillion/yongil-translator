@@ -12,6 +12,7 @@ export async function integrationTests(){
  }),session=storage({}),requests=[],tabMessages=[],createdTabs=[];
  const chrome={
   storage:{local,session},i18n:mockI18n(),
+  sidePanel:{options:[],async setOptions(options){this.options.push(options);}},
   runtime:{id,getURL:p=>url+p,onMessage:event(),onInstalled:event(),onStartup:event(),openOptionsPage:async()=>{}},
   tabs:{onUpdated:event(),onRemoved:event(),query:async()=>[{id:1,url:'https://example.test/'}],get:async id=>({id,url:'https://example.test/'}),
    create:async opts=>{createdTabs.push(opts);return{id:99};},update:async()=>{},remove:async()=>{},
@@ -192,6 +193,42 @@ export async function integrationTests(){
    assert.equal(completed,8);assert.ok((await Promise.all(tasks)).every(r=>r.ok));assert.equal(peak,3);
   }finally{translationGate=null;releases.splice(0).forEach(release=>release());}
   await send({type:'job.end',jobId:a.data.id},content);await send({type:'job.end',jobId:b.data.id},second);
+ });
+ await check('Permission grants activate existing pages without navigation or provider requests',async()=>{
+  let injections=0;const previous=chrome.scripting.executeScript,start=tabMessages.length,count=requests.length;
+  chrome.scripting.executeScript=async()=>{injections++;return [{frameId:0}];};
+  try{
+   chrome.permissions.onAdded.listeners[0]({origins:['https://example.test/*']});
+   for(let i=0;i<20&&!tabMessages.slice(start).some(row=>row.msg.type==='content.enable');i++)await new Promise(resolve=>setTimeout(resolve,0));
+   assert.ok(injections>0);assert.ok(tabMessages.slice(start).some(row=>row.msg.type==='content.enable'));
+   assert.equal(requests.length,count);assert.ok(!tabMessages.slice(start).some(row=>row.msg.type==='page.translate'));
+  }finally{chrome.scripting.executeScript=previous;}
+ });
+ await check('Developer logs are restricted to extension UI and record complete translation payloads without tokens',async()=>{
+  const logUI={id,url:url+'logs.html'};
+  assert.equal((await send({type:'settings.get'},logUI)).ok,true);
+  assert.equal((await send({type:'auth.status'},logUI)).ok,false);
+  for(const type of ['logs.get','logs.clear'])assert.equal((await send({type},content)).ok,false);
+  await send({type:'settings.update',patch:{developerMode:true,maxRetries:2}});
+  assert.equal(chrome.sidePanel.options.at(-1).enabled,true);assert.equal((await send({type:'settings.get'})).data.maxRetries,2);
+  const begin=await send({type:'job.begin'},content);
+  const translated=await send({type:'job.batch',jobId:begin.data.id,blocks:[{id:'b-log',nodes:[{id:'n',text:'Diagnostic original'}]}]},content);assert.equal(translated.ok,true);
+  const log=(await send({type:'logs.get'},logUI)).data,text=JSON.stringify(log);
+  assert.ok(text.includes('Diagnostic original'));assert.ok(text.includes('번역: Diagnostic original'));
+  assert.ok(log.entries.some(row=>row.event==='http.request'&&row.details.payload.instructions));assert.ok(!text.includes('TEST_ONLY'));
+  await send({type:'settings.update',patch:{developerMode:false}});assert.equal(chrome.sidePanel.options.at(-1).enabled,false);
+  const before=(await send({type:'logs.get'},logUI)).data.entries.length;
+  await send({type:'page.restore',tabId:1});assert.equal((await send({type:'logs.get'},logUI)).data.entries.length,before);
+  await send({type:'logs.clear'},logUI);assert.equal((await send({type:'logs.get'},logUI)).data.entries.length,0);
+ });
+ await check('Retention updates reach the active logger and trim history immediately',async()=>{
+  const logUI={id,url:url+'logs.html'};
+  await send({type:'settings.update',patch:{developerMode:true,maxLogEntries:3}});
+  for(let blocks=1;blocks<=5;blocks++)await send({type:'log.event',event:'translation.applied',blocks},content);
+  let log=(await send({type:'logs.get'},logUI)).data;assert.equal(log.maxEntries,3);assert.equal(log.entries.length,3);assert.equal(log.entries.at(-1).details.blocks,5);
+  await send({type:'settings.update',patch:{maxLogEntries:1}});log=(await send({type:'logs.get'},logUI)).data;assert.equal(log.entries.length,1);assert.equal(log.maxEntries,1);
+  assert.equal((await send({type:'settings.update',patch:{maxLogEntries:1000001}})).ok,false);
+  await send({type:'settings.update',patch:{developerMode:false,maxLogEntries:4000}});
  });
  await check('Logout removes tokens and invalidates pending jobs',async()=>{await send({type:'auth.signOut'});assert.equal(local.data.auth,undefined);const r=await send({type:'job.batch',jobId:job.id,blocks:[{id:'b',nodes:[{id:'n',text:'x'}]}]},content);assert.equal(r.error.code,'INTERRUPTED');assert.ok(!JSON.stringify((await send({type:'auth.status'})).data).includes('TEST_ONLY'));});
  await check('Malformed messages are rejected without external requests',async()=>{const before=requests.length;assert.equal((await send({type:'unknown'})).ok,false);assert.equal(requests.length,before);});

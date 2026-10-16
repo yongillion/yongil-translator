@@ -39,3 +39,9 @@ Support: https://github.com/yongillion/yongil-translator/issues
 Do not include credentials or private page content in support issues.
 
 Reference: [Chrome Web Store Test instructions](https://developer.chrome.com/docs/webstore/cws-dashboard-test-instructions).
+
+## Retry and diagnostic checks
+
+Verify maximum retries (0–10, default 4 retries after the initial attempt). Enable Developer mode under Data & appearance and use the LOG icon to open the native browser side panel. Inspect request bodies, streaming responses, errors, and retries; search or clear the retained local history. Tokens are excluded, but request/response text can contain private content. Use only the supplied fixture. Disabling developer mode stops recording and disables the panel; it does not clear history. Site-access grants should activate Alt shortcuts without a page reload once focus returns to the webpage. The floating toolbar's circular X overlaps its upper-right corner.
+
+Developer log retention defaults to 4,000 entries and can be set from 1 to 1,000,000 while Developer mode is enabled. Lowering the limit trims old history immediately. Logs share the standard local storage quota with preferences and credentials; oldest records are removed when either limit is reached. No unlimitedStorage permission is requested. The upper-right X closes the panel without clearing history or stopping recording; use LOG to reopen it.

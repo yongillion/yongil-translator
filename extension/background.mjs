@@ -3,18 +3,22 @@ import {defaults,sanitizeSettings,migrateSettings,fingerprint} from './lib/setti
 import {AppError,RequestQueue,validateBlocks} from './lib/protocol.mjs';
 import {storageReady,authStatus,startLogin,cancelLogin,signOut,observeLogin,watchLogin} from './lib/auth.mjs';
 import {models,translate} from './lib/provider.mjs';
+import {developerLog} from './lib/logger.mjs';
 
 const queue=new RequestQueue(defaults().maxConcurrentBatches),jobs=new Map();
 const contentFiles=['document-core.js','selection-ui.js','content.js'];
 const settingsReady=storageReady.then(async()=>{
  const {settings:stored}=await chrome.storage.local.get('settings');
  if(stored&&stored.blockShortcutDefaultVersion!==3)await chrome.storage.local.set({settings:migrateSettings(stored,defaults(chrome.i18n.getUILanguage()))});
+ await developerLog.configure(stored?.developerMode===true,stored?.maxLogEntries??defaults().maxLogEntries);
+ await chrome.sidePanel?.setOptions({path:'logs.html',enabled:stored?.developerMode===true});
 });
 async function settings(){await settingsReady;const {settings:s}=await chrome.storage.local.get('settings');return sanitizeSettings(s||{},defaults(chrome.i18n.getUILanguage()));}
 const languageReady=settings().then(s=>configureLanguage(s.uiLanguage));
 const isWeb=url=>/^https?:\/\//.test(url||'');
 // Extension pages can be opened in tabs; trust their exact URL and extension ID.
 const isUI=sender=>sender.id===chrome.runtime.id&&[chrome.runtime.getURL('popup.html'),chrome.runtime.getURL('options.html')].includes(sender.url?.split(/[?#]/)[0]);
+const isLogUI=sender=>sender.id===chrome.runtime.id&&sender.url?.split(/[?#]/)[0]===chrome.runtime.getURL('logs.html');
 function frameKey(sender){return sender.tab.id+':'+(sender.documentId||sender.frameId)+':';}
 async function broadcast(type,data={}){
  const tabs=await chrome.tabs.query({});
@@ -22,6 +26,8 @@ async function broadcast(type,data={}){
 }
 async function saveSettings(patch){
  const next=sanitizeSettings(patch,await settings());await configureLanguage(next.uiLanguage);await chrome.storage.local.set({settings:next});
+ await developerLog.configure(next.developerMode,next.maxLogEntries);developerLog.add('settings.updated',{keys:Object.keys(patch)});await developerLog.flush();
+ await chrome.sidePanel?.setOptions({path:'logs.html',enabled:next.developerMode});
  await broadcast('settings.changed',{settings:next,locale:localeData()});return next;
 }
 async function registerScripts(){
@@ -72,9 +78,19 @@ async function route(message,sender){
  await languageReady;
  if(!message||typeof message.type!=='string')throw new AppError('MESSAGE','requestInvalid');
  const ui=isUI(sender),content=!!sender.tab&&sender.id===chrome.runtime.id&&isWeb(sender.url);
- if(!ui&&!content)throw new AppError('SENDER','requestDenied');
+ const logUI=isLogUI(sender);
+ if(!ui&&!content&&!logUI)throw new AppError('SENDER','requestDenied');
+ if(logUI&&!['settings.get','logs.get','logs.clear'].includes(message.type))throw new AppError('SENDER','requestDenied');
+ if(!['settings.get','auth.status','page.status','job.ping','content.init','logs.get','log.event'].includes(message.type))developerLog.add('action',{type:message.type,tabId:sender.tab?.id,frameId:sender.frameId});
  switch(message.type){
   case 'settings.get':return settings();
+  case 'logs.get':if(!ui&&!logUI)throw new AppError('SENDER','extensionOnly');return developerLog.snapshot();
+  case 'logs.clear':if(!ui&&!logUI)throw new AppError('SENDER','extensionOnly');await developerLog.clear();return {};
+  case 'log.event':{
+   if(!content)throw new AppError('SENDER','notDocument');
+   if(!['cache.hit','translation.applied','restore.block','restore.page','translation.stopped'].includes(message.event))throw new AppError('MESSAGE','requestInvalid');
+   developerLog.add(message.event,{tabId:sender.tab.id,frameId:sender.frameId,blocks:Number.isInteger(message.blocks)?Math.max(0,Math.min(60000,message.blocks)):undefined});return {};
+  }
   case 'content.init':if(!content)throw new AppError('SENDER','notDocument');return {settings:await settings(),locale:localeData()};
   case 'job.begin':{
    if(!content)throw new AppError('SENDER','notDocument');
@@ -95,12 +111,7 @@ async function route(message,sender){
    job.created=Date.now();
    return queue.run(key+':'+crypto.randomUUID(),async signal=>{
     if(!jobs.has(key))throw new DOMException('Aborted','AbortError');
-    const timeout=AbortSignal.timeout(120000);
-    const controller=new AbortController(),abort=()=>controller.abort();
-    signal.addEventListener('abort',abort,{once:true});timeout.addEventListener('abort',abort,{once:true});
-    if(signal.aborted)abort();
-    try{return await translate(message.blocks,job.settings,job.connectionId,controller.signal);}
-    finally{signal.removeEventListener('abort',abort);timeout.removeEventListener('abort',abort);}
+    return translate(message.blocks,job.settings,job.connectionId,signal);
    });
   }
   case 'job.cancel':case 'job.end':{
@@ -108,7 +119,7 @@ async function route(message,sender){
    const key=frameKey(sender)+String(message.jobId);queue.cancel(key+':');jobs.delete(key);return {};
   }
   case 'selection.finished':if(content)await chrome.tabs.sendMessage(sender.tab.id,{type:'selection.cancel'}).catch(()=>{});return {};
-  case 'job.ping':return {alive:true};
+  case 'job.ping':if(content)for(const [key,job] of jobs)if(key.startsWith(frameKey(sender)))job.created=Date.now();return {alive:true};
   case 'page.translate':case 'page.restore':
    if(content&&!ui){await contentAllowed(sender);return pageAction(sender.tab.id,message.type);}
    break;
@@ -130,7 +141,10 @@ async function route(message,sender){
  }
 }
 chrome.runtime.onMessage.addListener((message,sender,reply)=>{
- route(message,sender).then(data=>reply({ok:true,data})).catch(e=>reply({ok:false,error:{code:e.name==='AbortError'?'CANCELLED':e.code||'UNEXPECTED',messageKey:e instanceof AppError?e.messageKey:undefined,substitutions:e instanceof AppError?e.substitutions:undefined,message:e instanceof AppError?e.message:e.name==='AbortError'?t('jobCancelled'):t('unexpectedError')}}));return true;
+ route(message,sender).then(data=>reply({ok:true,data})).catch(e=>{
+  if(isUI(sender)||isLogUI(sender)||sender.id===chrome.runtime.id&&isWeb(sender.url))developerLog.add('action.error',{type:message?.type,code:e.code||e.name,message:e instanceof AppError?e.message:undefined},'error');
+  reply({ok:false,error:{code:e.name==='AbortError'?'CANCELLED':e.code||'UNEXPECTED',messageKey:e instanceof AppError?e.messageKey:undefined,substitutions:e instanceof AppError?e.substitutions:undefined,message:e instanceof AppError?e.message:e.name==='AbortError'?t('jobCancelled'):t('unexpectedError')}});
+ });return true;
 });
 chrome.tabs.onUpdated.addListener((id,change,tab)=>{if(change.url||tab.pendingUrl)void observeLogin(id,tab.pendingUrl||change.url).catch(()=>{});});
 chrome.tabs.onRemoved.addListener(id=>{
@@ -143,7 +157,18 @@ chrome.webNavigation.onCommitted.addListener(details=>{
 });
 chrome.webNavigation.onBeforeNavigate.addListener(details=>{void observeLogin(details.tabId,details.url).catch(()=>{});},{url:[{hostEquals:'localhost',ports:[1455],pathEquals:'/auth/callback'}]});
 chrome.alarms.onAlarm.addListener(alarm=>{if(alarm.name==='login-watch')void watchLogin();});
-chrome.permissions.onAdded.addListener(()=>void registerScripts());
+chrome.permissions.onAdded.addListener(permissions=>void (async()=>{
+ await registerScripts();
+ // Permission can also be granted from Chrome's site-access menu while a page is already open.
+ const origins=permissions.origins||[];
+ const tabs=await chrome.tabs.query({});
+ const newlyAllowed=url=>isWeb(url)&&origins.some(pattern=>{
+  const target=new URL(url);if(pattern==='<all_urls>')return true;
+  const match=/^(https?|\*):\/\/([^/]+)\/\*$/.exec(pattern);if(!match)return false;
+  return (match[1]==='*'||target.protocol===match[1]+':')&&(match[2]==='*'||target.host===match[2]||match[2].startsWith('*.')&&(target.hostname===match[2].slice(2)||target.hostname.endsWith(match[2].slice(1))));
+ });
+ await Promise.allSettled(tabs.filter(tab=>newlyAllowed(tab.url)).map(tab=>pageAction(tab.id,'page.activate')));
+})().catch(()=>{}));
 chrome.permissions.onRemoved.addListener(()=>{queue.cancel('');jobs.clear();void registerScripts();void broadcast('permissions.changed');});
 chrome.runtime.onInstalled.addListener(()=>{void storageReady.then(()=>registerScripts());});
 chrome.runtime.onStartup.addListener(()=>{void storageReady.then(()=>registerScripts());});

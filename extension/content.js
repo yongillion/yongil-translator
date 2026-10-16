@@ -17,6 +17,7 @@
  const shadow=own.attachShadow({mode:'closed'});
  const style=document.createElement('style');style.textContent=":host{all:initial;font-family:system-ui,-apple-system,\"Segoe UI\",sans-serif;color-scheme:light dark;--bg:#fff;--fg:#202238;--muted:#676b80;--line:#e5e7f0;--accent:#4f46e5}\n@media(prefers-color-scheme:dark){:host{--bg:#202130;--fg:#f0f0fa;--muted:#b3b6cc;--line:#42445b;--accent:#aaa5ff}}\n:host([data-theme=\"dark\"]){--bg:#202130;--fg:#f0f0fa;--muted:#b3b6cc;--line:#42445b;--accent:#aaa5ff}\n:host([data-theme=\"light\"]){--bg:#fff;--fg:#202238;--muted:#676b80;--line:#e5e7f0;--accent:#4f46e5}\n*{box-sizing:border-box}[hidden]{display:none!important}\n.bar{position:fixed;z-index:2147483647;bottom:20px;right:20px;max-width:calc(100vw - 40px);display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:16px 12px 12px;overflow:hidden;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:18px;box-shadow:0 8px 36px #11112a25;font-size:13px;line-height:1.4}\n.brand{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:linear-gradient(140deg,#4f46e5,#14b8a6);color:white;font-weight:800}\n.info{min-width:170px;max-width:360px;display:grid;gap:3px;margin-right:8px}.detail{font-size:12px;color:var(--muted)}\nbutton{font:inherit;cursor:pointer;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:32px}\nbutton:hover{border-color:var(--accent)}button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}button:disabled{opacity:.45;cursor:default}.close{border:0;color:var(--muted)}\n.outline{position:fixed;z-index:2147483645;pointer-events:none;border:2px solid #6366f1;background:#6366f112;border-radius:7px;box-shadow:0 0 0 3px #fff9}\n.hint{position:fixed;z-index:2147483646;font-size:12px;line-height:1.4;padding:6px 9px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;box-shadow:0 4px 20px #1112}\n.hint{pointer-events:none}";shadow.append(style);
  style.textContent+=".translation-progress{position:absolute;top:0;left:0;right:0;height:4px;background:var(--line);overflow:hidden;pointer-events:none}.translation-progress-fill{display:block;width:100%;height:100%;background:linear-gradient(90deg,var(--accent),#14b8a6);transform:scaleX(0);transform-origin:left center;transition:transform .18s ease}.translation-progress[data-indeterminate=\"true\"] .translation-progress-fill{width:35%;animation:translation-loading 1.2s ease-in-out infinite}.info-heading{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap}.block-count{font-size:12px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--accent)}button.primary{background:#4f46e5;border-color:#4f46e5;color:#fff}button.primary:hover{background:#4338ca}@keyframes translation-loading{from{transform:translateX(-110%)}to{transform:translateX(390%)}}@media(prefers-reduced-motion:reduce){.translation-progress-fill{transition:none}.translation-progress[data-indeterminate=\"true\"] .translation-progress-fill{animation:none;transform:translateX(90%)!important}}";
+ style.textContent+=".bar{overflow:visible}.translation-progress{border-radius:18px 18px 0 0}.bar>.close{position:absolute;top:-13px;right:-13px;width:28px;height:28px;min-height:28px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--bg);color:var(--muted);font:22px/1 system-ui,sans-serif;box-shadow:0 3px 10px #11112a25}.bar>.close:hover{color:var(--fg);border-color:var(--accent);background:var(--bg)}";
  const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text)el.textContent=text;return el;};
  const bar=make('section','bar');bar.setAttribute('aria-label','Yongil Translator');
  const progress=make('div','translation-progress'),progressFill=make('span','translation-progress-fill');
@@ -31,7 +32,7 @@
  const stopButton=button(bar,t('stop'),()=>stopAll());
  const retryButton=button(bar,t('retry'),()=>translatePage(true));
  const restoreButton=button(bar,t('restoreOriginal'),()=>restoreAll());
- const closeButton=button(bar,t('close'),()=>{barVisible=false;setPicking(false);},'close');
+ const closeButton=button(bar,'×',()=>{barVisible=false;setPicking(false);},'close');
  const outline=make('div','outline'),hint=make('span','hint');
  shadow.append(bar,outline,hint);
  function mount(){if(!own.isConnected&&document.documentElement)document.documentElement.append(own);}
@@ -40,6 +41,7 @@
   if(!r?.ok){const e=new Error(r?.error?.message||t('connectionLost'));e.code=r?.error?.code;e.messageKey=r?.error?.messageKey;e.substitutions=r?.error?.substitutions;throw e;}
   return r.data;
  };
+ function debug(event,blocks){if(settings?.developerMode)void send('log.event',{event,blocks}).catch(()=>{});}
  const selectionUI=YTSelection({shadow,own,send,isEnabled:()=>enabled&&!held&&!picking});
  function isOwn(event){return event.composedPath().includes(own);}
  function blocked(el){
@@ -122,7 +124,8 @@
   if(labelMessage)label=t(labelMessage.key,labelMessage.values);
   if(lastError&&errorMessage)lastError=t(errorMessage.key,errorMessage.values);
   own.lang=t('uiLocale');selectionUI.render();
-  for(const [button,key] of [[translateButton,'translatePage'],[pickButton,picking?'exitBlockSelection':'selectBlock'],[stopButton,'stop'],[retryButton,'retry'],[restoreButton,'restoreOriginal'],[closeButton,'close']])button.textContent=t(key);
+  for(const [button,key] of [[translateButton,'translatePage'],[pickButton,picking?'exitBlockSelection':'selectBlock'],[stopButton,'stop'],[retryButton,'retry'],[restoreButton,'restoreOriginal']])button.textContent=t(key);
+  closeButton.setAttribute('aria-label',t('close'));closeButton.title=t('close');
   mount();const s=status();bar.hidden=!barVisible;own.dataset.theme=settings?.theme||'system';
   const countLabel=t('pageProgress',[s.completed,s.total]);
   blockCount.hidden=!s.total;blockCount.textContent=countLabel;
@@ -155,10 +158,12 @@
  function restoreElement(el){
   let conflicts=0;for(const b of knownFor(el))conflicts+=store.restore(b).conflicts;
   viewportVersion++;
+  debug('restore.block',knownFor(el).length);
   cancelEmptyJobs();if(conflicts)setError('restoreConflicts',[conflicts]);else lastError='';
   setLabel('blockRestored');barVisible=true;render();
  }
  function stopAll(){
+  debug('translation.stopped');
   selectionUI.stop();epoch++;starting=false;
   for(const [id,job] of jobs){job.cancelled=true;for(const t of job.tickets){const b=store.blocks.get(t.id);if(b&&b.generation===t.generation)store.cancel(b);}void send('job.cancel',{jobId:id}).catch(()=>{});}
   jobs.clear();setLabel('translationStopped');render();
@@ -166,6 +171,7 @@
  function restoreAll(){
   stopAll();const {conflicts}=store.restoreAll();if(conflicts)setError('restoreConflicts',[conflicts]);else lastError='';
   viewportVersion++;
+  debug('restore.page',store.blocks.size);
   setLabel('pageRestored');barVisible=true;render();
  }
  async function translatePage(failedOnly=false){
@@ -197,7 +203,7 @@
        if(batch.length&&size+length>16000)break;
        offset++;if(store.blocks.get(t.id)?.generation!==t.generation)continue;
        const b=store.blocks.get(t.id),cacheKey=JSON.stringify([jobInfo.fingerprint,t.nodes]);
-       if(cache.has(cacheKey)){if(store.apply(t,cache.get(cacheKey)))viewportVersion++;continue;}
+       if(cache.has(cacheKey)){if(store.apply(t,cache.get(cacheKey))){viewportVersion++;debug('cache.hit',1);}continue;}
        b.state='translating';batch.push(t);size+=length;
       }
       render();if(!batch.length)continue;
@@ -207,6 +213,7 @@
         if(!active())break;
         if(store.apply(t,output[t.id])){
          viewportVersion++;
+         debug('translation.applied',1);
          const key=JSON.stringify([jobInfo.fingerprint,t.nodes]);cache.set(key,output[t.id]);
         }
        }

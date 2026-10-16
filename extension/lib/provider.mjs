@@ -1,18 +1,22 @@
 import {t} from './i18n.mjs';
 import {getAuth} from './auth.mjs';
 import {AppError,readResponseStream,parseTranslation,validateBlocks} from './protocol.mjs';
+import {developerLog} from './logger.mjs';
 const BASE='https://chatgpt.com/backend-api/codex';
 function headers(auth){return {'Authorization':'Bearer '+auth.accessToken,'ChatGPT-Account-Id':auth.accountId,'originator':'codex_cli_rs','Content-Type':'application/json','Accept':'text/event-stream'};}
-async function request(path,options={},signal){
+async function request(path,options={},signal,trace={}){
  let auth=await getAuth();let r;
  for(let attempt=0;attempt<2;attempt++){
+  developerLog.add('http.request',{...trace,path,method:options.method||'GET',authRetry:attempt,payload:options.body?JSON.parse(options.body):undefined});
   try{r=await fetch(BASE+path,{...options,headers:{...headers(auth),...options.headers},credentials:'omit',signal});}
-  catch(e){if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw new AppError('NETWORK','translationNetwork');}
+  catch(e){developerLog.add('http.error',{...trace,path,reason:signal?.aborted?'aborted':'network'},'error');if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw new AppError('NETWORK','translationNetwork');}
+  developerLog.add('http.response',{...trace,path,status:r.status,...(!r.ok?{body:await r.text?.().catch(()=>undefined)}:{})},r.ok?'info':'warn');
   if(r.status!==401||attempt===1)break;
   auth=await getAuth(true);
  }
  if(!r.ok){
   if(r.status===429)throw new AppError('USAGE_LIMIT','usageLimit');
+  if(r.status===408)throw new AppError('TIMEOUT','translationTimeout');
   if(r.status===401)throw new AppError('AUTH_REQUIRED','authReconnect');
   if(r.status===403)throw new AppError('ACCESS','modelAccess');
   if(r.status===400||r.status===404)throw new AppError('MODEL','modelRequest');
@@ -26,6 +30,7 @@ export async function models(force=false){
  try{
   const r=await request('/models?client_version=1.0.0',{headers:{Accept:'application/json'}},AbortSignal.timeout(25000));
   const data=await r.json();const rows=Array.isArray(data)?data:data.models||data.data;
+  developerLog.add('models.response',{data});await developerLog.flush();
   if(!Array.isArray(rows))throw new AppError('MODELS','modelListFormat');
   const items=rows.filter(x=>x&&x.visibility!=='hidden'&&x.show_in_picker!==false).map(x=>({id:String(x.slug||x.id||''),name:String(x.display_name||x.name||x.slug||x.id||'')})).filter(x=>x.id&&x.id.length<=160);
   if(!items.length)throw new AppError('MODELS','modelListEmpty');
@@ -46,12 +51,44 @@ export async function translate(blocks,settings,connectionId,signal){
  'Target language: '+settings.targetLanguage,
  settings.instructionsEnabled?'Optional tone/style guidance: '+settings.instructions:''
  ].filter(Boolean).join('\n');
- let response;
- for(let attempt=0;attempt<3;attempt++){
-  try{response=await request('/responses',{method:'POST',body:JSON.stringify({model:settings.modelId,instructions,input:[{role:'user',content:[{type:'input_text',text:JSON.stringify({blocks})}]}],store:false,stream:true})},signal);break;}
-  catch(e){if(!['NETWORK','SERVER'].includes(e.code)||attempt===2)throw e;
-   await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{signal.removeEventListener('abort',abort);resolve();},(2**attempt)*700+Math.random()*300);const abort=()=>{clearTimeout(timer);reject(new DOMException('Aborted','AbortError'));};signal.addEventListener('abort',abort,{once:true});if(signal.aborted)abort();});
-  }
+ const maxRetries=settings.maxRetries??4,requestId=crypto.randomUUID();let previousError;
+ for(let attempt=0;attempt<=maxRetries;attempt++){
+  if(signal?.aborted)throw new DOMException('Aborted','AbortError');
+  const current=await getAuth();if(current.connectionId!==connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');
+  const trace={requestId,model:settings.modelId,attempt:attempt+1,maxAttempts:maxRetries+1};
+  const controller=new AbortController(),abort=()=>controller.abort();let timedOut=false;
+  signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
+  const timer=setTimeout(()=>{timedOut=true;controller.abort();},120000);
+  const events=[];let responseLog=null,text;
+  try{
+   const payload={model:settings.modelId,instructions:instructions+(previousError?.code==='RESULT'?'\nYour previous response did not pass JSON validation. Return one complete JSON object in the exact required schema, with no commentary.':''),input:[{role:'user',content:[{type:'input_text',text:JSON.stringify({blocks})}]}],store:false,stream:true};
+   const response=await request('/responses',{method:'POST',body:JSON.stringify(payload)},controller.signal,trace);
+   responseLog=developerLog.add('translation.response',{...trace,state:'streaming',events});
+   try{text=await readResponseStream(response.body,controller.signal,event=>{
+    if(!developerLog.enabled)return;
+    events.push(event);developerLog.update(responseLog,{...trace,state:'streaming',events});
+   });}catch(e){if(e instanceof AppError||e.name==='AbortError')throw e;throw new AppError('NETWORK','translationNetwork');}
+   developerLog.update(responseLog,{...trace,state:'received',text,events});
+   if(signal?.aborted)throw new DOMException('Aborted','AbortError');
+   const result=parseTranslation(text,blocks);
+   developerLog.add('translation.validated',{...trace,blocks:blocks.length});await developerLog.flush();return result;
+  }catch(cause){
+   const error=signal?.aborted?new DOMException('Aborted','AbortError'):timedOut?new AppError('TIMEOUT','translationTimeout'):cause;
+   previousError=error;
+   developerLog.update(responseLog,{...trace,state:error.name==='AbortError'?'cancelled':'failed',text,events,error:{code:error.code||error.name,message:error.message}});
+   developerLog.add('translation.error',{...trace,code:error.code||error.name,message:error.message},error.name==='AbortError'?'info':'error');
+   const retryable=['RESULT','NETWORK','SERVER','STREAM','TIMEOUT'].includes(error.code);
+   if(!retryable||attempt===maxRetries){await developerLog.flush();throw error;}
+  }finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
+  const delay=Math.min(10000,700*2**attempt)+Math.random()*300;
+  developerLog.add('translation.retry',{...trace,retry:attempt+1,maxRetries,delayMs:Math.round(delay),reason:previousError.code},'warn');
+  await developerLog.flush();await retryDelay(delay,signal);
  }
- return parseTranslation(await readResponseStream(response.body,signal),blocks);
+}
+function retryDelay(delay,signal){
+ return new Promise((resolve,reject)=>{
+  const abort=()=>{clearTimeout(timer);signal?.removeEventListener('abort',abort);reject(new DOMException('Aborted','AbortError'));};
+  const timer=setTimeout(()=>{signal?.removeEventListener('abort',abort);resolve();},delay);
+  signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
+ });
 }

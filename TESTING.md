@@ -4,14 +4,16 @@ Review date: 2026-10-16
 
 ## Completed checks
 
-- Unit and regression tests: **39 passed**
-- Mock service-worker integration tests: **22 passed**
-- Page-job and block-interaction regression tests: **30 passed**
-- UI state tests with mock DOM and browser APIs: **23 passed**
+- Unit and regression tests: **41 passed**
+- Mock service-worker integration tests: **25 passed**
+- Page-job and block-interaction regression tests: **31 passed**
+- UI state tests with mock DOM and browser APIs: **27 passed**
 - Localization catalog and preference tests: **8 passed**
 - Selected-text popup regression tests: **6 passed**
 - Page-toolbar progress and action tests: **4 passed**
-- Extension JavaScript syntax checks: **13 files passed**
+- Retry and diagnostic-storage tests: **17 passed**
+- Log side-panel UI tests: **4 passed**
+- Extension JavaScript syntax checks: **15 files passed**
 - Brand PNG icon visual inspection: 128px output reviewed
 - ZIP packaging: verified the installation file list and included manifest and icons
 
@@ -21,6 +23,10 @@ Key coverage:
 
 - Standard PKCE test vector, exact callback address and state, signature, issuer, audience, expiration, and nonce
 - Rejection of malformed translation structures, missing or duplicate IDs, and incomplete or failed streams
+- Configurable retries (0–10, default 4 additional attempts), original-input reuse, corrective JSON instructions, stream/network/server recovery, per-attempt timeout, cancellation during backoff, and account changes between attempts
+- Opt-in local diagnostic history, live stream events, credential-field redaction, trusted UI boundaries, restart persistence, configurable 1–1,000,000 entry retention (default 4,000), shared native storage quota accounting, concurrent quota changes, full-storage eviction, immediate limit reductions, clearing during active requests, and storage-error recovery
+- Native side-panel opening from LOG, search and severity filters, stable chronological ordering, inert payload rendering, follow-scroll behavior, a close button that preserves recording/history, and English/Korean labels
+- Immediate activation before model discovery, permission grants outside the popup, and Alt shortcuts after content enable without navigation
 - Page and block restoration, restoration of selected blocks within a batch, and rejection of late results after restoration
 - Document-local cache reuse after block/page restoration, retention across 240 blocks, mixed cached/edited batches, separate settings/account results, fresh-document cache misses, explicit cache clearing, and exclusion of late/cancelled results
 - Independent Alt+T translation and Alt+R restoration, editable and disabled shortcuts, legacy settings/import defaults, suppression of repeat events, editor/composition exclusions, and separate settings rows
@@ -98,12 +104,18 @@ The raw execution results are stored in [test-results.json](test-results.json).
 20. In Settings → Shortcuts, verify separate translation and restoration rows with the same recording/Clear controls as block selection and cancellation. Alt+T must translate on both an original page and a partially translated page without restoring completed blocks. Alt+R must stop pending work and restore all translated blocks, including accessible frames. Holding either shortcut must not repeat the action. Change and clear each shortcut independently, then verify reopening settings and export/import. Editors and the address bar must not trigger either action. Site access remains required.
 21. In Korean UI, verify 한국어 appears once; English (United States), English (United Kingdom), English (Australia), Português (Brasil), and Português (Portugal) show native and Korean labels with regional names. Switch to English UI and confirm English entries appear once and the selected translation target keeps its country. Verify browser-language ordering, filtering by native/localized country names and locale codes, keyboard selection, and free-text targets. Review wrapping in the popup and options page.
 22. On a long page, set concurrency to 1, scroll to the middle, and start a fresh translation. Verify that requests contain visible blocks before offscreen blocks, including paragraphs that are only partly visible. Scroll elsewhere while a request is in flight: after it finishes, the next request should prioritize the new viewport. Repeat with window resizing, zooming, and several concurrent requests. In-flight requests must continue, every eligible block must eventually translate once, and the progress counter must increase only after results are applied. Repeat from a cold cache to distinguish request ordering from cache reuse.
-23. Repeat equivalent checks in Edge and Brave and record the actual compatibility results.
+23. Set maximum retries to 0 and 4. With public test text, verify malformed or incomplete responses retry up to the configured limit, preserve original input, and advance progress only after valid output is applied. Stop or restore during retry backoff; no subsequent request should be sent. Authentication, access, and usage-limit failures must stop immediately.
+24. Enable Developer mode in Data & appearance. Open LOG from the popup and verify the native side panel alongside the webpage (placement follows the browser setting). Expand requests and responses, inspect streaming updates, search/filter, disable Follow latest, and clear history during an active request. Close the panel with its upper-right X while recording and reopen it using LOG; retained and newer entries must still be present. Verify Maximum log entries appears only in developer mode, defaults to 4,000, accepts 1 and 1,000,000, and rejects out-of-range values. Lowering the count must trim older logs immediately. Fill the standard local quota with sample logs to verify oldest-first eviction without damaging settings or credentials. Reopen the browser to check retained history. Turn developer mode off to stop recording; re-enable and clear logs afterward. Use only nonpersonal sample text and English UI for screenshots.
+25. Revoke and grant site access without reloading. Verify Alt-click and Alt+T after returning focus to the webpage, even while model discovery is slow or fails. Repeat with Chrome's site-access menu. No automatic navigation or translation should occur on permission grant.
+26. Verify that the floating toolbar's circular X overlaps its upper-right corner, remains visible in light/dark themes and narrow viewports, has a localized accessible name, and dismisses the toolbar without stopping an ongoing translation.
+27. Repeat equivalent checks in Edge and Brave and record the actual compatibility results.
 
 ## Store preparation checks
 
-All 132 automated checks pass, including viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
+All 163 automated checks pass, including retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
 
 ## Page toolbar progress
 
 The real toolbar rendering and job functions are exercised with mock DOM/browser APIs. Checks cover 16/120 completed blocks with queued batches, cached results, unchanged successful output, failed requests, edited/detached text, restoration, accessible progress values, indeterminate preparation, English/Korean labels, and page translation dispatch. Actual Chrome visual review remains pending. In a browser, verify the four-pixel top-edge bar at narrow widths and in light/dark themes, and confirm that the counter remains visible with an error message.
+
+The latest computer-use inventory still has no connected browser. Native side-panel behavior and the updated circular toolbar close button remain pending actual Chrome visual verification.

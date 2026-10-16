@@ -679,5 +679,104 @@
   },
   "translationProgress": {
     "message": "번역 진행률"
+  },
+  "retriesLabel": {
+    "message": "최대 재시도 횟수"
+  },
+  "retriesNote": {
+    "message": "요청당 0~10회, 기본 4회(최초 요청 포함 최대 5회). 형식·스트림·통신·시간 초과·서버 오류를 재시도합니다. 새 번역부터 적용됩니다."
+  },
+  "retriesInvalid": {
+    "message": "재시도 횟수는 0~10 사이의 정수여야 합니다."
+  },
+  "retriesSaved": {
+    "message": "최대 재시도 횟수를 저장했습니다."
+  },
+  "translationTimeout": {
+    "message": "번역 요청 시간이 초과되었습니다. 다시 시도해 주세요."
+  },
+  "developerMode": {
+    "message": "개발자 모드"
+  },
+  "developerModeInvalid": {
+    "message": "개발자 모드는 켜기 또는 끄기로 설정해야 합니다."
+  },
+  "developerModeSaved": {
+    "message": "개발자 모드 설정을 저장했습니다."
+  },
+  "developerModeNote": {
+    "message": "번역 입력·지침·응답·오류를 로컬에 기록합니다. 페이지의 개인정보가 포함될 수 있습니다. 인증 토큰은 제외합니다. 설정한 최대 개수와 기본 로컬 저장소의 남은 공간 내에서 보관하며, 오래된 항목부터 삭제합니다. 끄면 기록을 중단하고, 로그 삭제로 기존 기록을 지울 수 있습니다."
+  },
+  "openLogs": {
+    "message": "개발자 로그 열기"
+  },
+  "sidePanelUnavailable": {
+    "message": "이 브라우저에서는 로그 사이드패널을 열 수 없습니다."
+  },
+  "logsHeading": {
+    "message": "개발자 로그"
+  },
+  "searchLogs": {
+    "message": "로그 검색"
+  },
+  "logLevel": {
+    "message": "로그 수준"
+  },
+  "allLogs": {
+    "message": "모든 수준"
+  },
+  "logInfo": {
+    "message": "정보"
+  },
+  "logWarn": {
+    "message": "경고"
+  },
+  "logError": {
+    "message": "오류"
+  },
+  "followLogs": {
+    "message": "최신 로그 따라가기"
+  },
+  "clearLogs": {
+    "message": "로그 삭제"
+  },
+  "logsPrivacy": {
+    "message": "원문과 지침이 포함됩니다. 이 브라우저에만 저장되며 인증 토큰은 제외합니다."
+  },
+  "logEntries": {
+    "message": "로그 항목"
+  },
+  "noLogs": {
+    "message": "일치하는 로그가 없습니다."
+  },
+  "logsRecording": {
+    "message": "실시간 기록 중 · 최신 항목이 아래에 표시됩니다"
+  },
+  "logsStopped": {
+    "message": "기록 중지됨 · 저장된 과거 로그"
+  },
+  "logCount": {
+    "message": "$1개 표시 / 전체 $2개 · 오래되거나 큰 항목 $3개 삭제됨"
+  },
+  "logAttempt": {
+    "message": "시도 $1/$2"
+  },
+  "logStorageError": {
+    "message": "메모리의 로그는 표시되지만 로컬 저장에 실패했습니다."
+  },
+  "closeLogs": {
+    "message": "로그 패널 닫기"
+  },
+  "maxLogEntriesLabel": {
+    "message": "최대 로그 개수"
+  },
+  "maxLogEntriesNote": {
+    "message": "1~1,000,000개, 기본 4,000개. 개수 한도 또는 설정·인증 정보와 공유하는 기본 저장소의 남은 용량에 도달하면 오래된 로그부터 삭제합니다. 개수 한도를 줄이면 즉시 적용됩니다."
+  },
+  "maxLogEntriesInvalid": {
+    "message": "최대 로그 개수는 1~1,000,000 사이의 정수여야 합니다."
+  },
+  "maxLogEntriesSaved": {
+    "message": "최대 로그 개수를 저장했습니다."
   }
 }

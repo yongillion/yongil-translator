@@ -2,7 +2,7 @@ import {ReadableStream} from 'node:stream/web';
 import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
 import vm from 'node:vm';
-import {defaults,sanitizeSettings,migrateSettings,shortcut,languageLabel} from '../extension/lib/settings.mjs';
+import {defaults,sanitizeSettings,migrateSettings,shortcut,languageLabel,fingerprint} from '../extension/lib/settings.mjs';
 import {validateBlocks,parseTranslation,readResponseStream,RequestQueue} from '../extension/lib/protocol.mjs';
 import {callbackCode,pkceChallenge,REDIRECT,CLIENT_ID,verifyIdentity,base64url} from '../extension/lib/oauth.mjs';
 const tests=[];
@@ -21,6 +21,24 @@ test('Concurrency defaults, migration, imports, and bounds are validated',()=>{
  assert.equal(defaults().maxConcurrentBatches,16);assert.equal(sanitizeSettings({modelId:'existing'}).maxConcurrentBatches,16);
  for(const n of [1,8,16,64])assert.equal(sanitizeSettings({maxConcurrentBatches:n}).maxConcurrentBatches,n);
  for(const n of [0,65,1.5,'16',null,NaN,Infinity])assert.throws(()=>sanitizeSettings({maxConcurrentBatches:n}));
+});
+test('Retry and developer settings default, validate, round-trip, and preserve translation cache identity',()=>{
+ assert.equal(defaults().maxRetries,4);assert.equal(defaults().developerMode,false);
+ assert.equal(sanitizeSettings({modelId:'existing'}).maxRetries,4);
+ for(const maxRetries of [0,4,10])assert.equal(sanitizeSettings({maxRetries}).maxRetries,maxRetries);
+ for(const maxRetries of [-1,11,1.5,'4',null,NaN])assert.throws(()=>sanitizeSettings({maxRetries}));
+ for(const developerMode of [true,false])assert.equal(sanitizeSettings({developerMode}).developerMode,developerMode);
+ assert.throws(()=>sanitizeSettings({developerMode:'true'}));
+ const saved=sanitizeSettings({maxRetries:7,developerMode:true});assert.deepEqual(sanitizeSettings(JSON.parse(JSON.stringify(saved))),saved);
+ assert.equal(fingerprint(saved),fingerprint(defaults()));
+});
+test('Log retention settings default, validate, import and stay outside translation fingerprints',()=>{
+ assert.equal(defaults().maxLogEntries,4000);assert.equal(migrateSettings({theme:'dark'}).maxLogEntries,4000);
+ for(const maxLogEntries of [1,4000,1000000]){
+  const saved=sanitizeSettings({maxLogEntries});assert.equal(saved.maxLogEntries,maxLogEntries);
+  assert.deepEqual(sanitizeSettings(JSON.parse(JSON.stringify(saved))),saved);assert.equal(fingerprint(saved),fingerprint(defaults()));
+ }
+ for(const maxLogEntries of [0,-1,1000001,1.5,'4000',null,NaN])assert.throws(()=>sanitizeSettings({maxLogEntries}));
 });
 test('Block selection defaults to Alt on new settings and reset',()=>{
  assert.deepEqual(defaults().blockShortcut,{alt:true,shift:false,ctrl:false,meta:false,code:''});

@@ -10,7 +10,7 @@ Translate user-selected webpage text, blocks, or pages into the user's preferred
 
 ### storage
 
-Stores user preferences, the connected account's OAuth session, and its model list locally. Temporary sign-in state uses session storage. Credential storage is restricted to trusted extension contexts. Settings exports exclude credentials. Translation text is not persisted in extension storage.
+Stores user preferences, the connected account's OAuth session, and its model list locally. Temporary sign-in state uses session storage. Developer mode, off by default, additionally retains translation request/response text and diagnostic events locally (default 4,000 entries, configurable from 1 to 1,000,000, within the remaining default local storage quota shared with preferences and credentials). 64 KiB is reserved for settings and token updates; no unlimitedStorage permission is requested. Credential and diagnostic storage is restricted to trusted extension contexts. Settings exports exclude credentials and logs. Clear logs deletes diagnostic history; disabling recording or clearing the document translation cache does not delete it.
 
 ### scripting
 
@@ -27,6 +27,10 @@ Checks the pending OAuth sign-in for timeout or a missed callback while the Mani
 ### webNavigation
 
 Finds accessible page frames, cancels stale work when documents navigate, and detects the configured callback in the extension-created sign-in tab. Navigation events are used for these features, not retained as a browsing-history database.
+
+### sidePanel
+
+Displays opt-in developer diagnostics beside the webpage. The LOG button opens the browser's native side panel to inspect retained and streaming translation inputs, outputs, errors, and retries. This UI remains disabled when developer mode is off. The permission does not add website host access.
 
 ### https://auth.openai.com/*
 
@@ -54,7 +58,7 @@ Do not declare that no user data is handled. Google requires disclosure even for
 |---|---|
 | Personally identifiable information | Account email and account identifiers are obtained through authentication and retained locally. Selected webpage text may also include identifying information. |
 | Authentication information | OAuth authorization codes and access/refresh/identity tokens are processed. Passwords and browser cookies are not read by the extension. |
-| Website content | Text deliberately chosen for page, block, or selection translation is sent to OpenAI. Originals and results are temporarily held in document memory. |
+| Website content | Text deliberately chosen for page, block, or selection translation is sent to OpenAI, including configured retries. Originals and results are held in document memory. Opt-in developer diagnostics separately retain copies of request and response text in local extension storage until cleared or evicted. |
 | Web history / browsing activity | Current tab/frame URLs and navigation events are inspected locally for access, document lifetime, and sign-in. No stored browser-history API or browsing log is used. |
 | User activity | Pointer, click, selection, and shortcut events are handled locally to operate translation. No interaction telemetry is sent to a developer server. |
 | Personal communications | Visible messages or correspondence can be processed if the user chooses to translate a page or selection containing them. There is no separate mailbox collection. |
@@ -82,3 +86,4 @@ An equivalent static page is prepared at docs/privacy.html. If GitHub Pages is c
 - [User Data FAQ, including local processing](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq)
 - [Limited Use](https://developer.chrome.com/docs/webstore/program-policies/limited-use)
 - [Minimum permissions](https://developer.chrome.com/docs/webstore/program-policies/permissions)
+- [Standard local storage quota](https://developer.chrome.com/docs/extensions/reference/api/storage#property-local)

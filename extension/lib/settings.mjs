@@ -3,7 +3,7 @@ import {languageLabel} from './languages.mjs';
 export {LANGUAGES,languageLabel} from './languages.mjs';
 export function defaults(locale='en') {
  return {schemaVersion:1,targetLanguage:languageLabel(locale),modelId:'',
- instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,uiLanguage:'auto',
+ instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,maxRetries:4,developerMode:false,maxLogEntries:4000,uiLanguage:'auto',
  pageShortcut:{alt:true,shift:false,ctrl:false,meta:false,code:'KeyT'},
  restoreShortcut:{alt:true,shift:false,ctrl:false,meta:false,code:'KeyR'},
  blockShortcutDefaultVersion:3,blockShortcut:{alt:true,shift:false,ctrl:false,meta:false,code:''},
@@ -36,6 +36,13 @@ export function sanitizeSettings(input,base=defaults()) {
    case 'maxConcurrentBatches':
      if(!Number.isInteger(value)||value<1||value>64)throw new Error(t('concurrencyInvalid'));
      result[key]=value;break;
+   case 'maxRetries':
+     if(!Number.isInteger(value)||value<0||value>10)throw new Error(t('retriesInvalid'));
+     result[key]=value;break;
+   case 'maxLogEntries':
+     if(!Number.isInteger(value)||value<1||value>1000000)throw new Error(t('maxLogEntriesInvalid'));
+     result[key]=value;break;
+   case 'developerMode':if(typeof value!=='boolean')throw new Error(t('developerModeInvalid'));result[key]=value;break;
     case 'instructionsEnabled':if(typeof value!=='boolean')throw new Error(t('instructionsInvalid'));result[key]=value;break;
    case 'blockShortcutDefaultVersion':if(![1,2,3].includes(value))throw new Error(t('settingsVersion'));result[key]=value;break;
    case 'pageShortcut':case 'restoreShortcut':

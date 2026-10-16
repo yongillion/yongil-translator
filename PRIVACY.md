@@ -12,17 +12,24 @@ OAuth sign-in uses OpenAI's sign-in page. The extension does not read or store y
 
 Tokens needed to maintain the session are stored in the browser's extension local storage. Access from content scripts is restricted, but this storage is not an encrypted credential vault equivalent to an OS credential store. Signing out deletes local credentials and the model cache. Authorization on the provider's servers can be managed separately in the provider's account settings.
 
-User settings, including the UI language preference, are kept in the browser's local storage. Selecting text alone does not send it to OpenAI; selected-text translation starts only after clicking its translation button. The result popup and its selected text remain in the current document's memory. Original text, translations, and node references used for restoration are kept only in the document's memory. Restored blocks reuse matching successful translations from this memory cache without sending the text again. The cache is scoped to the current document and is never persisted to disk. Refreshing the page, changing its URL, or closing it discards these cached translations. Clearing the temporary translation cache preserves the original-text snapshots needed to restore the current document.
+User settings, including the UI language preference, are kept in the browser's local storage. Selecting text alone does not send it to OpenAI; selected-text translation starts only after clicking its translation button. The result popup and its selected text remain in the current document's memory. The translation cache and original-text snapshots used for restoration are kept only in the document's memory. Restored blocks reuse matching successful translations from this memory cache without sending the text again. The cache is scoped to the current document and is never persisted to disk. Refreshing the page, changing its URL, or closing it discards these cached translations. Clearing the temporary translation cache preserves the original-text snapshots needed to restore the current document.
 
-Restoring original text does not send a new translation request. This does not mean usage from requests already sent to OpenAI is canceled or refunded. Setting store=false and avoiding local translation history do not replace OpenAI's data processing and retention policies.
+Restoring original text does not send a new translation request. Automatic retries can send the same original text and instructions again after a failed response, up to the configured retry limit (4 retries by default). Retries can consume additional subscription usage. Stopping or restoring text does not mean usage from requests already sent to OpenAI is canceled or refunded. Setting store=false does not replace OpenAI's data processing and retention policies.
+
+## Optional developer diagnostics
+
+Developer mode is off by default. Enabling it records extension actions, translation request bodies (including original text, target language, model, and custom instructions), model-list responses, streamed translation responses, errors, retries, and local tab/frame identifiers. These diagnostics are stored only in trusted browser extension local storage and displayed in a native side panel. They are not sent to the developer or to another logging service. Authentication headers, cookies, and OAuth token exchange payloads are not recorded; recognized credential fields are redacted from diagnostic records.
+
+Diagnostic copies of source text and responses can contain personal or sensitive webpage content. These copies are separate from the document-only translation cache and restoration snapshots. The retained log count is configurable from 1 to 1,000,000, with a default of 4,000. Recent entries within the configured count and the remaining default local storage quota are retained across page refreshes and browser restarts. This quota is shared with settings and authentication data, with 64 KiB reserved for their updates. Lowering the entry limit immediately removes older entries above the new limit. No expanded storage permission is requested. Old entries are evicted automatically; exceptionally large entries are replaced by a size-limit notice. Recording starts when enabled and cannot reconstruct earlier requests. Disabling developer mode stops new recording but does not delete retained history. Use Clear logs in the side panel to delete the history, or remove the extension. Sign-out and clearing the translation cache do not delete diagnostic history. Resetting settings restores the default retention limit and may remove older entries above that limit; it does not explicitly clear all logs. Settings exports do not include logs.
 
 ## Permissions
 
-- storage: settings, authentication state, and temporary sign-in state
+- storage: settings, authentication state, temporary sign-in state, and opt-in local developer diagnostics
 - scripting: inject translation functionality only on websites with granted host access
 - tabs: identify the dedicated sign-in tab and the current target tab
 - alarms: check sign-in timeouts and missed callbacks
 - webNavigation: enumerate accessible frames, invalidate requests when documents navigate, and detect the designated sign-in callback
+- sidePanel: show retained and live developer diagnostics alongside the current webpage when developer mode is enabled
 - auth.openai.com and chatgpt.com: authentication, model discovery, and subscription-backed translation
 - Website access: required before page, block, and selected-text translation can be used. The popup offers access to the current site only or all HTTP and HTTPS websites; broader access is requested only when the all-sites button is clicked. The extension does not request temporary activeTab access
 
@@ -42,6 +49,7 @@ The extension does not sell user data, use it for advertising, build behavioral 
 - Authentication tokens remain locally until disconnecting, replacement during renewal/sign-in, or removal with the extension. Disconnecting removes local credentials and cached model metadata; it does not by itself revoke all provider-side sessions or delete requests already sent.
 - Temporary sign-in attempts expire after five minutes and are cleared when completed or canceled. Session storage is not a persistent translation history.
 - Page originals, translation cache entries, and selection-result text remain in the current document's memory as described above. Refreshing or closing the document clears that memory. Changing its URL invalidates the translation cache. Restoring text does not delete requests already processed by OpenAI.
+- Optional diagnostic copies of translation requests and responses follow the separate developer-log retention and deletion controls above.
 - Exported settings files are created only at the user's request and may include custom instructions and excluded sites. The user controls and deletes those files; they do not contain account credentials.
 
 The developer has no server-side user database from which to delete translation or account data. Requests concerning provider-held data must be directed to that provider.

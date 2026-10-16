@@ -31,6 +31,8 @@ A convenience bundle is available at [../dist/chrome-web-store-kit-0.1.0.zip](..
 - A 440×280 promotional image, optional 1400×560 marquee, and a padded 128×128 PNG store icon. SVG sources are included for further artwork edits.
 - Latest extension ZIP in ../dist/yongil-translator-0.1.0.zip. Only the contents of extension/ and the project LICENSE are packaged; store fixtures and artwork stay out of the runtime ZIP.
 
+The current kit also covers retries (0–10, default 4), opt-in developer diagnostics in a native side panel, immediate activation after site-access grants, and updated local-log privacy/permission disclosures.
+
 ## Not completed by creating these files
 
 - **Actual English browser screenshots:** capture is blocked by unavailable browser control and GPU-process failures in the isolated Chrome/Edge renderers. Follow screenshots.md; no fabricated screenshot is supplied as a captured product screen.

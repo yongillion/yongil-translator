@@ -2,27 +2,27 @@
   "date": "2026-10-16",
   "version": "0.1.0",
   "automatedTests": {
-    "passed": 132,
+    "passed": 163,
     "failed": 0,
     "suites": [
       {
         "name": "suite",
-        "passed": 39,
+        "passed": 41,
         "failed": 0
       },
       {
         "name": "integration",
-        "passed": 22,
+        "passed": 25,
         "failed": 0
       },
       {
         "name": "content-jobs",
-        "passed": 30,
+        "passed": 31,
         "failed": 0
       },
       {
         "name": "ui-state",
-        "passed": 23,
+        "passed": 27,
         "failed": 0
       },
       {
@@ -39,18 +39,28 @@
         "name": "page-toolbar",
         "passed": 4,
         "failed": 0
+      },
+      {
+        "name": "retry-logs",
+        "passed": 17,
+        "failed": 0
+      },
+      {
+        "name": "logs-ui",
+        "passed": 4,
+        "failed": 0
       }
     ],
     "environment": "Local Node VM module runner; mocked browser APIs and provider transport"
   },
   "syntax": {
-    "syntaxFiles": 13
+    "syntaxFiles": 15
   },
   "package": {
     "file": "../dist/yongil-translator-0.1.0.zip",
-    "files": 27,
-    "bytes": 172939,
-    "sha256": "91943c01e55ed1a352e7d25f959aef2d8a57f0bcf7064c41157f77614e8c473b",
+    "files": 31,
+    "bytes": 204678,
+    "sha256": "2fe32c489938aaa7346fa0a066f4e433ff87b9f73f41442bf6bd55c112dd0e4a",
     "archiveContentsMatchSource": true,
     "containsStoreFixtures": false
   },
@@ -62,7 +72,7 @@
   "browser": {
     "actualScreenshots": false,
     "liveAccountVerification": false,
-    "reason": "No connected browser; in-app browser unavailable; isolated Chrome and Edge renderer GPU processes failed."
+    "reason": "No connected Chrome browser was available during the latest browser inventory. Native side-panel closing, quota behavior in Chrome, and the circular toolbar close control still require actual browser verification. Automated tests use mock browser APIs."
   },
   "publication": {
     "uploaded": false,

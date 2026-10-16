@@ -4,7 +4,7 @@ import {displayLanguage as languageDisplay,targetLanguageValue} from './lib/lang
 import {paintIcons} from './icons.mjs';
 paintIcons();
 const $=id=>document.getElementById(id),isOptions=document.body.classList.contains('options');
-let state,account,tab,modelResult,recording=null,polling=false,sitePermission=null,permissionRevision=0,requestingAccess=false;
+let state,account,tab,windowId,modelResult,recording=null,polling=false,sitePermission=null,permissionRevision=0,requestingAccess=false;
 const rpc=async(type,data={})=>{const r=await chrome.runtime.sendMessage({type,...data});if(!r?.ok)throw new Error(r?.error?.message||t('connectionCheck'));return r.data;};
 function feedback(message,success=false){
  const target=!isOptions&&account?.state==='connected'&&sitePermission!=='granted'?'permission-feedback':'feedback';
@@ -105,6 +105,12 @@ action('login',async()=>{await rpc('auth.start');setAccount(await rpc('auth.stat
 action('cancel-login',async()=>{await rpc('auth.cancel');setAccount(await rpc('auth.status'));});
 action('logout',async()=>{await rpc('auth.signOut');setAccount(await rpc('auth.status'));$('model').replaceChildren(new Option(t('connectFirst'),''));feedback(t('disconnectedMessage'),true);});
 action('open-options',()=>rpc('options.open'));
+// Open directly in the click gesture; a background round trip can lose user activation.
+$('open-logs')?.addEventListener('click',()=>{
+ if(!state?.developerMode)return;
+ if(!chrome.sidePanel?.open||!Number.isInteger(windowId)){feedback(t('sidePanelUnavailable'));return;}
+ chrome.sidePanel.open({windowId}).catch(e=>feedback(e.message));
+});
 action('edit-instructions',async()=>{await chrome.tabs.create({url:chrome.runtime.getURL('options.html#instructions')});});
 async function page(type){
  if(!tab?.id)throw new Error(t('noWebpage'));
@@ -153,8 +159,9 @@ for(const [id,allSites] of [['allow-site',false],['allow-all-sites',true]])$(id)
  chrome.permissions.request({origins}).then(async granted=>{
   if(account?.state!=='connected'||account.connectionId!==connectionId)return;
   if(!granted){feedback(t('siteAccessDenied'));return;}
-  feedback('');await connectedView();
-  if(account?.state==='connected'&&account.connectionId===connectionId&&sitePermission==='granted')await rpc('page.activate',{tabId:tab.id});
+  // Attach gestures to the already-loaded document before model discovery or other network work.
+  feedback('');await rpc('page.activate',{tabId:tab.id});
+  if(account?.state==='connected'&&account.connectionId===connectionId)await connectedView();
  }).catch(e=>{if(account?.state==='connected'&&account.connectionId===connectionId)feedback(e.message);})
  .finally(()=>{requestingAccess=false;permissionCardView();});
 });
@@ -193,7 +200,9 @@ action('clear-cancel',async()=>{await save({cancelShortcut:null});shortcutsView(
 $('shortcut-test')?.addEventListener('keydown',e=>{e.preventDefault();$('shortcut-test').value=shortcutLabel(shortcutFromEvent(e));});
 function localizedSettingsView(){
  shortcutsView();
+ if($('open-logs'))$('open-logs').hidden=!state.developerMode;
  if(!isOptions){$('instruction-status').textContent=state.instructionsEnabled?t('instructionsActive'):t('configureInstructions');return;}
+ $('developer-options').hidden=!state.developerMode;
  $('ui-language').value=state.uiLanguage||'auto';
  $('locale-note').textContent=t('localeSuggestion',[displayLanguage(languageLabel(state.defaultLocale))]);shortcutsView();
 }
@@ -201,6 +210,8 @@ function settingsView(){
  $('target-language').value=displayLanguage(state.targetLanguage);document.documentElement.dataset.theme=state.theme;
  localizedSettingsView();if(!isOptions)return;
  $('max-concurrent-batches').value=state.maxConcurrentBatches;
+ $('max-retries').value=state.maxRetries??4;$('developer-mode').checked=!!state.developerMode;
+ $('max-log-entries').value=state.maxLogEntries??4000;
  $('instructions-enabled').checked=state.instructionsEnabled;$('instructions-text').value=state.instructions;
  $('instruction-count').textContent=state.instructions.length+' / 4,000';$('excluded-sites').value=state.excludedSites.join('\n');$('theme').value=state.theme;shortcutsView();
 }
@@ -211,6 +222,20 @@ $('max-concurrent-batches')?.addEventListener('change',async()=>{
  const input=$('max-concurrent-batches');
  try{await save({maxConcurrentBatches:input.valueAsNumber});feedback(t('concurrencySaved'),true);}
  catch(e){input.value=state.maxConcurrentBatches;feedback(e.message);}
+});
+$('max-retries')?.addEventListener('change',async()=>{
+ const input=$('max-retries');
+ try{await save({maxRetries:input.valueAsNumber});feedback(t('retriesSaved'),true);}
+ catch(e){input.value=state.maxRetries??4;feedback(e.message);}
+});
+$('developer-mode')?.addEventListener('change',async()=>{
+ try{await save({developerMode:$('developer-mode').checked});localizedSettingsView();feedback(t('developerModeSaved'),true);}
+ catch(e){$('developer-mode').checked=!!state.developerMode;feedback(e.message);}
+});
+$('max-log-entries')?.addEventListener('change',async()=>{
+ const input=$('max-log-entries');
+ try{await save({maxLogEntries:input.valueAsNumber});feedback(t('maxLogEntriesSaved'),true);}
+ catch(e){input.value=state.maxLogEntries??4000;feedback(e.message);}
 });
 $('theme')?.addEventListener('change',()=>save({theme:$('theme').value}).catch(e=>feedback(e.message)));
 action('clear-cache',async()=>{await rpc('cache.clear');feedback(t('cacheCleared'),true);});
@@ -235,6 +260,7 @@ async function connectedView(){
 async function init(){
  const [settings,status]=await Promise.all([rpc('settings.get'),rpc('auth.status')]);
  state=settings;await configureLanguage(state.uiLanguage);localizeDocument();
+ if(chrome.windows?.getCurrent)windowId=(await chrome.windows.getCurrent()).id;
  if(!isOptions)[tab]=await chrome.tabs.query({active:true,currentWindow:true});
  settingsView();setAccount(status);await connectedView();
 }
@@ -247,6 +273,13 @@ $('ui-language')?.addEventListener('change',async()=>{
 });
 chrome.storage?.onChanged.addListener((changes,area)=>{
  const next=changes.settings?.newValue;
+ if(area==='local'&&state&&next){
+  state.developerMode=!!next.developerMode;
+  if($('developer-mode'))$('developer-mode').checked=state.developerMode;
+  if($('open-logs'))$('open-logs').hidden=!state.developerMode;
+  if($('developer-options'))$('developer-options').hidden=!state.developerMode;
+  if(next.maxLogEntries!==undefined&&next.maxLogEntries!==state.maxLogEntries){state.maxLogEntries=next.maxLogEntries;if($('max-log-entries'))$('max-log-entries').value=state.maxLogEntries;}
+ }
  if(area==='local'&&state&&next&&next.uiLanguage!==state.uiLanguage){state.uiLanguage=next.uiLanguage;void refreshLanguage().catch(e=>feedback(e.message));}
 });
 const refreshPermissions=()=>{

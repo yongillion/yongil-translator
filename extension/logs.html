@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yongil Translator · Logs</title><link rel="stylesheet" href="ui.css"><link rel="stylesheet" href="logs.css"><script type="module" src="logs.mjs"></script></head>
+<body class="logs">
+ <header class="logs-header"><div class="brand"><img src="icons/brand.svg" width="32" height="32" alt=""><span>Yongil<span class="brand-sub">TRANSLATOR</span></span></div><div class="header-actions"><span class="log-badge">LOG</span><button id="close-logs" class="icon-button" type="button" data-i18n-title="closeLogs" data-i18n-aria-label="closeLogs" title="Close logs" aria-label="Close logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button></div></header>
+ <main>
+  <div class="logs-intro"><h1 data-i18n="logsHeading">Developer logs</h1><p id="recording-state" role="status" aria-live="polite"></p></div>
+  <div class="log-tools"><label for="log-search" class="sr-only" data-i18n="searchLogs">Search logs</label><input id="log-search" type="search" data-i18n-placeholder="searchLogs" placeholder="Search logs" autocomplete="off"><label for="log-level" class="sr-only" data-i18n="logLevel">Log level</label><select id="log-level"><option value="all" data-i18n="allLogs">All levels</option><option value="info" data-i18n="logInfo">Info</option><option value="warn" data-i18n="logWarn">Warnings</option><option value="error" data-i18n="logError">Errors</option></select></div>
+  <div class="log-actions"><label><input id="log-follow" type="checkbox" checked><span data-i18n="followLogs">Follow latest</span></label><button id="clear-logs" class="text-button danger" data-i18n="clearLogs">Clear logs</button></div>
+  <p class="log-note" data-i18n="logsPrivacy">Includes original text and instructions. Stored only in this browser; authentication tokens are excluded.</p>
+  <p id="log-error" class="feedback" role="alert" hidden></p>
+  <p id="log-count" class="log-note" role="status"></p>
+  <section id="log-list" aria-label="Log entries" data-i18n-aria-label="logEntries"></section>
+  <p id="log-empty" data-i18n="noLogs">No matching logs yet.</p>
+ </main>
+</body></html>

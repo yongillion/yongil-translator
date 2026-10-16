@@ -1,10 +1,9 @@
-feat: improve translation controls and prepare store submission files
+feat: add configurable retries and developer log side panel
 
-- Add page translation and completed-block progress to the floating toolbar
-- Link the source repository from the popup and settings sidebar
-- Show configured shortcuts on block translation and restoration buttons
-- Default to Alt+T, Alt+R, and Alt+click with one-time legacy migration
-- Set default concurrency to 16 and allow up to 64 shared requests
-- Prepare localized store listings, privacy disclosures, and reviewer guidance
-- Add English promotional artwork and a screenshot capture fixture
-- Record browser capture and subscription integration checks still outstanding
+- Retry failed translation requests up to four times by default
+- Add opt-in local request and response logs with a live side panel
+- Activate Alt shortcuts immediately after site access is granted
+- Move the floating toolbar close control to a circular corner button
+- Cover retries, cancellation, diagnostic privacy, and UI behavior with tests
+- Configure log retention up to 1,000,000 entries within the shared local storage quota
+- Add a localized side-panel close button that preserves recording and history

@@ -15,7 +15,7 @@ function element(tag='div',attributes=''){
   append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;},
   getAttribute(name){return attrs[name];},setAttribute(name,value){attrs[name]=value;},removeAttribute(name){delete attrs[name];},scrollIntoView(){},focus(){},click(){}};
 }
-async function harness({options=false,connected=false,permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',items=[{id:'test-model',name:'Test model'}]}={}){
+async function harness({options=false,connected=false,permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',developerMode=false,items=[{id:'test-model',name:'Test model'}]}={}){
  const html=await readFile(new URL('../extension/'+(options?'options':'popup')+'.html',import.meta.url),'utf8');
  const nodes=new Map(),gates=[],all=[];
  for(const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*)>/gi)){
@@ -25,12 +25,12 @@ async function harness({options=false,connected=false,permission=false,url='http
  assert.ok(gates.length>0&&gates.every(el=>el.hidden),'Protected UI must start hidden in HTML');
  const status={current:connected?{state:'connected',connectionId:'test-account',email:'user@example.invalid'}:{state:'disconnected'}};
  const grants={allowed:permission,result:true,pending:null,requestPending:null,requests:[]};const calls=[];let poll;
- const savedSettings={schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyT'},restoreShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyR'},blockShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:''},cancelShortcut:null};
+ const savedSettings={schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,maxRetries:4,developerMode,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyT'},restoreShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyR'},blockShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:''},cancelShortcut:null};
  const event=()=>({listeners:[],addListener(fn){this.listeners.push(fn);},emit(...args){for(const fn of this.listeners)fn(...args);}});
  const body=element('body','class="'+(options?'options':'popup')+'"');body.dataset.connected='false';
  const document={body,documentElement:{dataset:{}},hidden:false,getElementById:id=>nodes.get(id)||null,
   querySelectorAll:selector=>selector==='[data-connected-only]'?gates:all.filter(el=>el.getAttribute(selector.slice(1,-1))!==undefined),createElement:tag=>element(tag)};
- const chrome={i18n:mockI18n(browserLanguage),storage:{onChanged:event()},runtime:{getURL:p=>'chrome-extension://test/'+p,sendMessage:async message=>{
+ const chrome={i18n:mockI18n(browserLanguage),storage:{onChanged:event()},windows:{getCurrent:async()=>({id:7})},sidePanel:{opens:[],open(options){this.opens.push(options);return Promise.resolve();}},runtime:{getURL:p=>'chrome-extension://test/'+p,sendMessage:async message=>{
   calls.push(message.type);let data={};
   if(message.type==='settings.get')data={...savedSettings};
   if(message.type==='settings.update'){Object.assign(savedSettings,message.patch);data={...savedSettings};}
@@ -59,6 +59,35 @@ export async function uiStateTests(){
  const results=[];async function test(name,fn){try{await fn();results.push({name,passed:true});}catch(e){results.push({name,passed:false,error:e.stack||e.message});}}
  await test('Signed-out popup and options hide connected-only controls',async()=>{
   for(const options of [false,true]){const h=await harness({options});assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('login').hidden,false);assert.equal(h.body.dataset.connected,'false');assert.ok(!h.calls.includes('models.list'));if(!options)assert.equal(h.nodes.get('permission-card').hidden,true);}
+ });
+ await test('Developer mode shows a log icon and opens the native side panel directly on click',async()=>{
+  const normal=await harness();assert.equal(normal.nodes.get('open-logs').hidden,true);await normal.click('open-logs');assert.equal(normal.chrome.sidePanel.opens.length,0);
+  for(const options of [false,true]){
+   const h=await harness({options,connected:true,developerMode:true});assert.equal(h.nodes.get('open-logs').hidden,false);
+   await h.click('open-logs');assert.equal(h.chrome.sidePanel.opens.length,1);assert.equal(h.chrome.sidePanel.opens[0].windowId,7);
+   h.chrome.storage.onChanged.emit({settings:{newValue:{...h.savedSettings,developerMode:false}}},'local');assert.equal(h.nodes.get('open-logs').hidden,true);
+  }
+ });
+ await test('Retry count and developer mode controls save independently from translation preferences',async()=>{
+  const h=await harness({options:true,connected:true});assert.equal(h.nodes.get('max-retries').value,4);
+  h.nodes.get('max-retries').valueAsNumber=0;await h.nodes.get('max-retries').emit('change');assert.equal(h.savedSettings.maxRetries,0);
+  h.nodes.get('developer-mode').checked=true;await h.nodes.get('developer-mode').emit('change');assert.equal(h.savedSettings.developerMode,true);assert.equal(h.nodes.get('open-logs').hidden,false);
+  assert.equal(h.savedSettings.targetLanguage,'한국어');assert.equal(h.savedSettings.modelId,'test-model');
+ });
+ await test('Log retention control is shown only in developer mode and saves the upper limit',async()=>{
+  const h=await harness({options:true,connected:true}),input=h.nodes.get('max-log-entries');
+  assert.equal(h.nodes.get('developer-options').hidden,true);assert.equal(input.value,4000);assert.equal(input.getAttribute('max'),'1000000');
+  h.nodes.get('developer-mode').checked=true;await h.nodes.get('developer-mode').emit('change');assert.equal(h.nodes.get('developer-options').hidden,false);
+  input.valueAsNumber=1000000;await input.emit('change');assert.equal(h.savedSettings.maxLogEntries,1000000);
+  h.chrome.storage.onChanged.emit({settings:{newValue:{...h.savedSettings,developerMode:false,maxLogEntries:123}}},'local');
+  assert.equal(h.nodes.get('developer-options').hidden,true);assert.equal(input.value,123);
+  h.nodes.get('developer-mode').checked=true;await h.nodes.get('developer-mode').emit('change');assert.equal(h.nodes.get('developer-options').hidden,false);
+ });
+ await test('Rejected log limits restore the saved input and show the validation error',async()=>{
+  const h=await harness({options:true,connected:true,developerMode:true}),input=h.nodes.get('max-log-entries'),send=h.chrome.runtime.sendMessage;
+  h.chrome.runtime.sendMessage=async message=>message.type==='settings.update'?{ok:false,error:{message:'Invalid log limit'}}:send(message);
+  input.value=1000001;input.valueAsNumber=1000001;await input.emit('change');
+  assert.equal(input.value,4000);assert.equal(h.nodes.get('feedback').textContent,'Invalid log limit');
  });
  await test('Signing in keeps controls hidden until authentication completes',async()=>{
   const h=await harness();await h.click('login');assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('cancel-login').hidden,false);
@@ -94,6 +123,7 @@ export async function uiStateTests(){
    await h.click(id);await tick();
    assert.deepEqual(h.grants.requests,[{origins}]);assert.equal(h.nodes.get('permission-card').hidden,true);
    assert.ok(h.gates.every(el=>!el.hidden));assert.ok(h.calls.includes('page.activate'));assert.ok(h.calls.includes('models.list'));
+   assert.ok(h.calls.indexOf('page.activate')<h.calls.indexOf('models.list'),'Already-open documents must activate before model discovery');
   }
  });
  await test('A pending permission prompt disables both access choices and prevents duplicate requests',async()=>{

@@ -679,5 +679,104 @@
   },
   "translationProgress": {
     "message": "Translation progress"
+  },
+  "retriesLabel": {
+    "message": "Maximum retries"
+  },
+  "retriesNote": {
+    "message": "0–10 retries per request; default 4 (up to 5 attempts). Retries format, stream, network, timeout and server errors. Applies to new translations."
+  },
+  "retriesInvalid": {
+    "message": "Retries must be a whole number between 0 and 10."
+  },
+  "retriesSaved": {
+    "message": "Retry limit saved."
+  },
+  "translationTimeout": {
+    "message": "The translation request timed out. Please try again."
+  },
+  "developerMode": {
+    "message": "Developer mode"
+  },
+  "developerModeInvalid": {
+    "message": "Developer mode must be enabled or disabled."
+  },
+  "developerModeSaved": {
+    "message": "Developer mode saved."
+  },
+  "developerModeNote": {
+    "message": "Records translation inputs, instructions, responses, and errors locally. May contain private page text. Authentication tokens are excluded. Keeps recent entries up to your entry limit and the remaining default local storage quota; older entries are removed. Turning this off stops recording; Clear logs deletes the history."
+  },
+  "openLogs": {
+    "message": "Open developer logs"
+  },
+  "sidePanelUnavailable": {
+    "message": "This browser cannot open the log side panel."
+  },
+  "logsHeading": {
+    "message": "Developer logs"
+  },
+  "searchLogs": {
+    "message": "Search logs"
+  },
+  "logLevel": {
+    "message": "Log level"
+  },
+  "allLogs": {
+    "message": "All levels"
+  },
+  "logInfo": {
+    "message": "Info"
+  },
+  "logWarn": {
+    "message": "Warnings"
+  },
+  "logError": {
+    "message": "Errors"
+  },
+  "followLogs": {
+    "message": "Follow latest"
+  },
+  "clearLogs": {
+    "message": "Clear logs"
+  },
+  "logsPrivacy": {
+    "message": "Includes original text and instructions. Stored only in this browser; authentication tokens are excluded."
+  },
+  "logEntries": {
+    "message": "Log entries"
+  },
+  "noLogs": {
+    "message": "No matching logs yet."
+  },
+  "logsRecording": {
+    "message": "Recording live · newest entries below"
+  },
+  "logsStopped": {
+    "message": "Recording stopped · saved history"
+  },
+  "logCount": {
+    "message": "$1 of $2 entries · $3 older/oversized entries removed"
+  },
+  "logAttempt": {
+    "message": "Attempt $1/$2"
+  },
+  "logStorageError": {
+    "message": "Logs are visible in memory, but could not be saved locally."
+  },
+  "closeLogs": {
+    "message": "Close log panel"
+  },
+  "maxLogEntriesLabel": {
+    "message": "Maximum log entries"
+  },
+  "maxLogEntriesNote": {
+    "message": "1–1,000,000 entries; default 4,000. Older logs are removed when the entry limit or available default local storage quota, shared with settings and credentials, is reached. Lowering the limit applies immediately."
+  },
+  "maxLogEntriesInvalid": {
+    "message": "Maximum log entries must be a whole number from 1 to 1,000,000."
+  },
+  "maxLogEntriesSaved": {
+    "message": "Maximum log entries saved."
   }
 }

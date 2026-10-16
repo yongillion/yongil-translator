@@ -21,7 +21,7 @@ function harness(){
  vm.runInContext(core,context);context.t=context.YTDocument.t;context.store=new context.YTDocument.SnapshotStore();
  vm.runInContext(source.slice(source.indexOf(" const style=document.createElement('style')"),source.indexOf(' const send=async'))+
   source.slice(source.indexOf(' function status(){'),source.indexOf(' function paintHover(){')),context);
- const ui=vm.runInContext('({bar,progress,progressFill,blockCount,detail,translateButton})',context);
+ const ui=vm.runInContext('({bar,progress,progressFill,blockCount,detail,translateButton,closeButton})',context);
  const blocks=Array.from({length:120},(_,i)=>context.store.register(element(),[{nodeValue:'Source '+i,isConnected:true}]));
  const tickets=blocks.map(b=>context.store.prepare(b,'model-target'));
  context.jobs.set('page-job',{});context.render();
@@ -59,6 +59,7 @@ export async function pageToolbarTests(){
   h.context.starting=false;h.context.jobs.clear();h.context.render();assert.equal(h.ui.progress.hidden,true);
   h.context.YTDocument.setLocale({language:'ko',messages:catalogs.ko});h.context.render();
   assert.equal(h.ui.translateButton.textContent,'페이지 번역');assert.equal(h.ui.progress.getAttribute('aria-label'),'번역 진행률');
+  assert.equal(h.ui.closeButton.textContent,'×');assert.equal(h.ui.closeButton.getAttribute('aria-label'),catalogs.ko.close.message);assert.equal(h.ui.closeButton.title,catalogs.ko.close.message);
  });
  return {passed:results.filter(r=>r.passed).length,failed:results.filter(r=>!r.passed).length,results};
 }

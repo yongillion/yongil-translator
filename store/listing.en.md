@@ -29,6 +29,8 @@ MAKE IT YOURS
 - Choose a model available to the connected account.
 - Set custom instructions for translation tone and style.
 - Configure 1–64 concurrent translation requests, with 16 as the default. All tabs share the limit.
+- Configure automatic retries from 0–10, with 4 retries after the initial request by default.
+- Enable developer mode to inspect retained and live request/response diagnostics in a browser side panel.
 - Use the English or Korean interface, following the browser language or your explicit preference.
 
 DEFAULT SHORTCUTS
@@ -44,7 +46,7 @@ CONTROL AND PRIVACY
 
 Choose access for the current site only or all HTTP/HTTPS sites. Translation requires site access and an explicit translation action. Selecting text alone does not send it for translation.
 
-The extension sends text chosen for translation and enabled custom instructions directly to OpenAI. Authentication credentials and settings are stored locally in extension storage. Translation results and originals are cached in the current document's memory; reloading the page clears that cache. The extension has no developer-operated proxy, advertising, or analytics.
+The extension sends text chosen for translation and enabled custom instructions directly to OpenAI, including configured retries that can consume additional usage. Authentication credentials and settings are stored locally in extension storage. Translation results and originals are cached in the current document's memory; reloading the page clears that cache. Optional developer mode also retains copies of request/response text locally (default 4,000 entries, configurable from 1 to 1,000,000, within the remaining default local storage quota); Clear logs deletes that history. Authentication tokens are excluded from logs. The extension has no developer-operated proxy, advertising, or analytics.
 
 LIMITATIONS
 

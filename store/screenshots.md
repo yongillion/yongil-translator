@@ -22,10 +22,10 @@ The supplied promotional PNGs are artwork, not screenshots. A local English capt
 
 | Filename | Actual screen to capture | Suggested caption in the listing |
 |---|---|---|
-| 01-page-translation.png | Fixture translated to English, with the real on-page toolbar, Translate page button, top-edge progress bar and completed/total Blocks count | Read the whole page in your language. |
+| 01-page-translation.png | Fixture translated to English, with the real on-page toolbar, Translate page button, top-edge progress bar and completed/total Blocks count and circular X overlapping its upper-right corner | Read the whole page in your language. |
 | 02-block-selection.png | Real block selection outline and English hint on one block; preserve other source paragraphs | Translate one block. Restore it with Alt+click. |
 | 03-selection-popup.png | A selected passage and the actual translated-result popup, with drag and close controls | A translation that moves with you. |
-| 04-settings.png | Actual options page showing GitHub in the sidebar, target/model controls, concurrency 16 and custom instructions | Your language. Your model. Your style. |
+| 04-settings.png | Actual options page showing GitHub in the sidebar, target/model controls, concurrency 16, maximum retries 4 and custom instructions | Your language. Your model. Your style. |
 | 05-shortcuts.png | Actual options Shortcuts panel showing Alt+T, Alt+R, Alt and Escape, with English labels | Translate and restore with a keystroke. |
 
 Optional popup detail: capture Translate page, Translate block and Restore original with their configured shortcut labels and GitHub/Settings icons. Keep the account email out of the frame or use an authorized, nonpersonal demonstration account. Do not create an invented signed-in state and present it as a real account test.

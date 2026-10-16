@@ -16,7 +16,7 @@ function harness(limit=8,count=80,ignoreCancel=false,configure=()=>{}){
  const requests=[],jobInfo={fingerprint:fingerprint({...defaults(),modelId:'model-a'})+'|account-a',target:'Korean',maxConcurrentBatches:limit};let live=0,peak=0,sequence=0,onMessage;
  const context=vm.createContext({chrome:{i18n:mockI18n(),runtime:{id:'test',onMessage:{addListener(fn){onMessage=fn;}}}},selectionUI:{stop(){}},enabled:true,epoch:0,barVisible:false,lastError:'',starting:false,label:'',picking:false,
   jobs:new Map(),cache:new Map(),viewportVersion:0,innerWidth:1200,innerHeight:800,document:{documentElement:{clientWidth:1200,clientHeight:800}},paintHover(){},
-  render(){},status(){return {};},error(e){throw e;},setInterval:()=>0,clearInterval(){}});
+  debug(){},render(){},status(){return {};},error(e){throw e;},setInterval:()=>0,clearInterval(){}});
  vm.runInContext(core,context);const store=new context.YTDocument.SnapshotStore();context.store=store;context.t=context.YTDocument.t;
  vm.runInContext(source.slice(source.indexOf(' function status(){'),source.indexOf(' const allChanged=')),context);
  const originals=Array.from({length:count},(_,i)=>'Source paragraph '+i);
@@ -49,7 +49,7 @@ function selectionHarness(){
  }
  const html=new Element('HTML'),body=new Element('BODY',html),own=new Element('DIV',html);
  const context=vm.createContext({chrome:{i18n:mockI18n(),runtime:{id:'test',onMessage:{addListener(fn){onMessage=fn;}}}},selectionUI:{stop(){}},Element,own,enabled:true,held:false,picking:false,hover:null,selected:null,
-  settings:defaults(),jobs:new Map(),cache:new Map(),viewportVersion:0,
+  settings:defaults(),jobs:new Map(),cache:new Map(),viewportVersion:0,debug(){},location:{hostname:'example.test'},
   addEventListener(type,listener){listeners.set('window:'+type,listener);},
   document:{body,documentElement:html,addEventListener(type,listener){listeners.set(type,listener);}},
   getComputedStyle:el=>({display:el.tagName==='SPAN'?'inline':'block',visibility:'visible',opacity:'1'}),paintHover(){},render(){},error(e){throw e;},
@@ -229,6 +229,14 @@ export async function contentJobTests(){
   assert.deepEqual(h.messages,['page.translate']);assert.equal(h.context.held,false);
   h.event('keydown',first.element,{...keys,repeat:true});assert.equal(h.messages.length,1);
   h.event('keyup',first.element);h.event('keydown',first.element,keys);assert.equal(h.messages.length,2);
+ });
+ await test('Enabling an already-loaded page activates Alt selection and page shortcuts immediately',()=>{
+  const h=selectionHarness(),first=h.targets[0];h.context.enabled=false;h.context.settings=null;
+  assert.equal(h.event('click',first.element,{altKey:true}).prevented,undefined);
+  h.message('content.enable',{settings:defaults(),locale:{language:'en',messages:catalogs.en}});
+  const press=h.event('keydown',first.element,{altKey:true,code:'AltLeft'});assert.ok(press.prevented);
+  h.event('click',first.element,{altKey:true});assert.equal(first.block.nodes[0].ref.nodeValue,first.original);
+  h.event('keydown',first.element,{altKey:true,code:'KeyT'});assert.deepEqual(h.messages,['page.translate']);
  });
  await test('Alt+R restores independently, suppresses repeat events, and supports custom or disabled keys',()=>{
   const h=selectionHarness(),first=h.targets[0],keys={ctrlKey:false,altKey:true,code:'KeyR'};

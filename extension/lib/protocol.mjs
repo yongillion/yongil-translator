@@ -35,7 +35,7 @@ export function parseTranslation(text,requested) {
  if(total>150000)throw new AppError('RESULT','resultTooLarge');
  return Object.fromEntries(result);
 }
-export async function readResponseStream(body,signal) {
+export async function readResponseStream(body,signal,onEvent) {
  if(!body)throw new AppError('STREAM','streamNoBody');
  const reader=body.getReader(),decoder=new TextDecoder();let pending='',text='',completed=false,bytes=0;
  try{
@@ -48,7 +48,8 @@ export async function readResponseStream(body,signal) {
     const frame=pending.slice(0,match.index);pending=pending.slice(match.index+match[0].length);
     const data=frame.split(/\r?\n/).filter(x=>x.startsWith('data:')).map(x=>x.slice(5).trimStart()).join('\n');
     if(!data||data==='[DONE]')continue;
-    let event;try{event=JSON.parse(data);}catch{throw new AppError('STREAM','streamInvalid');}
+    let event;try{event=JSON.parse(data);}catch{onEvent?.({type:'stream.invalid',data});throw new AppError('STREAM','streamInvalid');}
+    onEvent?.(event);
     if(event.type==='response.output_text.delta')text+=event.delta||'';
     if(['error','response.failed','response.incomplete'].includes(event.type))throw new AppError('STREAM','streamIncompleteRetry');
     if(event.type==='response.completed'){
