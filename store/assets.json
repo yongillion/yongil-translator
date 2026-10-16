@@ -1,0 +1,79 @@
+{
+  "version": "0.1.0",
+  "preparedAt": "2026-10-16",
+  "images": [
+    {
+      "file": "assets/store-icon-128.png",
+      "width": 128,
+      "height": 128,
+      "language": "en",
+      "kind": "icon",
+      "status": "ready",
+      "pngColorType": 6,
+      "sha256": "48dae40b06ab355b18f9979caaa0872cf0d88d3e761c24dc00d8655e411ed785"
+    },
+    {
+      "file": "assets/promo-small-440x280.png",
+      "width": 440,
+      "height": 280,
+      "language": "en",
+      "kind": "small promotional image",
+      "status": "ready",
+      "pngColorType": 2,
+      "sha256": "760833010064e9f0e9b7e1389acce5f70041ff3d64ebe2149c8dc8d87ab11894"
+    },
+    {
+      "file": "assets/promo-marquee-1400x560.png",
+      "width": 1400,
+      "height": 560,
+      "language": "en",
+      "kind": "optional marquee",
+      "status": "ready",
+      "pngColorType": 2,
+      "sha256": "bd37a40ad34631fba9d388af01ea155db2528fa1e1c5db25114a547b56192535"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "assets/screenshots/en/01-page-translation.png",
+      "width": 1280,
+      "height": 800,
+      "language": "en",
+      "status": "pending_actual_browser_capture"
+    },
+    {
+      "file": "assets/screenshots/en/02-block-selection.png",
+      "width": 1280,
+      "height": 800,
+      "language": "en",
+      "status": "pending_actual_browser_capture"
+    },
+    {
+      "file": "assets/screenshots/en/03-selection-popup.png",
+      "width": 1280,
+      "height": 800,
+      "language": "en",
+      "status": "pending_actual_browser_capture"
+    },
+    {
+      "file": "assets/screenshots/en/04-settings.png",
+      "width": 1280,
+      "height": 800,
+      "language": "en",
+      "status": "pending_actual_browser_capture"
+    },
+    {
+      "file": "assets/screenshots/en/05-shortcuts.png",
+      "width": 1280,
+      "height": 800,
+      "language": "en",
+      "status": "pending_actual_browser_capture"
+    }
+  ],
+  "sourceArtwork": [
+    "assets/promo-small-440x280.svg",
+    "assets/promo-marquee-1400x560.svg",
+    "assets/brand-source-512.png"
+  ],
+  "captureInstructions": "screenshots.md"
+}

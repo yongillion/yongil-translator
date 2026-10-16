@@ -114,7 +114,7 @@
     "message": "Concurrent translation requests"
   },
   "concurrencyNote": {
-    "message": "1–16 requests, 8 by default. All tabs share this limit. Changes apply when a new translation starts."
+    "message": "1–64 requests, 16 by default. All tabs share this limit. Changes apply when a new translation starts."
   },
   "instructionsNote": {
     "message": "Set the tone and style of your translations."
@@ -342,7 +342,7 @@
     "message": "Translated text is displayed"
   },
   "pageProgress": {
-    "message": "$1 translated · $2 pending"
+    "message": "$1/$2 Blocks"
   },
   "translatedBlocks": {
     "message": "$1 blocks translated"
@@ -429,7 +429,7 @@
     "message": "This settings version is not supported."
   },
   "concurrencyInvalid": {
-    "message": "Concurrent requests must be a whole number from 1 to 16."
+    "message": "Concurrent translation requests must be an integer from 1 to 64."
   },
   "instructionsInvalid": {
     "message": "Check the instructions setting."
@@ -670,5 +670,14 @@
   },
   "pageRestoreNote": {
     "message": "Stop pending translations and restore all translated blocks."
+  },
+  "githubLink": {
+    "message": "View source on GitHub (opens in a new tab)"
+  },
+  "blockShortcutClick": {
+    "message": "$1 + Click"
+  },
+  "translationProgress": {
+    "message": "Translation progress"
   }
 }

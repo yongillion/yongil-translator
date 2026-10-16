@@ -19,25 +19,26 @@ Chrome internal pages, extension stores, the browser's PDF viewer, and text insi
 
 | Action | Method |
 |---|---|
-| Translate a page | Ctrl+Alt+T or Translate page in the popup |
-| Translate a block | Hold Ctrl+Alt and click, or enter block selection from the popup and click |
-| Restore a block's original text | Ctrl+Alt-click a translated block, or click it in block selection mode |
+| Translate a page | Alt+T or Translate page in the extension popup or bottom-right page toolbar |
+| Translate a block | Hold Alt and click, or enter block selection from the popup and click |
+| Restore a block's original text | Alt-click a translated block, or click it in block selection mode |
 | Translate selected text in a popup | Drag to select text, then click Translate selection |
 | Move, resize, or close the selection popup | Drag its title, drag its bottom-right corner, or use Close/Escape |
-| Restore a page's original text | Ctrl+Alt+R or Restore original in the popup or page toolbar |
+| Restore a page's original text | Alt+R or Restore original in the popup or page toolbar |
 | Exit selection mode | Escape (configurable), Exit block selection in the page toolbar, or toggle Translate block in the popup |
 | Change page, block-selection, and cancel keys | Record a key combination under Settings → Shortcuts; Clear disables a shortcut |
 
 - Before sign-in, the popup shows the Yongil TRANSLATOR header, Settings button, and ChatGPT connection area. The options page shows the connection area. The options page unlocks after connection. Popup translation controls additionally require access to the current site, and hide again on sign-out.
 - After sign-in, an unapproved site shows only a highlighted access card below the persistent header and Settings button. Translation controls, language/model settings, account information, and the footer stay hidden until access is confirmed. The card uses a larger, bold accent-colored title and two full-width buttons: **Allow only this site** grants access to the current site, while **Allow all sites** requests access to all HTTP and HTTPS websites. Both choices reveal the same translation controls after approval. The buttons stay disabled while a permission request is pending. Permission denial stays inside the card. Unsupported browser pages show an explanatory message with no permission button.
 - Site access is required. The extension no longer requests temporary activeTab access. Popup actions, page shortcuts, and inference requests check the granted host permission; frames require access to both their own origin and the containing site. Revoking access hides the controls and stops translation jobs. Shortcuts require focus in the webpage and do not run in editors or the browser address bar. Existing on-page restoration controls remain available after sign-out.
-- Settings → Translation → Concurrent translation requests accepts 1–16, with a default of 8. The service worker shares this limit across tabs. Changes take effect when a new translation starts; requests already running are allowed to finish.
+- Settings → Translation → Concurrent translation requests accepts 1–64, with a default of 16. The service worker shares this limit across tabs. Changes take effect when a new translation starts; requests already running are allowed to finish.
 - Page batches run in parallel and display completed results immediately, even when earlier batches are still running.
+- The bottom-right page toolbar includes a Translate page button, a thin progress bar along its top edge, and a completed/total block counter (for example, **16/120 Blocks** in English). Successfully applied results count even when their text matches the original. Failed, restored, or subsequently edited blocks do not count as completed. Counts describe tracked blocks in that document; detached blocks are excluded. The counter stays visible alongside errors. The page button dispatches translation to accessible frames and is disabled while that document is translating.
 - The interface supports English and Korean. Settings → Data & appearance → UI language offers Follow browser settings (default), Korean, and English. Unsupported browser languages fall back to English. The preference applies to the popup, settings, page controls, and messages, including before sign-in. It is independent of the translation target.
 - When no model is saved, the first returned model is selected and saved. Refreshing the list preserves an existing choice.
 - Button-activated block selection stays active after every translate or restore click. Continue clicking blocks until using the cancel key, Exit block selection, closing the page toolbar, or switching tabs. Releasing modifier keys or moving focus between frames does not end button-activated selection.
-- Page translation and restoration have separate shortcuts: **Ctrl+Alt+T** translates, and **Ctrl+Alt+R** stops pending work and restores the entire page. Translation keeps matching translated blocks and processes remaining blocks; it does not switch to restoration. Each shortcut has its own recording and Clear controls. Existing saved page shortcuts remain assigned to translation, while older settings receive the new restoration default. Actions reach all accessible frames, and holding a key does not repeat the action.
-- The default block shortcut is Ctrl+Alt. Legacy saved Alt+Shift defaults migrate once; other combinations and disabled shortcuts are preserved. Choosing Alt+Shift again after upgrading is respected.
+- Page translation and restoration have separate shortcuts: **Alt+T** translates, and **Alt+R** stops pending work and restores the entire page. Translation keeps matching translated blocks and processes remaining blocks; it does not switch to restoration. Each shortcut has its own recording and Clear controls. Existing saved page shortcuts remain assigned to translation, while older settings receive the new restoration default. Actions reach all accessible frames, and holding a key does not repeat the action.
+- Defaults are Alt+T, Alt+R, and Alt+click. Version 3 migrates the former Ctrl+Alt defaults once, including legacy Alt+Shift block defaults that have never been migrated. Other custom and disabled shortcuts are preserved, and choosing an older combination again after migration is respected. Popup translation, block and restoration buttons display their configured shortcuts. Existing saved concurrency values are retained; new or reset settings default to 16.
 - Hovering over a block shows no action popup, including while translating. Only block selection displays a translate/restore hint. Use the page or extension popup controls to stop or retry page translations.
 - Granting site access activates the current page without starting a translation and automatically enables the page script on future visits. After updating the extension, refresh pages that were already open.
 - Selected-text translation uses the current model, target language, and instructions without replacing page text. It starts only when its button is clicked. Closing the popup cancels its request and discards late results. Selections are limited to 16,000 characters; editors and excluded content are ignored.
@@ -82,8 +83,14 @@ Tests verify OAuth validation, output structure and streaming, original-text res
 - `tests/`: regression and integration tests, plus browser fixtures
 - `scripts/`: syntax checks, icon rendering, and ZIP packaging
 
-Page shortcuts are handled by the content script because Chrome's [Commands API](https://developer.chrome.com/docs/extensions/reference/api/commands) does not permit Ctrl+Alt combinations. The extension no longer registers separate browser commands for translate, restore, and block selection.
+Page shortcuts are handled by the content script so users can configure page and block gestures consistently. The defaults are Alt+T, Alt+R, and Alt+click; the webpage must have focus and site access must be granted. Browser or operating-system bindings may take precedence. The extension does not register separate browser commands.
 
 To add a UI language, translate a copy of `extension/_locales/en/messages.json`, extend the supported language choices in `lib/i18n.mjs`, `lib/settings.mjs`, and `options.html`, and run the localization tests. Browser-owned extension descriptions follow [Chrome localization](https://developer.chrome.com/docs/extensions/reference/api/i18n); the in-extension UI also supports the saved override.
 
-The brand symbol and functional icons were created for this project. Code and included design assets are covered by the [MIT License](LICENSE).
+The brand symbol and functional icons were created for this project, except the GitHub mark from Primer Octicons. See [third-party notices](extension/THIRD_PARTY_NOTICES.txt). Project code and original design assets are covered by the [MIT License](LICENSE).
+
+## Chrome Web Store preparation
+
+The [submission kit](store/README.md) contains English/Korean descriptions, privacy and permission disclosures, reviewer instructions, English promotional artwork, and an English-only screenshot capture plan. The [public privacy page](docs/privacy.html) is generated from PRIVACY.md. Actual browser captures, public hosting, and confirmation of the subscription integration support remain outstanding as recorded in the kit.
+
+The popup includes a GitHub icon next to Settings, including before sign-in. The options sidebar also links to the source repository. Both links open a new tab.

@@ -18,25 +18,25 @@ test('Editable custom target language survives validation',()=>assert.equal(sani
 test('Settings import rejects credentials and unknown fields',()=>{assert.throws(()=>sanitizeSettings({accessToken:'private'}));assert.throws(()=>sanitizeSettings({schemaVersion:99}));});
 test('Settings enforce instruction and input limits',()=>{assert.throws(()=>sanitizeSettings({instructions:'a'.repeat(4001)}));assert.throws(()=>sanitizeSettings({targetLanguage:' '}));});
 test('Concurrency defaults, migration, imports, and bounds are validated',()=>{
- assert.equal(defaults().maxConcurrentBatches,8);assert.equal(sanitizeSettings({modelId:'existing'}).maxConcurrentBatches,8);
- for(const n of [1,8,16])assert.equal(sanitizeSettings({maxConcurrentBatches:n}).maxConcurrentBatches,n);
- for(const n of [0,17,1.5,'8',null,NaN,Infinity])assert.throws(()=>sanitizeSettings({maxConcurrentBatches:n}));
+ assert.equal(defaults().maxConcurrentBatches,16);assert.equal(sanitizeSettings({modelId:'existing'}).maxConcurrentBatches,16);
+ for(const n of [1,8,16,64])assert.equal(sanitizeSettings({maxConcurrentBatches:n}).maxConcurrentBatches,n);
+ for(const n of [0,65,1.5,'16',null,NaN,Infinity])assert.throws(()=>sanitizeSettings({maxConcurrentBatches:n}));
 });
-test('Block selection defaults to Ctrl+Alt on new settings and reset',()=>{
- assert.deepEqual(defaults().blockShortcut,{alt:true,shift:false,ctrl:true,meta:false,code:''});
- assert.equal(defaults().blockShortcutDefaultVersion,2);
+test('Block selection defaults to Alt on new settings and reset',()=>{
+ assert.deepEqual(defaults().blockShortcut,{alt:true,shift:false,ctrl:false,meta:false,code:''});
+ assert.equal(defaults().blockShortcutDefaultVersion,3);
  assert.deepEqual(sanitizeSettings({}).blockShortcut,defaults().blockShortcut);
 });
 test('Legacy block defaults migrate once while custom and disabled shortcuts are retained',()=>{
  const old={alt:true,shift:true,ctrl:false,meta:false,code:''};
- const migrated=migrateSettings({blockShortcut:old});assert.deepEqual(migrated.blockShortcut,defaults().blockShortcut);assert.equal(migrated.blockShortcutDefaultVersion,2);
+ const migrated=migrateSettings({blockShortcut:old});assert.deepEqual(migrated.blockShortcut,defaults().blockShortcut);assert.equal(migrated.blockShortcutDefaultVersion,3);
  for(const blockShortcut of [null,{...old,ctrl:true},{...old,code:'KeyB'}])assert.deepEqual(migrateSettings({blockShortcut}).blockShortcut,blockShortcut);
  const explicit=sanitizeSettings({blockShortcut:old},migrated);assert.deepEqual(migrateSettings(explicit).blockShortcut,old);
  assert.deepEqual(sanitizeSettings({blockShortcut:old}).blockShortcut,old);
- assert.throws(()=>sanitizeSettings({blockShortcutDefaultVersion:3}));
+ assert.throws(()=>sanitizeSettings({blockShortcutDefaultVersion:4}));
 });
-test('Page translation defaults to Ctrl+Alt+T and preserves saved, imported, and disabled combinations',()=>{
- const expected={alt:true,shift:false,ctrl:true,meta:false,code:'KeyT'};
+test('Page translation defaults to Alt+T and preserves saved, imported, and disabled combinations',()=>{
+ const expected={alt:true,shift:false,ctrl:false,meta:false,code:'KeyT'};
  assert.deepEqual(defaults().pageShortcut,expected);assert.deepEqual(sanitizeSettings({modelId:'existing'}).pageShortcut,expected);
  const custom={...expected,alt:false,shift:true,code:'KeyY'};
  assert.deepEqual(migrateSettings({pageShortcut:custom}).pageShortcut,custom);
@@ -44,14 +44,24 @@ test('Page translation defaults to Ctrl+Alt+T and preserves saved, imported, and
  assert.equal(sanitizeSettings({pageShortcut:null}).pageShortcut,null);
  assert.throws(()=>sanitizeSettings({pageShortcut:{...expected,code:''}}));
 });
-test('Page restoration has an independent Ctrl+Alt+R default and editable saved shortcut',()=>{
- const expected={alt:true,shift:false,ctrl:true,meta:false,code:'KeyR'};
+test('Page restoration has an independent Alt+R default and editable saved shortcut',()=>{
+ const expected={alt:true,shift:false,ctrl:false,meta:false,code:'KeyR'};
  assert.deepEqual(defaults().restoreShortcut,expected);assert.deepEqual(sanitizeSettings({modelId:'existing'}).restoreShortcut,expected);
  const custom={...expected,alt:false,shift:true,code:'KeyO'},saved=sanitizeSettings({restoreShortcut:custom});
  assert.deepEqual(saved.restoreShortcut,custom);assert.deepEqual(saved.pageShortcut,defaults().pageShortcut);
  assert.deepEqual(sanitizeSettings(JSON.parse(JSON.stringify(saved))).restoreShortcut,custom);
  assert.equal(sanitizeSettings({restoreShortcut:null}).restoreShortcut,null);
  assert.throws(()=>sanitizeSettings({restoreShortcut:{...expected,code:''}}));
+});
+test('Version 2 defaults migrate to Alt once without changing custom or disabled settings',()=>{
+ const legacy={blockShortcutDefaultVersion:2,pageShortcut:{...defaults().pageShortcut,ctrl:true},restoreShortcut:{...defaults().restoreShortcut,ctrl:true},blockShortcut:{...defaults().blockShortcut,ctrl:true},maxConcurrentBatches:8};
+ const migrated=migrateSettings(legacy);
+ for(const key of ['pageShortcut','restoreShortcut','blockShortcut'])assert.deepEqual(migrated[key],defaults()[key]);
+ assert.equal(migrated.maxConcurrentBatches,8);
+ const explicit={...legacy,blockShortcutDefaultVersion:3};
+ for(const key of ['pageShortcut','restoreShortcut','blockShortcut'])assert.deepEqual(migrateSettings(explicit)[key],legacy[key]);
+ for(const key of ['pageShortcut','restoreShortcut','blockShortcut'])assert.equal(migrateSettings({...legacy,[key]:null})[key],null);
+ const custom={...defaults().blockShortcut,shift:true};assert.deepEqual(migrateSettings({...legacy,blockShortcut:custom}).blockShortcut,custom);
 });
 test('Shortcuts can be changed or cleared',()=>{assert.equal(shortcut(null),null);assert.equal(shortcut({alt:false,ctrl:true,shift:true,meta:false,code:'KeyY'}).code,'KeyY');});
 test('No-key shortcuts without modifiers are rejected',()=>assert.throws(()=>shortcut({alt:false,ctrl:false,shift:false,meta:false,code:''})));

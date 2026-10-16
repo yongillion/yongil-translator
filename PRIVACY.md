@@ -1,5 +1,9 @@
 # Privacy Notice
 
+Last updated: October 16, 2026. Applies to Yongil Translator 0.1.0.
+
+Yongil Translator is an independent, open-source browser extension maintained through [the project repository](https://github.com/yongillion/yongil-translator). Its purpose is to translate user-chosen webpage text and restore the original text when requested.
+
 Yongil Translator does not collect page content or account information on developer-operated servers.
 
 When a translation requires a new result, the extension sends the selected page or block text, target language, selected model, and enabled custom instructions directly to OpenAI's subscription service. Input forms, passwords, content being edited, and hidden elements are excluded from collection. The source URL's query string and fragment are not attached to translation requests.
@@ -23,3 +27,31 @@ Restoring original text does not send a new translation request. This does not m
 - Website access: required before page, block, and selected-text translation can be used. The popup offers access to the current site only or all HTTP and HTTPS websites; broader access is requested only when the all-sites button is clicked. The extension does not request temporary activeTab access
 
 The extension contains no analytics SDKs, advertisements, remotely executed code, or developer-operated proxy.
+
+## Data use and recipients
+
+OpenAI receives the requests needed for authentication, model discovery, and translation. The developer does not receive a copy of these requests. Account email and identifiers received during sign-in are used to display and maintain the account connection. Current tab/frame URLs and navigation events are inspected locally to enforce site permissions, track document changes, and complete the designated sign-in flow; they are not retained as a browsing-history database. Mouse, selection, and shortcut events are processed locally to operate the interface, not recorded as interaction analytics.
+
+Text chosen for translation can contain personal communications or sensitive information already visible on a page. Structural exclusions for form inputs, editors, hidden content, and code do not detect or redact every kind of sensitive text. Enabled custom instructions are included in translation requests. Ordinary network requests also expose connection information, such as the source IP address, to the service receiving them.
+
+The extension does not sell user data, use it for advertising, build behavioral profiles, or use it for creditworthiness or lending decisions. OpenAI processes requests under its own applicable terms and privacy practices. The extension does not promise a particular provider-side retention period or that setting store=false disables all provider logging or training. Refer to [OpenAI's Privacy Policy](https://openai.com/policies/privacy-policy/) and the controls applicable to the connected account.
+
+## Retention and deletion
+
+- Settings remain in browser extension storage until reset, changed, or removed with the extension. Resetting settings is separate from disconnecting an account.
+- Authentication tokens remain locally until disconnecting, replacement during renewal/sign-in, or removal with the extension. Disconnecting removes local credentials and cached model metadata; it does not by itself revoke all provider-side sessions or delete requests already sent.
+- Temporary sign-in attempts expire after five minutes and are cleared when completed or canceled. Session storage is not a persistent translation history.
+- Page originals, translation cache entries, and selection-result text remain in the current document's memory as described above. Refreshing or closing the document clears that memory. Changing its URL invalidates the translation cache. Restoring text does not delete requests already processed by OpenAI.
+- Exported settings files are created only at the user's request and may include custom instructions and excluded sites. The user controls and deletes those files; they do not contain account credentials.
+
+The developer has no server-side user database from which to delete translation or account data. Requests concerning provider-held data must be directed to that provider.
+
+## Chrome Web Store Limited Use
+
+Yongil Translator's use and transfer of user data comply with the Chrome Web Store User Data Policy, including its Limited Use requirements. Data is used only for the disclosed translation and related authentication, settings, and restoration functions. Transfers to OpenAI are limited to what is needed to provide those functions. The developer does not provide human access to a collected translation database because no such developer-operated database exists.
+
+## External links and contact
+
+GitHub source/support links and OpenAI usage-management links open the respective websites only when clicked. Those websites have their own privacy practices. GitHub is not an authentication or translation backend for this extension.
+
+For project questions or privacy-related product issues, use [GitHub Issues](https://github.com/yongillion/yongil-translator/issues). Issues are public: include a general description rather than credentials, private page text, or personal account details. Updates to this notice are published with the project.

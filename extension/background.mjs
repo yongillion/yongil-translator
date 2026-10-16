@@ -4,11 +4,11 @@ import {AppError,RequestQueue,validateBlocks} from './lib/protocol.mjs';
 import {storageReady,authStatus,startLogin,cancelLogin,signOut,observeLogin,watchLogin} from './lib/auth.mjs';
 import {models,translate} from './lib/provider.mjs';
 
-const queue=new RequestQueue(8),jobs=new Map();
+const queue=new RequestQueue(defaults().maxConcurrentBatches),jobs=new Map();
 const contentFiles=['document-core.js','selection-ui.js','content.js'];
 const settingsReady=storageReady.then(async()=>{
  const {settings:stored}=await chrome.storage.local.get('settings');
- if(stored&&stored.blockShortcutDefaultVersion!==2)await chrome.storage.local.set({settings:migrateSettings(stored,defaults(chrome.i18n.getUILanguage()))});
+ if(stored&&stored.blockShortcutDefaultVersion!==3)await chrome.storage.local.set({settings:migrateSettings(stored,defaults(chrome.i18n.getUILanguage()))});
 });
 async function settings(){await settingsReady;const {settings:s}=await chrome.storage.local.get('settings');return sanitizeSettings(s||{},defaults(chrome.i18n.getUILanguage()));}
 const languageReady=settings().then(s=>configureLanguage(s.uiLanguage));

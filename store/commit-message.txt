@@ -1,0 +1,10 @@
+feat: improve translation controls and prepare store submission files
+
+- Add page translation and completed-block progress to the floating toolbar
+- Link the source repository from the popup and settings sidebar
+- Show configured shortcuts on block translation and restoration buttons
+- Default to Alt+T, Alt+R, and Alt+click with one-time legacy migration
+- Set default concurrency to 16 and allow up to 64 shared requests
+- Prepare localized store listings, privacy disclosures, and reviewer guidance
+- Add English promotional artwork and a screenshot capture fixture
+- Record browser capture and subscription integration checks still outstanding

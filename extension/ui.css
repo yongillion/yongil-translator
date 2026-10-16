@@ -46,3 +46,12 @@ button>span[data-i18n],.instruction-link span[data-i18n]{min-width:0;overflow-wr
 .popup footer{gap:12px;flex-wrap:wrap}
 
 .combobox li{gap:10px;align-items:flex-start}.combobox li>span{min-width:0;overflow-wrap:anywhere}.combobox li>small{flex-shrink:0}
+
+.header-actions{display:flex;align-items:center;gap:4px}
+a.icon-button{display:inline-flex;align-items:center;justify-content:center;border-radius:11px;flex-shrink:0}
+a.icon-button:hover{background:var(--accent-soft);color:var(--accent);text-decoration:none}
+.options nav .github-link{margin-top:8px;border-top:1px solid var(--line);border-top-left-radius:0;border-top-right-radius:0}
+
+.action-grid button{justify-content:flex-start;gap:9px}
+.action-copy{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;text-align:left}
+.action-copy .key{margin-left:0;font-size:9px;color:var(--muted);opacity:1;overflow-wrap:anywhere}

@@ -3,10 +3,10 @@ import {languageLabel} from './languages.mjs';
 export {LANGUAGES,languageLabel} from './languages.mjs';
 export function defaults(locale='en') {
  return {schemaVersion:1,targetLanguage:languageLabel(locale),modelId:'',
- instructions:'',instructionsEnabled:false,maxConcurrentBatches:8,uiLanguage:'auto',
- pageShortcut:{alt:true,shift:false,ctrl:true,meta:false,code:'KeyT'},
- restoreShortcut:{alt:true,shift:false,ctrl:true,meta:false,code:'KeyR'},
- blockShortcutDefaultVersion:2,blockShortcut:{alt:true,shift:false,ctrl:true,meta:false,code:''},
+ instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,uiLanguage:'auto',
+ pageShortcut:{alt:true,shift:false,ctrl:false,meta:false,code:'KeyT'},
+ restoreShortcut:{alt:true,shift:false,ctrl:false,meta:false,code:'KeyR'},
+ blockShortcutDefaultVersion:3,blockShortcut:{alt:true,shift:false,ctrl:false,meta:false,code:''},
  cancelShortcut:{alt:false,shift:false,ctrl:false,meta:false,code:'Escape'},
  excludedSites:[],theme:'system',defaultLocale:locale};
 }
@@ -34,10 +34,10 @@ export function sanitizeSettings(input,base=defaults()) {
    case 'modelId':result[key]=text(value,160,t('model'));break;
    case 'instructions': result[key]=text(value,4000,t('instructionsNav'));break;
    case 'maxConcurrentBatches':
-     if(!Number.isInteger(value)||value<1||value>16)throw new Error(t('concurrencyInvalid'));
+     if(!Number.isInteger(value)||value<1||value>64)throw new Error(t('concurrencyInvalid'));
      result[key]=value;break;
     case 'instructionsEnabled':if(typeof value!=='boolean')throw new Error(t('instructionsInvalid'));result[key]=value;break;
-   case 'blockShortcutDefaultVersion':if(value!==1&&value!==2)throw new Error(t('settingsVersion'));result[key]=value;break;
+   case 'blockShortcutDefaultVersion':if(![1,2,3].includes(value))throw new Error(t('settingsVersion'));result[key]=value;break;
    case 'pageShortcut':case 'restoreShortcut':
      result[key]=shortcut(value);if(result[key]&&!result[key].code)throw new Error(t('pageShortcutKeyRequired'));break;
    case 'blockShortcut':case 'cancelShortcut':result[key]=shortcut(value);break;
@@ -51,11 +51,18 @@ export function sanitizeSettings(input,base=defaults()) {
  }
  return result;
 }
-// Upgrade only stored legacy defaults; explicit choices made after migration stay intact.
+// Version 3 migrates old defaults for all translation shortcuts. Keep the existing
+// storage key for compatibility with older exports; migrate only once.
 export function migrateSettings(input,base=defaults()){
- const result=sanitizeSettings(input,base),previous=input.blockShortcut;
- if(input.blockShortcutDefaultVersion!==2&&previous?.alt===true&&previous.shift===true&&previous.ctrl===false&&previous.meta===false&&previous.code==='')result.blockShortcut={...defaults().blockShortcut};
- result.blockShortcutDefaultVersion=2;return result;
+ const result=sanitizeSettings(input,base),version=input.blockShortcutDefaultVersion||1;
+ const isOld=(s,code)=>s?.alt===true&&s.ctrl===true&&s.shift===false&&s.meta===false&&s.code===code;
+ if(version<3){
+  for(const [key,code] of [['pageShortcut','KeyT'],['restoreShortcut','KeyR'],['blockShortcut','']])
+   if(isOld(input[key],code))result[key]={...defaults()[key]};
+  const previous=input.blockShortcut;
+  if(version<2&&previous?.alt===true&&previous.shift===true&&previous.ctrl===false&&previous.meta===false&&previous.code==='')result.blockShortcut={...defaults().blockShortcut};
+ }
+ result.blockShortcutDefaultVersion=3;return result;
 }
 export function shortcutLabel(s) {
  if(!s)return t('shortcutUnassigned');

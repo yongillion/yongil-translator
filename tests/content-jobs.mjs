@@ -12,9 +12,10 @@ const jobSource=source.slice(source.indexOf(' function setPicking('),source.inde
 const tick=()=>new Promise(r=>setTimeout(r,0));
 function harness(limit=8,count=80,ignoreCancel=false){
  const requests=[],jobInfo={fingerprint:fingerprint({...defaults(),modelId:'model-a'})+'|account-a',target:'Korean',maxConcurrentBatches:limit};let live=0,peak=0,sequence=0,onMessage;
- const context=vm.createContext({chrome:{i18n:mockI18n(),runtime:{id:'test',onMessage:{addListener(fn){onMessage=fn;}}}},selectionUI:{stop(){}},enabled:true,epoch:0,barVisible:false,lastError:'',starting:false,label:'',
+ const context=vm.createContext({chrome:{i18n:mockI18n(),runtime:{id:'test',onMessage:{addListener(fn){onMessage=fn;}}}},selectionUI:{stop(){}},enabled:true,epoch:0,barVisible:false,lastError:'',starting:false,label:'',picking:false,
   jobs:new Map(),cache:new Map(),render(){},status(){return {};},error(e){throw e;},setInterval:()=>0,clearInterval(){}});
  vm.runInContext(core,context);const store=new context.YTDocument.SnapshotStore();context.store=store;context.t=context.YTDocument.t;
+ vm.runInContext(source.slice(source.indexOf(' function status(){'),source.indexOf(' const allChanged=')),context);
  const originals=Array.from({length:count},(_,i)=>'Source paragraph '+i);
  const blocks=originals.map(text=>store.register({},[{nodeValue:text,isConnected:true}]));
  context.blocksFor=elements=>blocks.filter(b=>!elements||elements.includes(b.element));context.knownFor=el=>blocks.filter(b=>b.element===el);
@@ -67,6 +68,13 @@ function selectionHarness(){
 }
 export async function contentJobTests(){
  const results=[];async function test(name,fn){try{await fn();results.push({name,passed:true});}catch(e){results.push({name,passed:false,error:e.stack||e.message});}}
+ await test('Live job progress counts all queued blocks and reused cached results',async()=>{
+  const h=harness(8,120);await tick();assert.equal(h.context.status().total,120);assert.equal(h.context.status().completed,0);
+  h.requests[2].resolve();h.requests[4].resolve();await tick();assert.equal(h.context.status().completed,16);
+  assert.equal(h.context.status().total,120);await h.finish();assert.equal(h.context.status().completed,120);
+  h.context.restoreAll();assert.equal(h.context.status().completed,0);const requests=h.requests.length;
+  await h.finish(h.context.translatePage());assert.equal(h.context.status().completed,120);assert.equal(h.requests.length,requests);
+ });
  await test('Page dispatch fills eight slots and applies completed batches out of order',async()=>{
   const h=harness();await tick();assert.equal(h.requests.length,8);assert.equal(h.peak(),8);
   h.requests[3].resolve();await tick();assert.equal(h.requests.length,9);
@@ -75,6 +83,10 @@ export async function contentJobTests(){
  });
  await test('Page dispatch honors configured limits of one, four, and sixteen',async()=>{
   for(const limit of [1,4,16]){const h=harness(limit,136);await tick();assert.equal(h.requests.length,limit);await h.finish();assert.equal(h.peak(),limit);assert.equal(h.store.translatedCount(),136);}
+ });
+ await test('Maximum concurrency schedules 64 batches and completes the remaining work',async()=>{
+  const h=harness(64,520);await tick();assert.equal(h.requests.length,64);assert.equal(h.peak(),64);
+  await h.finish();assert.equal(h.store.translatedCount(),520);assert.equal(h.requests.length,65);assert.equal(h.peak(),64);
  });
  await test('Restored individual blocks reuse successful results without another inference request',async()=>{
   const h=harness(8,2);await h.finish();const originalRequests=h.requests.length;
@@ -156,15 +168,15 @@ export async function contentJobTests(){
   assert.equal(h.store.translatedCount(),72);assert.equal(h.blocks.filter(b=>b.state==='failed').length,8);assert.equal(h.context.cache.size,72);
   await h.finish(h.context.translatePage(true));assert.equal(h.store.translatedCount(),80);assert.equal(h.requests.length,11);
  });
- await test('Ctrl+Alt+T requests translation per press even when a block is already translated',()=>{
-  const h=selectionHarness(),first=h.targets[0],keys={ctrlKey:true,altKey:true,code:'KeyT'};
+ await test('Alt+T requests translation per press even when a block is already translated',()=>{
+  const h=selectionHarness(),first=h.targets[0],keys={ctrlKey:false,altKey:true,code:'KeyT'};
   const press=h.event('keydown',first.element,keys);assert.ok(press.prevented&&press.stopped);
   assert.deepEqual(h.messages,['page.translate']);assert.equal(h.context.held,false);
   h.event('keydown',first.element,{...keys,repeat:true});assert.equal(h.messages.length,1);
   h.event('keyup',first.element);h.event('keydown',first.element,keys);assert.equal(h.messages.length,2);
  });
- await test('Ctrl+Alt+R restores independently, suppresses repeat events, and supports custom or disabled keys',()=>{
-  const h=selectionHarness(),first=h.targets[0],keys={ctrlKey:true,altKey:true,code:'KeyR'};
+ await test('Alt+R restores independently, suppresses repeat events, and supports custom or disabled keys',()=>{
+  const h=selectionHarness(),first=h.targets[0],keys={ctrlKey:false,altKey:true,code:'KeyR'};
   const press=h.event('keydown',first.element,keys);assert.ok(press.prevented&&press.stopped);
   assert.deepEqual(h.messages,['page.restore']);h.event('keydown',first.element,{...keys,repeat:true});assert.equal(h.messages.length,1);
   h.context.settings.restoreShortcut=null;h.event('keydown',first.element,keys);assert.equal(h.messages.length,1);
@@ -176,7 +188,7 @@ export async function contentJobTests(){
   h.context.enabled=false;h.event('keydown',first.element,custom);assert.equal(h.messages.length,2);
  });
  await test('Page shortcuts honor customization, disabled keys, editor focus, composition, and own UI',()=>{
-  const h=selectionHarness(),first=h.targets[0],keys={ctrlKey:true,altKey:true,code:'KeyT'};
+  const h=selectionHarness(),first=h.targets[0],keys={ctrlKey:false,altKey:true,code:'KeyT'};
   for(const [target,extra] of [[new h.Element('INPUT',first.element),{}],[h.own,{}],[first.element,{isComposing:true}]])
    assert.equal(h.event('keydown',target,{...keys,...extra}).prevented,undefined);
   h.context.settings.pageShortcut=null;h.event('keydown',first.element,keys);assert.deepEqual(h.messages,[]);
@@ -185,13 +197,13 @@ export async function contentJobTests(){
   h.event('keydown',first.element,{ctrlKey:true,shiftKey:true,code:'KeyY'});assert.deepEqual(h.messages,['page.translate']);
   h.context.enabled=false;h.event('keydown',first.element,{ctrlKey:true,shiftKey:true,code:'KeyY'});assert.equal(h.messages.length,1);
  });
- await test('Ctrl+Alt click restores the clicked block without prior hover or keydown',()=>{
+ await test('Alt click restores the clicked block without prior hover or keydown',()=>{
   const h=selectionHarness(),[first,second]=h.targets;
-  const click=h.event('click',first.child,{altKey:true,ctrlKey:true});
+  const click=h.event('click',first.child,{altKey:true,ctrlKey:false});
   assert.equal(first.block.nodes[0].ref.nodeValue,first.original);assert.equal(h.store.translatedCount(),1);
   assert.ok(click.prevented&&click.stopped);assert.equal(second.block.nodes[0].ref.nodeValue,'Translated '+second.original);
   assert.equal(h.translations.length,0);assert.deepEqual(h.messages,[]);
-  h.event('click',first.element,{altKey:true,ctrlKey:true});
+  h.event('click',first.element,{altKey:true,ctrlKey:false});
   assert.equal(h.translations.length,1);assert.equal(h.translations[0].elements[0],first.element);assert.equal(h.translations[0].failedOnly,false);
  });
  await test('Block selection restores the clicked block even when hover points elsewhere',()=>{
@@ -209,7 +221,7 @@ export async function contentJobTests(){
  await test('Block clicks honor customized modifier and keyed shortcuts',()=>{
   const h=selectionHarness(),[first,second]=h.targets;
   h.context.settings.blockShortcut={alt:false,shift:true,ctrl:true,meta:false,code:''};
-  assert.equal(h.event('click',first.element,{altKey:true,ctrlKey:true}).prevented,undefined);
+  assert.equal(h.event('click',first.element,{altKey:true,ctrlKey:false}).prevented,undefined);
   h.event('click',first.element,{ctrlKey:true,shiftKey:true});assert.equal(first.block.nodes[0].ref.nodeValue,first.original);
   h.context.settings.blockShortcut.code='KeyB';
   assert.equal(h.event('click',second.element,{ctrlKey:true,shiftKey:true}).prevented,undefined);
@@ -218,7 +230,7 @@ export async function contentJobTests(){
   h.event('click',second.element,{ctrlKey:true,shiftKey:true});assert.equal(second.block.nodes[0].ref.nodeValue,second.original);
  });
  await test('Ordinary clicks, editable fields, own UI, and disabled shortcuts do not restore blocks',()=>{
-  const h=selectionHarness(),first=h.targets[0],modifiers={altKey:true,ctrlKey:true};
+  const h=selectionHarness(),first=h.targets[0],modifiers={altKey:true,ctrlKey:false};
   h.context.hover=first.element;
   for(const [target,flags] of [[first.element,{}],[first.element,{...modifiers,button:1}],
    [new h.Element('INPUT',first.element),modifiers],[h.own,modifiers]])assert.equal(h.event('click',target,flags).prevented,undefined);
@@ -231,7 +243,7 @@ export async function contentJobTests(){
   h.context.outline={style:{}};h.context.hint={style:{}};h.context.innerWidth=1000;
   vm.runInContext(source.slice(source.indexOf(' function paintHover(){'),source.indexOf(' function error(e)')),h.context);
   h.event('pointermove',first.element);assert.equal(h.context.outline.hidden,true);assert.equal(h.context.hint.hidden,true);
-  h.event('keydown',first.element,{altKey:true,ctrlKey:true,code:'ControlLeft'});
+  const hold=h.event('keydown',first.element,{altKey:true,ctrlKey:false,code:'AltLeft'});assert.ok(hold.prevented);
   assert.equal(h.context.outline.hidden,false);assert.equal(h.context.hint.textContent,'클릭하여 이 블록 원문 복원');
   h.event('keyup',first.element);assert.equal(h.context.hint.hidden,true);
   h.context.picking=true;h.context.paintHover();assert.equal(h.context.hint.hidden,false);

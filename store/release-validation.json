@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-16",
+  "version": "0.1.0",
+  "automatedTests": {
+    "passed": 126,
+    "failed": 0,
+    "suites": [
+      {
+        "name": "suite",
+        "passed": 39,
+        "failed": 0
+      },
+      {
+        "name": "integration",
+        "passed": 22,
+        "failed": 0
+      },
+      {
+        "name": "content-jobs",
+        "passed": 24,
+        "failed": 0
+      },
+      {
+        "name": "ui-state",
+        "passed": 23,
+        "failed": 0
+      },
+      {
+        "name": "i18n",
+        "passed": 8,
+        "failed": 0
+      },
+      {
+        "name": "selection-ui",
+        "passed": 6,
+        "failed": 0
+      },
+      {
+        "name": "page-toolbar",
+        "passed": 4,
+        "failed": 0
+      }
+    ],
+    "environment": "Local Node VM module runner; mocked browser APIs and provider transport"
+  },
+  "syntax": {
+    "syntaxFiles": 13
+  },
+  "package": {
+    "file": "../dist/yongil-translator-0.1.0.zip",
+    "files": 27,
+    "bytes": 171219,
+    "sha256": "ffbf131d99f37f3ce6e463e5d6ab3646045fcb7c45169ac18fe7cf76ac0f412c",
+    "archiveContentsMatchSource": true,
+    "containsStoreFixtures": false
+  },
+  "artwork": {
+    "language": "en",
+    "dimensionsVerified": true,
+    "visuallyReviewed": true
+  },
+  "browser": {
+    "actualScreenshots": false,
+    "liveAccountVerification": false,
+    "reason": "No connected browser; in-app browser unavailable; isolated Chrome and Edge renderer GPU processes failed."
+  },
+  "publication": {
+    "uploaded": false,
+    "published": false,
+    "privacyHosted": false,
+    "providerRouteSupportConfirmed": false
+  },
+  "diffWhitespaceCheck": "passed"
+}

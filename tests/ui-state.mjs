@@ -25,7 +25,7 @@ async function harness({options=false,connected=false,permission=false,url='http
  assert.ok(gates.length>0&&gates.every(el=>el.hidden),'Protected UI must start hidden in HTML');
  const status={current:connected?{state:'connected',connectionId:'test-account',email:'user@example.invalid'}:{state:'disconnected'}};
  const grants={allowed:permission,result:true,pending:null,requestPending:null,requests:[]};const calls=[];let poll;
- const savedSettings={schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:8,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:true,shift:false,meta:false,code:'KeyT'},restoreShortcut:{alt:true,ctrl:true,shift:false,meta:false,code:'KeyR'},blockShortcut:null,cancelShortcut:null};
+ const savedSettings={schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyT'},restoreShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyR'},blockShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:''},cancelShortcut:null};
  const event=()=>({listeners:[],addListener(fn){this.listeners.push(fn);},emit(...args){for(const fn of this.listeners)fn(...args);}});
  const body=element('body','class="'+(options?'options':'popup')+'"');body.dataset.connected='false';
  const document={body,documentElement:{dataset:{}},hidden:false,getElementById:id=>nodes.get(id)||null,
@@ -196,8 +196,8 @@ export async function uiStateTests(){
   const h=await harness({options:true,connected:true,browserLanguage:'en'});
   assert.equal(h.nodes.has('command-list'),false);assert.equal(h.nodes.has('open-shortcuts'),false);
   assert.ok(h.nodes.get('record-page').classList.contains('shortcut-button'));
-  assert.equal(h.nodes.get('record-page').textContent,'Ctrl + Alt + T');
-  assert.equal(h.nodes.get('record-restore').textContent,'Ctrl + Alt + R');
+  assert.equal(h.nodes.get('record-page').textContent,'Alt + T');
+  assert.equal(h.nodes.get('record-restore').textContent,'Alt + R');
   for(const id of ['record-page','record-restore','record-block','record-cancel'])assert.ok(h.nodes.has(id));
   assert.equal(h.all.filter(el=>el.dataset.i18n==='commandTranslate').length,1);assert.equal(h.all.filter(el=>el.dataset.i18n==='commandRestore').length,1);
   assert.ok(!h.calls.includes('commands.list'));
@@ -213,7 +213,9 @@ export async function uiStateTests(){
   await h.click('clear-restore');await tick();assert.equal(h.savedSettings.restoreShortcut,null);assert.equal(restore.textContent,'Not set');
  });
  await test('Popup displays the configured page shortcut without querying browser commands',async()=>{
-  const h=await harness({connected:true});assert.equal(h.nodes.get('translate-key').textContent,'Ctrl + Alt + T');
+  const h=await harness({connected:true});assert.equal(h.nodes.get('translate-key').textContent,'Alt + T');
+  assert.equal(h.nodes.get('block-key').textContent,'Alt + 클릭');assert.equal(h.nodes.get('restore-key').textContent,'Alt + R');
+  const english=await harness({connected:true,browserLanguage:'en'});assert.equal(english.nodes.get('block-key').textContent,'Alt + Click');
   assert.ok(!h.calls.includes('commands.list'));
  });
  await test('Saved language overrides also apply before sign-in',async()=>{

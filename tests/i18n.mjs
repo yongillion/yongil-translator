@@ -59,7 +59,7 @@ export async function i18nTests(){
   for(const [preference,browser,expected] of [['auto','ko-KR','ko'],['auto','en-GB','en'],['auto','de','en'],['en','ko','en'],['ko','en','ko']])assert.equal(api.resolveUILanguage(preference,browser),expected);
   await api.configureLanguage('auto');assert.equal(api.t('restoreBlock'),'이 블록 원문 복원');
   await api.configureLanguage('en');assert.equal(api.t('restoreBlock'),'Restore this block');
-  assert.equal(api.t('pageProgress',[3,2]),'3 translated · 2 pending');assert.equal(api.t('translatingTo',['$1 <b>custom</b>']),'Translating into $1 <b>custom</b>');
+  assert.equal(api.t('pageProgress',[3,5]),'3/5 Blocks');assert.equal(api.t('translatingTo',['$1 <b>custom</b>']),'Translating into $1 <b>custom</b>');
  });
  await test('On-page messages update in place and survive repeated content-script injection',async()=>{
   const source=await readFile(new URL('../extension/document-core.js',import.meta.url),'utf8'),context=vm.createContext({chrome:{i18n:mockI18n()}});

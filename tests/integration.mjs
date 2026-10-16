@@ -46,7 +46,7 @@ export async function integrationTests(){
  await check('Credentials use trusted-context-only storage',async()=>{assert.equal(local.access,'TRUSTED_CONTEXTS');assert.equal(session.access,'TRUSTED_CONTEXTS');});
  await check('Stored legacy block shortcut is migrated once and later custom choices survive',async()=>{
   const migrated=(await send({type:'settings.get'})).data;
-  assert.equal(migrated.blockShortcutDefaultVersion,2);assert.equal(local.data.settings.blockShortcut.ctrl,true);assert.equal(local.data.settings.blockShortcut.shift,false);
+  assert.equal(migrated.blockShortcutDefaultVersion,3);assert.equal(local.data.settings.blockShortcut.ctrl,false);assert.equal(local.data.settings.blockShortcut.shift,false);
   const old={alt:true,shift:true,ctrl:false,meta:false,code:''};
   await send({type:'settings.update',patch:{blockShortcut:old}});
   assert.equal((await send({type:'settings.get'})).data.blockShortcut.ctrl,false);
@@ -176,8 +176,9 @@ export async function integrationTests(){
   }finally{chrome.permissions.contains=oldContains;}
  });
  await check('Configured concurrency is shared across tabs and survives settings roundtrips',async()=>{
-  assert.equal((await send({type:'settings.get'})).data.maxConcurrentBatches,8);
-  assert.equal((await send({type:'settings.update',patch:{maxConcurrentBatches:17}})).ok,false);
+  assert.equal((await send({type:'settings.get'})).data.maxConcurrentBatches,16);
+  assert.equal((await send({type:'settings.update',patch:{maxConcurrentBatches:65}})).ok,false);
+  assert.equal((await send({type:'settings.update',patch:{maxConcurrentBatches:64}})).data.maxConcurrentBatches,64);
   assert.equal((await send({type:'settings.update',patch:{maxConcurrentBatches:3}})).data.maxConcurrentBatches,3);
   const second={...content,tab:{id:2},documentId:'second-document'};
   const a=await send({type:'job.begin'},content),b=await send({type:'job.begin'},second);

@@ -162,7 +162,17 @@ if($('allow-all'))$('allow-all').addEventListener('click',()=>{
  chrome.permissions.request({origins:['http://*/*','https://*/*']}).then(granted=>{if(!granted)feedback(t('siteAccessDenied'));return permissionsView();}).catch(e=>feedback(e.message));
 });
 function shortcutFromEvent(e){return {alt:e.altKey,shift:e.shiftKey,ctrl:e.ctrlKey,meta:e.metaKey,code:/^(Alt|Shift|Control|Meta)(Left|Right)$/.test(e.code)?'':e.code};}
-function shortcutsView(){if(!isOptions){$('translate-key').textContent=state.pageShortcut?shortcutLabel(state.pageShortcut):'';return;}$('record-page').textContent=shortcutLabel(state.pageShortcut);$('record-restore').textContent=shortcutLabel(state.restoreShortcut);$('record-block').textContent=shortcutLabel(state.blockShortcut);$('record-cancel').textContent=shortcutLabel(state.cancelShortcut);}
+function shortcutsView(){
+ if(!isOptions){
+  for(const [id,key] of [['translate-key','pageShortcut'],['block-key','blockShortcut'],['restore-key','restoreShortcut']]){
+   const value=state[key],label=value?shortcutLabel(value):'';
+   $(id).textContent=value&&key==='blockShortcut'?t('blockShortcutClick',[label]):label;
+   $(id).hidden=!value;
+  }
+  return;
+ }
+ $('record-page').textContent=shortcutLabel(state.pageShortcut);$('record-restore').textContent=shortcutLabel(state.restoreShortcut);$('record-block').textContent=shortcutLabel(state.blockShortcut);$('record-cancel').textContent=shortcutLabel(state.cancelShortcut);
+}
 function record(id,key){
  action(id,()=>{if(recording){$(recording.id).classList.remove('recording');}recording={id,key};$(id).classList.add('recording');$(id).textContent=t('recordKeys');});
  $(id)?.addEventListener('keydown',e=>{
