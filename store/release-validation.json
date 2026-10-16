@@ -2,12 +2,12 @@
   "date": "2026-10-16",
   "version": "0.1.0",
   "automatedTests": {
-    "passed": 163,
+    "passed": 171,
     "failed": 0,
     "suites": [
       {
         "name": "suite",
-        "passed": 41,
+        "passed": 46,
         "failed": 0
       },
       {
@@ -42,7 +42,7 @@
       },
       {
         "name": "retry-logs",
-        "passed": 17,
+        "passed": 20,
         "failed": 0
       },
       {
@@ -59,8 +59,8 @@
   "package": {
     "file": "../dist/yongil-translator-0.1.0.zip",
     "files": 31,
-    "bytes": 204678,
-    "sha256": "2fe32c489938aaa7346fa0a066f4e433ff87b9f73f41442bf6bd55c112dd0e4a",
+    "bytes": 206315,
+    "sha256": "5b6ac900feb8efe3d8814561f53566f6a3d9e39a91bae7ce49f3b0ea832936d3",
     "archiveContentsMatchSource": true,
     "containsStoreFixtures": false
   },
@@ -72,7 +72,7 @@
   "browser": {
     "actualScreenshots": false,
     "liveAccountVerification": false,
-    "reason": "No connected Chrome browser was available during the latest browser inventory. Native side-panel closing, quota behavior in Chrome, and the circular toolbar close control still require actual browser verification. Automated tests use mock browser APIs."
+    "reason": "No connected Chrome browser was available during the latest browser inventory. Native side-panel closing, quota behavior in Chrome, and the circular toolbar close control still require actual browser verification. Automated tests use mock browser APIs. The Luna JSON recovery fix was verified by offline replay of the supplied response and mock transport tests, not live inference."
   },
   "publication": {
     "uploaded": false,

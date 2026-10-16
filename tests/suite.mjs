@@ -101,7 +101,41 @@ test('Signed identity requires issuer, audience, nonce and expiry',async()=>{
 test('Translation input rejects oversized and duplicate blocks',()=>{assert.throws(()=>validateBlocks([...blocks,...blocks]));assert.throws(()=>validateBlocks([{id:'b',nodes:[{id:'n',text:'a'.repeat(18001)}]}]));});
 test('Response node ids are validated and ordered',()=>assert.deepEqual(parseTranslation('{"blocks":[{"id":"b1","nodes":[{"id":"n0","text":"안녕"}]}]}',blocks),{b1:['안녕']}));
 test('Omitted, duplicated and blank translations are rejected',()=>{for(const nodes of [[],[{id:'n0',text:''}],[{id:'n0',text:'a'},{id:'n0',text:'b'}],[{id:'bad',text:'a'}]])assert.throws(()=>parseTranslation(JSON.stringify({blocks:[{id:'b1',nodes}]}),blocks));});
+test('Reported Luna output recovers all eight blocks by removing only its extra trailing pair',async()=>{
+ const fixture=JSON.parse(await readFile(new URL('./fixtures/luna-extra-closers.json',import.meta.url),'utf8')),notes=[];
+ assert.throws(()=>JSON.parse(fixture.responseText));
+ const expected=Object.fromEntries(JSON.parse(fixture.responseText.slice(0,-2)).blocks.map(block=>[block.id,block.nodes.map(node=>node.text)]));
+ assert.deepEqual(parseTranslation(fixture.responseText,fixture.requested,note=>notes.push(note)),expected);
+ assert.deepEqual(notes,[{reason:'extra_closing_delimiters',removedCharacters:2}]);
+});
+test('Trailing-token recovery respects quoted braces, escaped quotes, backslashes and Unicode',()=>{
+ const text='인용 "}]}" [괄호] \\ 경로 / 줄바꿈\n끝 \\',json=JSON.stringify({blocks:[{id:'b1',nodes:[{id:'n0',text}]}]});
+ for(const suffix of [']}', ' } \n ] \t }'])assert.deepEqual(parseTranslation(json+suffix,blocks),{b1:[text]});
+ let recovered=false;assert.deepEqual(parseTranslation(json,blocks,()=>{recovered=true;}),{b1:[text]});assert.equal(recovered,false);
+ assert.deepEqual(parseTranslation('```json\n'+json+']}\n```',blocks),{b1:[text]});
+});
+test('Recovery never discards prose, another value, or invalid syntax inside the root object',()=>{
+ const json=JSON.stringify({blocks:[{id:'b1',nodes:[{id:'n0',text:'번역'}]}]});
+ const invalid=[json+' Done',json+'{}',json+'[]',json+',',json+']};',json+'] null',json+'] /* note */',json.slice(0,-1),'Explanation: '+json,json.replace('"blocks":','"blocks" ')+']}',json.replace('"text":','"text":]')+']}'];
+ for(const value of invalid){let recovered=false;assert.throws(()=>parseTranslation(value,blocks,()=>{recovered=true;}),e=>e.messageKey==='resultFormat');assert.equal(recovered,false);}
+});
+test('Recovered JSON must still pass every block, node and translation-content validation',()=>{
+ const invalid=[{blocks:[]},{blocks:[{id:'wrong',nodes:[{id:'n0',text:'번역'}]}]},
+  ...[[],[{id:'bad',text:'번역'}],[{id:'n0',text:''}],[{id:'n0',text:'a'.repeat(50001)}],[{id:'n0',text:'a'},{id:'n0',text:'b'}]].map(nodes=>({blocks:[{id:'b1',nodes}]}))];
+ for(const data of invalid){let recovered=false;assert.throws(()=>parseTranslation(JSON.stringify(data)+']}',blocks,()=>{recovered=true;}),e=>e.code==='RESULT');assert.equal(recovered,false);}
+ const largeInput=[{id:'large',nodes:Array.from({length:4},(_,i)=>({id:'n'+i,text:'Original'}))}],largeOutput={blocks:[{id:'large',nodes:largeInput[0].nodes.map(node=>({...node,text:'a'.repeat(40000)}))}]};
+ assert.throws(()=>parseTranslation(JSON.stringify(largeOutput)+']}',largeInput),e=>e.messageKey==='resultTooLarge');
+});
 function stream(text,split=3){const bytes=new TextEncoder().encode(text);return new ReadableStream({start(c){for(let i=0;i<bytes.length;i+=split)c.enqueue(bytes.slice(i,i+split));c.close();}});}
+test('Streaming preserves redundant tokens for diagnostics and recovery requires completion',async()=>{
+ const fixture=JSON.parse(await readFile(new URL('./fixtures/luna-extra-closers.json',import.meta.url),'utf8'));
+ const events=[{type:'response.output_text.delta',delta:fixture.responseText.slice(0,-2)},
+  {type:'response.output_text.delta',delta:']}'},{type:'response.output_text.done',text:fixture.responseText},
+  {type:'response.completed',response:{status:'completed',output:[{type:'message',phase:'final_answer',content:[{type:'output_text',text:fixture.responseText}]}]}}];
+ const wire=events.map(event=>'data: '+JSON.stringify(event)+'\n\n').join(''),raw=await readResponseStream(stream(wire));
+ assert.equal(raw,fixture.responseText);assert.equal(Object.keys(parseTranslation(raw,fixture.requested)).length,8);
+ await assert.rejects(readResponseStream(stream(events.slice(0,-1).map(event=>'data: '+JSON.stringify(event)+'\n\n').join(''))),e=>e.code==='STREAM');
+});
 test('Streaming handles split UTF8 and CRLF boundaries',async()=>{const s='data: '+JSON.stringify({type:'response.output_text.delta',delta:'한국어'})+'\r\n\r\ndata: '+JSON.stringify({type:'response.completed',response:{status:'completed'}})+'\r\n\r\n';assert.equal(await readResponseStream(stream(s)), '한국어');});
 test('Streaming requires a completion event',async()=>await assert.rejects(readResponseStream(stream('data: {"type":"response.output_text.delta","delta":"partial"}\n\n'))));
 test('Failed or incomplete streams never apply partial output',async()=>{for(const type of ['response.failed','response.incomplete','error'])await assert.rejects(readResponseStream(stream('data: '+JSON.stringify({type})+'\n\n')));});

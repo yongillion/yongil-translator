@@ -17,8 +17,33 @@ export function validateBlocks(blocks) {
  if(size>18000)throw new AppError('INPUT','inputTooLong');
  return blocks;
 }
-export function parseTranslation(text,requested) {
- let parsed;try{parsed=JSON.parse(text.trim().replace(/^\x60\x60\x60(?:json)?\s*/,'').replace(/\s*\x60\x60\x60$/,''));}catch{throw new AppError('RESULT','resultFormat');}
+function translationJSON(source){
+ try{return {parsed:JSON.parse(source)};}catch{}
+ // Some responses append extra closing tokens after an otherwise complete root.
+ // Locate that root without treating braces inside quoted/escaped text as syntax.
+ // Never repair its contents, invent missing tokens, or discard another JSON value.
+ if(source[0]==='{'){
+  const stack=[];let quoted=false,escaped=false;
+  for(let index=0;index<source.length;index++){
+   const char=source[index];
+   if(quoted){if(escaped)escaped=false;else if(char==='\\')escaped=true;else if(char==='"')quoted=false;continue;}
+   if(char==='"'){quoted=true;continue;}
+   if(char==='{'||char==='[')stack.push(char);
+   else if(char==='}'||char===']'){
+    if(stack.pop()!==(char==='}'?'{':'['))break;
+    if(!stack.length){
+     const suffix=source.slice(index+1);
+     if(!/^[\s\]}]+$/.test(suffix))break;
+     try{return {parsed:JSON.parse(source.slice(0,index+1)),recovery:{reason:'extra_closing_delimiters',removedCharacters:suffix.trim().length}};}catch{break;}
+    }
+   }
+  }
+ }
+ throw new AppError('RESULT','resultFormat');
+}
+export function parseTranslation(text,requested,onRecovery) {
+ const source=text.trim().replace(/^\x60\x60\x60(?:json)?\s*/,'').replace(/\s*\x60\x60\x60$/,'').trim();
+ const {parsed,recovery}=translationJSON(source);
  if(!parsed||!Array.isArray(parsed.blocks)||parsed.blocks.length!==requested.length)throw new AppError('RESULT','resultBlockCount');
  const result=new Map();let total=0;
  for(const input of requested){
@@ -33,6 +58,7 @@ export function parseTranslation(text,requested) {
   result.set(input.id,values);
  }
  if(total>150000)throw new AppError('RESULT','resultTooLarge');
+ if(recovery)onRecovery?.(recovery);
  return Object.fromEntries(result);
 }
 export async function readResponseStream(body,signal,onEvent) {

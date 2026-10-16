@@ -37,7 +37,7 @@ async function providerHarness(sequence,options={}){
  }
  const module=await load(new URL('../extension/lib/provider.mjs',import.meta.url));await module.link((specifier,parent)=>load(new URL(specifier,parent.identifier)));await module.evaluate();
  const controller=new AbortController();
- return {calls,logs,delays,controller,auth,run:(maxRetries=4)=>module.namespace.translate(input,{modelId:'luna-test',targetLanguage:'Korean',instructionsEnabled:true,instructions:'Keep the tone friendly.',maxRetries},'connection',controller.signal)};
+ return {calls,logs,delays,controller,auth,run:(maxRetries=4)=>module.namespace.translate(options.blocks||input,{modelId:'luna-test',targetLanguage:'Korean',instructionsEnabled:true,instructions:'Keep the tone friendly.',maxRetries},'connection',controller.signal)};
 }
 export async function retryLogTests(){
  const results=[];async function test(name,fn){try{await fn();results.push({name,passed:true});}catch(e){results.push({name,passed:false,error:e.stack||e.message});}}
@@ -50,6 +50,26 @@ export async function retryLogTests(){
   assert.ok(h.logs.some(row=>row.event==='translation.retry'&&row.details.retry===1));
   assert.ok(h.logs.some(row=>row.event==='http.request'&&row.details.payload.model==='luna-test'));
   assert.ok(!JSON.stringify(h.logs).includes('SECRET_ACCESS_TOKEN'));
+ });
+ await test('Reported eight-block response succeeds on the first request with raw diagnostics preserved',async()=>{
+  const fixture=JSON.parse(await readFile(new URL('./fixtures/luna-extra-closers.json',import.meta.url),'utf8'));
+  const h=await providerHarness([()=>response(fixture.responseText)],{blocks:fixture.requested}),output=await h.run(0);
+  assert.equal(h.calls.length,1);assert.equal(h.delays.length,0);assert.equal(Object.keys(output).length,8);assert.equal(output.b17[0],'목록');
+  const raw=h.logs.find(row=>row.event==='translation.response');assert.equal(raw.details.state,'validated');assert.equal(raw.details.text,fixture.responseText);
+  assert.equal(raw.details.events.at(-1).response.output[0].content[0].text,fixture.responseText);
+  assert.equal(raw.details.recovery.removedCharacters,2);assert.ok(h.logs.some(row=>row.event==='translation.recovered'&&row.level==='warn'));
+  assert.ok(!h.logs.some(row=>row.event==='translation.retry'||row.event==='translation.error'));
+ });
+ await test('An unrecoverable response still retries and a later extra-closing response completes without more requests',async()=>{
+  const h=await providerHarness([()=>response('Invalid JSON'),()=>response(valid+']}')]);assert.equal((await h.run()).b1[0],'Translated paragraph');assert.equal(h.calls.length,2);
+  const bodies=h.calls.map(call=>JSON.parse(call.init.body));assert.equal(bodies[0].input[0].content[0].text,bodies[1].input[0].content[0].text);
+  assert.ok(bodies[0].instructions.includes('Close each array and object exactly once'));
+  assert.ok(bodies[1].instructions.includes('Do not append any characters after the root object closes'));
+  assert.equal(h.logs.filter(row=>row.event==='translation.recovered').length,1);
+ });
+ await test('Trailing closers never turn missing blocks into a successful or recovered response',async()=>{
+  const h=await providerHarness([()=>response('{"blocks":[]}]}')]);await assert.rejects(h.run(1),e=>e.messageKey==='resultBlockCount');assert.equal(h.calls.length,2);
+  assert.ok(!h.logs.some(row=>['translation.recovered','translation.validated'].includes(row.event)));
  });
  await test('Four retries mean five total attempts; zero disables automatic retries',async()=>{
   for(const [limit,count]of [[4,5],[0,1],[1,2]]){
