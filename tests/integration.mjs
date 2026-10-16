@@ -116,35 +116,35 @@ export async function integrationTests(){
    await send({type:'selection.finished'},content);assert.deepEqual([...states.values()],[false,false]);
   }finally{chrome.webNavigation.getAllFrames=oldFrames;chrome.scripting.executeScript=oldInject;chrome.tabs.sendMessage=oldSend;}
  });
- await check('Page toggle restores every frame when any frame has translated text, otherwise translates all frames',async()=>{
+ await check('Page translation and restoration dispatch independently across all frames in the sender tab',async()=>{
   const oldFrames=chrome.webNavigation.getAllFrames,oldInject=chrome.scripting.executeScript,oldSend=chrome.tabs.sendMessage;
   const states=new Map([[0,0],[1,1]]),actions=[];
   chrome.webNavigation.getAllFrames=async()=>[0,1].map(frameId=>({frameId,url:'https://example.test/'}));
   chrome.scripting.executeScript=async()=>[0,1].map(frameId=>({frameId}));
   chrome.tabs.sendMessage=async(tabId,message,options)=>{
    if(['page.translate','page.restore'].includes(message.type)){
-    actions.push({tabId,frameId:options.frameId,type:message.type});
-    states.set(options.frameId,message.type==='page.restore'?0:1);
+    actions.push({tabId,frameId:options.frameId,type:message.type});states.set(options.frameId,message.type==='page.restore'?0:1);
    }
    return {translated:states.get(options?.frameId)||0,total:2,running:false};
   };
   try{
    const before=requests.length;
-   assert.equal((await send({type:'page.toggle',tabId:999},content)).ok,true);
-   assert.deepEqual(actions.map(x=>x.type),['page.restore','page.restore']);assert.ok(actions.every(x=>x.tabId===content.tab.id));
-   assert.equal(requests.length,before);assert.deepEqual([...states.values()],[0,0]);
-   actions.length=0;await send({type:'page.toggle'},content);
-   assert.deepEqual(actions.map(x=>x.type),['page.translate','page.translate']);
-   actions.length=0;await send({type:'page.toggle',tabId:1});
-   assert.deepEqual(actions.map(x=>x.type),['page.restore','page.restore']);
+   for(const type of ['page.translate','page.translate','page.restore','page.restore']){
+    actions.length=0;assert.equal((await send({type,tabId:999},content)).ok,true);
+    assert.deepEqual(actions.map(x=>x.type),[type,type]);assert.ok(actions.every(x=>x.tabId===content.tab.id));
+    assert.deepEqual([...states.values()],type==='page.restore'?[0,0]:[1,1]);
+   }
+   assert.equal(requests.length,before);
   }finally{chrome.webNavigation.getAllFrames=oldFrames;chrome.scripting.executeScript=oldInject;chrome.tabs.sendMessage=oldSend;}
  });
- await check('Page toggle from an unauthorized document cannot trigger injection or translation',async()=>{
+ await check('Unauthorized documents cannot request page translation or restoration in any tab',async()=>{
   const original=chrome.permissions.contains,oldInject=chrome.scripting.executeScript;let injected=false;
   chrome.permissions.contains=async()=>false;chrome.scripting.executeScript=async()=>{injected=true;return [{frameId:0}];};
   try{
-   const result=await send({type:'page.toggle',tabId:1},{...content,tab:{id:77}});
-   assert.equal(result.ok,false);assert.equal(result.error.code,'PERMISSION');assert.equal(injected,false);
+   for(const type of ['page.translate','page.restore']){
+    const result=await send({type,tabId:1},{...content,tab:{id:77}});
+    assert.equal(result.ok,false);assert.equal(result.error.code,'PERMISSION');assert.equal(injected,false);
+   }
   }finally{chrome.permissions.contains=original;chrome.scripting.executeScript=oldInject;}
  });
  await check('Page restoration routes to documents without inference',async()=>{const before=requests.length;await send({type:'page.restore',tabId:1});assert.equal(requests.length,before);assert.ok(tabMessages.some(x=>x.msg.type==='page.restore'));});
@@ -154,10 +154,10 @@ export async function integrationTests(){
   const count=requests.length;chrome.permissions.contains=async()=>false;
   chrome.scripting.executeScript=async()=>{injected=true;return [{frameId:0}];};
   try{
-   for(const type of ['page.activate','page.translate','page.select','page.retry','page.toggle']){
+   for(const type of ['page.activate','page.translate','page.select','page.retry','page.restore']){
     const denied=await send({type,tabId:1});assert.equal(denied.ok,false);assert.equal(denied.error.code,'PERMISSION');
    }
-   for(const type of ['job.begin','page.toggle']){
+   for(const type of ['job.begin','page.restore']){
     const denied=await send({type},{...content,url:'https://example.test/after-spa'});assert.equal(denied.error.code,'PERMISSION');
    }
    const batch=await send({type:'job.batch',jobId:job.id,blocks:[{id:'b',nodes:[{id:'n',text:'Blocked'}]}]},content);

@@ -20,6 +20,6 @@ Restoring original text does not send a new translation request. This does not m
 - alarms: check sign-in timeouts and missed callbacks
 - webNavigation: enumerate accessible frames, invalidate requests when documents navigate, and detect the designated sign-in callback
 - auth.openai.com and chatgpt.com: authentication, model discovery, and subscription-backed translation
-- Access to selected websites: required before page, block, and selected-text translation can be used; the extension does not request temporary activeTab access
+- Website access: required before page, block, and selected-text translation can be used. The popup offers access to the current site only or all HTTP and HTTPS websites; broader access is requested only when the all-sites button is clicked. The extension does not request temporary activeTab access
 
 The extension contains no analytics SDKs, advertisements, remotely executed code, or developer-operated proxy.

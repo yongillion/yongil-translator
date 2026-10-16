@@ -13,7 +13,7 @@ const Store=sandbox.YTDocument.SnapshotStore;
 const node=text=>({nodeValue:text,isConnected:true});
 const sample=()=>{const s=new Store(),a=node('Hello '),b=node('world'),el={};return {s,a,b,block:s.register(el,[a,b]),el};};
 const blocks=[{id:'b1',nodes:[{id:'n0',text:'Hello'}]}];
-test('Browser locale is the explicit initial language',()=>{assert.equal(defaults('ko-KR').targetLanguage,'한국어');assert.equal(languageLabel('en-US'),'English');});
+test('Browser locale is the explicit initial language',()=>{assert.equal(defaults('ko-KR').targetLanguage,'한국어');assert.equal(languageLabel('en-US'),'English (United States)');});
 test('Editable custom target language survives validation',()=>assert.equal(sanitizeSettings({targetLanguage:'English (plain language)'}).targetLanguage,'English (plain language)'));
 test('Settings import rejects credentials and unknown fields',()=>{assert.throws(()=>sanitizeSettings({accessToken:'private'}));assert.throws(()=>sanitizeSettings({schemaVersion:99}));});
 test('Settings enforce instruction and input limits',()=>{assert.throws(()=>sanitizeSettings({instructions:'a'.repeat(4001)}));assert.throws(()=>sanitizeSettings({targetLanguage:' '}));});
@@ -35,7 +35,7 @@ test('Legacy block defaults migrate once while custom and disabled shortcuts are
  assert.deepEqual(sanitizeSettings({blockShortcut:old}).blockShortcut,old);
  assert.throws(()=>sanitizeSettings({blockShortcutDefaultVersion:3}));
 });
-test('Page toggle defaults to Ctrl+Alt+T and supports saved, imported, and disabled combinations',()=>{
+test('Page translation defaults to Ctrl+Alt+T and preserves saved, imported, and disabled combinations',()=>{
  const expected={alt:true,shift:false,ctrl:true,meta:false,code:'KeyT'};
  assert.deepEqual(defaults().pageShortcut,expected);assert.deepEqual(sanitizeSettings({modelId:'existing'}).pageShortcut,expected);
  const custom={...expected,alt:false,shift:true,code:'KeyY'};
@@ -43,6 +43,15 @@ test('Page toggle defaults to Ctrl+Alt+T and supports saved, imported, and disab
  assert.deepEqual(sanitizeSettings(JSON.parse(JSON.stringify({pageShortcut:custom}))).pageShortcut,custom);
  assert.equal(sanitizeSettings({pageShortcut:null}).pageShortcut,null);
  assert.throws(()=>sanitizeSettings({pageShortcut:{...expected,code:''}}));
+});
+test('Page restoration has an independent Ctrl+Alt+R default and editable saved shortcut',()=>{
+ const expected={alt:true,shift:false,ctrl:true,meta:false,code:'KeyR'};
+ assert.deepEqual(defaults().restoreShortcut,expected);assert.deepEqual(sanitizeSettings({modelId:'existing'}).restoreShortcut,expected);
+ const custom={...expected,alt:false,shift:true,code:'KeyO'},saved=sanitizeSettings({restoreShortcut:custom});
+ assert.deepEqual(saved.restoreShortcut,custom);assert.deepEqual(saved.pageShortcut,defaults().pageShortcut);
+ assert.deepEqual(sanitizeSettings(JSON.parse(JSON.stringify(saved))).restoreShortcut,custom);
+ assert.equal(sanitizeSettings({restoreShortcut:null}).restoreShortcut,null);
+ assert.throws(()=>sanitizeSettings({restoreShortcut:{...expected,code:''}}));
 });
 test('Shortcuts can be changed or cleared',()=>{assert.equal(shortcut(null),null);assert.equal(shortcut({alt:false,ctrl:true,shift:true,meta:false,code:'KeyY'}).code,'KeyY');});
 test('No-key shortcuts without modifiers are rejected',()=>assert.throws(()=>shortcut({alt:false,ctrl:false,shift:false,meta:false,code:''})));

@@ -1,19 +1,11 @@
 import {t} from './i18n.mjs';
-export const LANGUAGES = [
-['ko','한국어'],['en','English'],['ja','日本語'],['zh-CN','简体中文'],['zh-TW','繁體中文'],
-['es','Español'],['fr','Français'],['de','Deutsch'],['pt-BR','Português (Brasil)'],
-['it','Italiano'],['ru','Русский'],['ar','العربية'],['hi','हिन्दी'],['vi','Tiếng Việt'],
-['th','ไทย'],['id','Bahasa Indonesia'],['tr','Türkçe'],['pl','Polski'],['uk','Українська']
-];
-export function languageLabel(locale) {
- const code=String(locale||'en').replaceAll('_','-');
- return LANGUAGES.find(([id])=>id.toLowerCase()===code.toLowerCase())?.[1]
-   || LANGUAGES.find(([id])=>id===code.split('-')[0])?.[1] || code;
-}
+import {languageLabel} from './languages.mjs';
+export {LANGUAGES,languageLabel} from './languages.mjs';
 export function defaults(locale='en') {
  return {schemaVersion:1,targetLanguage:languageLabel(locale),modelId:'',
  instructions:'',instructionsEnabled:false,maxConcurrentBatches:8,uiLanguage:'auto',
  pageShortcut:{alt:true,shift:false,ctrl:true,meta:false,code:'KeyT'},
+ restoreShortcut:{alt:true,shift:false,ctrl:true,meta:false,code:'KeyR'},
  blockShortcutDefaultVersion:2,blockShortcut:{alt:true,shift:false,ctrl:true,meta:false,code:''},
  cancelShortcut:{alt:false,shift:false,ctrl:false,meta:false,code:'Escape'},
  excludedSites:[],theme:'system',defaultLocale:locale};
@@ -46,7 +38,7 @@ export function sanitizeSettings(input,base=defaults()) {
      result[key]=value;break;
     case 'instructionsEnabled':if(typeof value!=='boolean')throw new Error(t('instructionsInvalid'));result[key]=value;break;
    case 'blockShortcutDefaultVersion':if(value!==1&&value!==2)throw new Error(t('settingsVersion'));result[key]=value;break;
-   case 'pageShortcut':
+   case 'pageShortcut':case 'restoreShortcut':
      result[key]=shortcut(value);if(result[key]&&!result[key].code)throw new Error(t('pageShortcutKeyRequired'));break;
    case 'blockShortcut':case 'cancelShortcut':result[key]=shortcut(value);break;
    case 'uiLanguage':if(!['auto','en','ko'].includes(value))throw new Error(t('uiLanguageInvalid'));result[key]=value;break;

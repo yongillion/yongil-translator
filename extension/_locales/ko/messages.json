@@ -12,10 +12,7 @@
     "message": "번역하려면 사이트 접근을 허용하세요"
   },
   "siteAccessNote": {
-    "message": "이 사이트의 페이지, 블록, 선택한 텍스트를 번역하려면 Yongil Translator의 접근을 허용해 주세요."
-  },
-  "allowAlways": {
-    "message": "사이트 접근 허용"
+    "message": "페이지, 블록, 선택한 텍스트를 번역하려면 이 사이트만 또는 모든 사이트의 접근을 허용해 주세요."
   },
   "translatePage": {
     "message": "페이지 번역"
@@ -168,7 +165,7 @@
     "message": "번역과 단축키를 사용하려면 먼저 해당 사이트의 접근을 허용하세요."
   },
   "allowAllSites": {
-    "message": "모든 웹사이트에서 사용 허용"
+    "message": "모든 사이트 접근 허용"
   },
   "excludedSites": {
     "message": "번역 제외 사이트"
@@ -644,12 +641,6 @@
   "exitBlockSelection": {
     "message": "블록 선택 종료"
   },
-  "commandToggle": {
-    "message": "현재 페이지 번역/원문 복원"
-  },
-  "pageToggleNote": {
-    "message": "번역된 블록이 하나라도 있으면 페이지 전체를 원문으로 복원하고, 없으면 페이지를 번역합니다."
-  },
   "pageShortcutKeyRequired": {
     "message": "페이지 단축키에는 문자, 숫자 등 보조키 이외의 키를 포함해 주세요."
   },
@@ -664,5 +655,20 @@
   },
   "siteUnsupportedNote": {
     "message": "일반 웹페이지를 연 다음 사이트 접근을 허용해 번역을 시작하세요."
+  },
+  "allowThisSite": {
+    "message": "이 사이트만 접근 허용"
+  },
+  "commandTranslate": {
+    "message": "현재 페이지 번역"
+  },
+  "commandRestore": {
+    "message": "현재 페이지 원문 복원"
+  },
+  "pageTranslateNote": {
+    "message": "현재 언어와 모델 설정으로 페이지를 번역합니다."
+  },
+  "pageRestoreNote": {
+    "message": "진행 중인 번역을 중단하고 모든 번역된 블록을 원문으로 복원합니다."
   }
 }

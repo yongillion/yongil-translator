@@ -156,12 +156,24 @@ export async function contentJobTests(){
   assert.equal(h.store.translatedCount(),72);assert.equal(h.blocks.filter(b=>b.state==='failed').length,8);assert.equal(h.context.cache.size,72);
   await h.finish(h.context.translatePage(true));assert.equal(h.store.translatedCount(),80);assert.equal(h.requests.length,11);
  });
- await test('Ctrl+Alt+T requests one page toggle per press without activating block selection',()=>{
+ await test('Ctrl+Alt+T requests translation per press even when a block is already translated',()=>{
   const h=selectionHarness(),first=h.targets[0],keys={ctrlKey:true,altKey:true,code:'KeyT'};
   const press=h.event('keydown',first.element,keys);assert.ok(press.prevented&&press.stopped);
-  assert.deepEqual(h.messages,['page.toggle']);assert.equal(h.context.held,false);
+  assert.deepEqual(h.messages,['page.translate']);assert.equal(h.context.held,false);
   h.event('keydown',first.element,{...keys,repeat:true});assert.equal(h.messages.length,1);
   h.event('keyup',first.element);h.event('keydown',first.element,keys);assert.equal(h.messages.length,2);
+ });
+ await test('Ctrl+Alt+R restores independently, suppresses repeat events, and supports custom or disabled keys',()=>{
+  const h=selectionHarness(),first=h.targets[0],keys={ctrlKey:true,altKey:true,code:'KeyR'};
+  const press=h.event('keydown',first.element,keys);assert.ok(press.prevented&&press.stopped);
+  assert.deepEqual(h.messages,['page.restore']);h.event('keydown',first.element,{...keys,repeat:true});assert.equal(h.messages.length,1);
+  h.context.settings.restoreShortcut=null;h.event('keydown',first.element,keys);assert.equal(h.messages.length,1);
+  h.context.settings.restoreShortcut={alt:false,ctrl:true,shift:true,meta:false,code:'KeyO'};
+  h.event('keydown',first.element,keys);assert.equal(h.messages.length,1);
+  const custom={ctrlKey:true,shiftKey:true,code:'KeyO'};
+  for(const [target,extra] of [[new h.Element('INPUT',first.element),{}],[h.own,{}],[first.element,{isComposing:true}]])h.event('keydown',target,{...custom,...extra});
+  assert.equal(h.messages.length,1);h.event('keydown',first.element,custom);assert.deepEqual(h.messages,['page.restore','page.restore']);
+  h.context.enabled=false;h.event('keydown',first.element,custom);assert.equal(h.messages.length,2);
  });
  await test('Page shortcuts honor customization, disabled keys, editor focus, composition, and own UI',()=>{
   const h=selectionHarness(),first=h.targets[0],keys={ctrlKey:true,altKey:true,code:'KeyT'};
@@ -170,7 +182,7 @@ export async function contentJobTests(){
   h.context.settings.pageShortcut=null;h.event('keydown',first.element,keys);assert.deepEqual(h.messages,[]);
   h.context.settings.pageShortcut={alt:false,ctrl:true,shift:true,meta:false,code:'KeyY'};
   h.event('keydown',first.element,keys);assert.deepEqual(h.messages,[]);
-  h.event('keydown',first.element,{ctrlKey:true,shiftKey:true,code:'KeyY'});assert.deepEqual(h.messages,['page.toggle']);
+  h.event('keydown',first.element,{ctrlKey:true,shiftKey:true,code:'KeyY'});assert.deepEqual(h.messages,['page.translate']);
   h.context.enabled=false;h.event('keydown',first.element,{ctrlKey:true,shiftKey:true,code:'KeyY'});assert.equal(h.messages.length,1);
  });
  await test('Ctrl+Alt click restores the clicked block without prior hover or keydown',()=>{

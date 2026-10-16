@@ -52,10 +52,9 @@ async function pageAction(tabId,action){
  if(action!=='page.status'){for(const f of all){await chrome.tabs.sendMessage(tabId,{type:'content.enable',settings:currentSettings,locale:localeData()},{frameId:f.frameId}).catch(()=>{});}}
  if(action==='page.activate')action='page.status';
  let active;
- if(action==='page.select'||action==='page.toggle'){
+ if(action==='page.select'){
   const statuses=await Promise.allSettled(all.map(f=>chrome.tabs.sendMessage(tabId,{type:'page.status'},{frameId:f.frameId})));
-  if(action==='page.select')active=!statuses.some(result=>result.status==='fulfilled'&&result.value?.picking);
-  else action=statuses.some(result=>result.status==='fulfilled'&&result.value?.translated>0)?'page.restore':'page.translate';
+  active=!statuses.some(result=>result.status==='fulfilled'&&result.value?.picking);
  }
  const outcomes=await Promise.allSettled(all.map(f=>chrome.tabs.sendMessage(tabId,{type:action,...(active===undefined?{}:{active})},{frameId:f.frameId})));
  const data=outcomes.filter(x=>x.status==='fulfilled'&&x.value).map(x=>x.value);
@@ -110,8 +109,8 @@ async function route(message,sender){
   }
   case 'selection.finished':if(content)await chrome.tabs.sendMessage(sender.tab.id,{type:'selection.cancel'}).catch(()=>{});return {};
   case 'job.ping':return {alive:true};
-  case 'page.toggle':
-   if(content&&!ui){await contentAllowed(sender);return pageAction(sender.tab.id,'page.toggle');}
+  case 'page.translate':case 'page.restore':
+   if(content&&!ui){await contentAllowed(sender);return pageAction(sender.tab.id,message.type);}
    break;
  }
  if(!ui)throw new AppError('SENDER','extensionOnly');
@@ -125,7 +124,7 @@ async function route(message,sender){
   case 'models.list':return models(!!message.force);
   case 'options.open':await chrome.runtime.openOptionsPage();return {};
   case 'cache.clear':await broadcast('cache.clear');return {};
-  case 'page.activate':case 'page.toggle':case 'page.translate':case 'page.restore':case 'page.select':case 'page.stop':case 'page.retry':case 'page.status':
+  case 'page.activate':case 'page.translate':case 'page.restore':case 'page.select':case 'page.stop':case 'page.retry':case 'page.status':
    return pageAction(message.tabId,message.type);
   default:throw new AppError('MESSAGE','requestUnknown');
  }

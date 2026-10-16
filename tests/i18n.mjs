@@ -3,6 +3,7 @@ import {readFile,readdir} from 'node:fs/promises';
 import vm from 'node:vm';
 import {catalogs,mockI18n,localeFetch} from './locale-fixtures.mjs';
 import {defaults,sanitizeSettings,fingerprint} from '../extension/lib/settings.mjs';
+import {LANGUAGES,languageLabel,displayLanguage,targetLanguageValue} from '../extension/lib/languages.mjs';
 export async function i18nTests(){
  const results=[];async function test(name,fn){try{await fn();results.push({name,passed:true});}catch(e){results.push({name,passed:false,error:e.stack||e.message});}}
  await test('English and Korean catalogs have complete matching messages and substitutions',()=>{
@@ -26,6 +27,30 @@ export async function i18nTests(){
   for(const uiLanguage of ['auto','en','ko'])assert.equal(sanitizeSettings({uiLanguage}).uiLanguage,uiLanguage);
   for(const uiLanguage of ['fr','',null,1])assert.throws(()=>sanitizeSettings({uiLanguage}));
   assert.equal(fingerprint(defaults()),fingerprint(sanitizeSettings({uiLanguage:'ko'})));
+ });
+ await test('Language names show native and UI-localized regional labels with the requested separator',()=>{
+  const cases=[['ko','한국어'],['en-US','English (United States) ∙ 영어 (미국)'],['en-GB','English (United Kingdom) ∙ 영어 (영국)'],
+   ['en-AU','English (Australia) ∙ 영어 (호주)'],['pt-BR','Português (Brasil) ∙ 포르투갈어 (브라질)'],['pt-PT','Português (Portugal) ∙ 포르투갈어 (포르투갈)']];
+  for(const [code,label] of cases)assert.equal(displayLanguage(code,'ko'),label);
+  assert.equal(displayLanguage('한국어','en'),'한국어 ∙ Korean');
+  assert.equal(displayLanguage('en-GB','en'),'English (United Kingdom)');
+  assert.equal(displayLanguage('pt-BR','pt-PT'),'Português (Brasil)');
+  assert.ok(LANGUAGES.some(([code])=>code==='fr-CA'));assert.ok(LANGUAGES.some(([code])=>code==='es-MX'));
+ });
+ await test('Regional browser defaults retain country and script while generic languages stay generic',()=>{
+  assert.equal(languageLabel('en-AU'),'English (Australia)');assert.equal(languageLabel('pt_PT'),'Português (Portugal)');
+  assert.equal(languageLabel('zh-Hant-TW'),'繁體中文 (台灣)');assert.equal(languageLabel('ko-KR'),'한국어');assert.equal(languageLabel('en'),'English');
+  assert.equal(displayLanguage('简体中文','ko'),'简体中文 (中国) ∙ 중국어 (중국)');
+ });
+ await test('Language choices round-trip to stable native targets across UI languages and preserve custom input',()=>{
+  for(const [code,native] of LANGUAGES)for(const uiLanguage of ['ko','en']){
+   assert.equal(targetLanguageValue(displayLanguage(code,uiLanguage),uiLanguage),native);
+   assert.equal(targetLanguageValue(code,uiLanguage),native);
+  }
+  assert.equal(targetLanguageValue('영어 (영국)','ko'),'English (United Kingdom)');
+  assert.equal(targetLanguageValue('Português (Brasil)','en'),'Português (Brasil)');
+  assert.equal(targetLanguageValue('English (plain language)','ko'),'English (plain language)');
+  assert.equal(displayLanguage('Custom formal Korean','en'),'Custom formal Korean');
  });
  await test('Locale resolution honors explicit selection and English fallback with safe substitutions',async()=>{
   const chrome={i18n:mockI18n('ko-KR'),runtime:{getURL:p=>'chrome-extension://test/'+p}};

@@ -12,10 +12,7 @@
     "message": "Allow access to translate"
   },
   "siteAccessNote": {
-    "message": "Allow Yongil Translator to access this site to use page, block, and selected-text translation."
-  },
-  "allowAlways": {
-    "message": "Allow site access"
+    "message": "Choose access for this site only, or all websites, to use page, block, and selected-text translation."
   },
   "translatePage": {
     "message": "Translate page"
@@ -168,7 +165,7 @@
     "message": "Allow access to a website before using translation and shortcuts there."
   },
   "allowAllSites": {
-    "message": "Allow on all websites"
+    "message": "Allow all sites"
   },
   "excludedSites": {
     "message": "Excluded sites"
@@ -644,12 +641,6 @@
   "exitBlockSelection": {
     "message": "Exit block selection"
   },
-  "commandToggle": {
-    "message": "Translate/Restore the current page"
-  },
-  "pageToggleNote": {
-    "message": "Restore the entire page if any block is translated; otherwise translate the page."
-  },
   "pageShortcutKeyRequired": {
     "message": "Include a letter, number, or other non-modifier key for the page shortcut."
   },
@@ -664,5 +655,20 @@
   },
   "siteUnsupportedNote": {
     "message": "Open a regular webpage, then allow site access to start translating."
+  },
+  "allowThisSite": {
+    "message": "Allow only this site"
+  },
+  "commandTranslate": {
+    "message": "Translate the current page"
+  },
+  "commandRestore": {
+    "message": "Restore the current page"
+  },
+  "pageTranslateNote": {
+    "message": "Translate the page using the current language and model."
+  },
+  "pageRestoreNote": {
+    "message": "Stop pending translations and restore all translated blocks."
   }
 }

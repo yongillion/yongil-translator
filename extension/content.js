@@ -194,9 +194,10 @@
   if(!enabled||e.isComposing||editable(e))return;
   if(matching(e,settings?.cancelShortcut)&&(held||picking)){held=false;e.preventDefault();setPicking(false);return;}
   if(isOwn(e))return;
-  if(matching(e,settings?.pageShortcut)){
+  const pageCommand=matching(e,settings?.pageShortcut)?'page.translate':matching(e,settings?.restoreShortcut)?'page.restore':null;
+  if(pageCommand){
    e.preventDefault();e.stopImmediatePropagation();held=false;paintHover();
-   if(!e.repeat)void send('page.toggle').catch(error);return;
+   if(!e.repeat)void send(pageCommand).catch(error);return;
   }
   const modifier=/^(Alt|Shift|Control|Meta)(Left|Right)$/.test(e.code);
   held=matching(e,settings?.blockShortcut)&&(!!settings.blockShortcut.code||modifier);paintHover();

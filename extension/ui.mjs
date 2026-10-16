@@ -1,9 +1,10 @@
 import {t,configureLanguage,localizeDocument} from './lib/i18n.mjs';
 import {LANGUAGES,languageLabel,shortcutLabel,sanitizeSettings,defaults} from './lib/settings.mjs';
+import {displayLanguage as languageDisplay,targetLanguageValue} from './lib/languages.mjs';
 import {paintIcons} from './icons.mjs';
 paintIcons();
 const $=id=>document.getElementById(id),isOptions=document.body.classList.contains('options');
-let state,account,tab,modelResult,recording=null,polling=false,sitePermission=null,permissionRevision=0;
+let state,account,tab,modelResult,recording=null,polling=false,sitePermission=null,permissionRevision=0,requestingAccess=false;
 const rpc=async(type,data={})=>{const r=await chrome.runtime.sendMessage({type,...data});if(!r?.ok)throw new Error(r?.error?.message||t('connectionCheck'));return r.data;};
 function feedback(message,success=false){
  const target=!isOptions&&account?.state==='connected'&&sitePermission!=='granted'?'permission-feedback':'feedback';
@@ -18,7 +19,7 @@ function permissionCardView(){
  for(const el of document.querySelectorAll('[data-connected-only]'))el.hidden=!ready;
  $('account-card').hidden=connected&&!ready;
  $('permission-card').hidden=!connected||ready;
- $('allow-site').hidden=sitePermission!=='missing';$('allow-site').disabled=!connected||sitePermission!=='missing';
+ for(const id of ['allow-site','allow-all-sites']){$(id).hidden=sitePermission!=='missing';$(id).disabled=!connected||sitePermission!=='missing'||requestingAccess;}
  const unsupported=sitePermission==='unsupported',checking=!sitePermission;
  $('site-access-title').textContent=t(unsupported?'siteUnsupportedTitle':checking?'siteAccessChecking':'siteAccessTitle');
  $('site-state').textContent=t(unsupported?'siteUnsupportedNote':checking?'siteAccessCheckingNote':'siteAccessNote');
@@ -65,18 +66,15 @@ async function loadModels(force=false){
   $('model').value=state.modelId;$('model-note').textContent=modelResult.stale?t('cachedModelList',[modelResult.warning||'']):'';
  }finally{$('refresh-models').disabled=false;accountView();}
 }
-function displayLanguage(value){
- const code=LANGUAGES.find(([code,name])=>name===value||code===value)?.[0];
- if(!code)return value;
- try{return new Intl.DisplayNames([t('uiLocale')],{type:'language'}).of(code)||value;}catch{return value;}
-}
-function targetValue(value){return LANGUAGES.find(([,name])=>displayLanguage(name).toLowerCase()===value.trim().toLowerCase())?.[1]||value;}
+function displayLanguage(value){return languageDisplay(value,t('uiLocale'));}
+function targetValue(value){return targetLanguageValue(value,t('uiLocale'));}
 let choices=[],active=-1;
 function languageItems(query=''){
  const initial=displayLanguage(languageLabel(state.defaultLocale));
- const labels=[initial,...LANGUAGES.map(x=>displayLanguage(x[1]))].filter((x,i,a)=>a.indexOf(x)===i);
- choices=labels.filter(x=>!query||x.toLowerCase().includes(query.toLowerCase())||LANGUAGES.find(([code,label])=>displayLanguage(label)===x&&code.toLowerCase().includes(query.toLowerCase())));
- if(query.trim()&&!labels.some(x=>x.toLowerCase()===query.trim().toLowerCase()))choices.unshift(query.trim());
+ const codes=new Map(LANGUAGES.map(([code,name])=>[displayLanguage(name),code]));
+ const labels=[initial,...codes.keys()].filter((x,i,a)=>a.indexOf(x)===i),needle=query.trim().toLowerCase();
+ choices=labels.filter(label=>!needle||label.toLowerCase().includes(needle)||codes.get(label)?.toLowerCase().includes(needle.replaceAll('_','-')));
+ if(query.trim()&&!labels.includes(displayLanguage(targetValue(query))))choices.unshift(query.trim());
  $('language-list').replaceChildren();active=-1;
  choices.forEach((name,index)=>{
   const li=document.createElement('li');li.id='language-'+index;li.role='option';li.setAttribute('aria-selected','false');
@@ -147,22 +145,24 @@ async function permissionsView(){
   const remove=document.createElement('button');remove.className='text-button';remove.textContent=t('clear');remove.addEventListener('click',()=>chrome.permissions.remove({origins:[origin]}).then(permissionsView).catch(e=>feedback(e.message)));row.append(name,remove);$('site-list').append(row);}
  if(!optional.length){const p=document.createElement('small');p.textContent=t('noSitesAllowed');$('site-list').append(p);}
 }
-if($('allow-site'))$('allow-site').addEventListener('click',()=>{
- if(account?.state!=='connected'||!/^https?:\/\//.test(tab?.url||''))return;
- // Invoke request directly in the click gesture, before asynchronous work.
- const connectionId=account.connectionId;
- chrome.permissions.request({origins:[new URL(tab.url).origin+'/*']}).then(async granted=>{
+for(const [id,allSites] of [['allow-site',false],['allow-all-sites',true]])$(id)?.addEventListener('click',()=>{
+ if(requestingAccess||account?.state!=='connected'||sitePermission!=='missing'||!/^https?:\/\//.test(tab?.url||''))return;
+ // Keep the permission request in the click gesture for either chosen scope.
+ const connectionId=account.connectionId,origins=allSites?['http://*/*','https://*/*']:[new URL(tab.url).origin+'/*'];
+ requestingAccess=true;permissionCardView();
+ chrome.permissions.request({origins}).then(async granted=>{
   if(account?.state!=='connected'||account.connectionId!==connectionId)return;
   if(!granted){feedback(t('siteAccessDenied'));return;}
   feedback('');await connectedView();
   if(account?.state==='connected'&&account.connectionId===connectionId&&sitePermission==='granted')await rpc('page.activate',{tabId:tab.id});
- }).catch(e=>feedback(e.message));
+ }).catch(e=>{if(account?.state==='connected'&&account.connectionId===connectionId)feedback(e.message);})
+ .finally(()=>{requestingAccess=false;permissionCardView();});
 });
 if($('allow-all'))$('allow-all').addEventListener('click',()=>{
  chrome.permissions.request({origins:['http://*/*','https://*/*']}).then(granted=>{if(!granted)feedback(t('siteAccessDenied'));return permissionsView();}).catch(e=>feedback(e.message));
 });
 function shortcutFromEvent(e){return {alt:e.altKey,shift:e.shiftKey,ctrl:e.ctrlKey,meta:e.metaKey,code:/^(Alt|Shift|Control|Meta)(Left|Right)$/.test(e.code)?'':e.code};}
-function shortcutsView(){if(!isOptions){$('translate-key').textContent=state.pageShortcut?shortcutLabel(state.pageShortcut):'';return;}$('record-page').textContent=shortcutLabel(state.pageShortcut);$('record-block').textContent=shortcutLabel(state.blockShortcut);$('record-cancel').textContent=shortcutLabel(state.cancelShortcut);}
+function shortcutsView(){if(!isOptions){$('translate-key').textContent=state.pageShortcut?shortcutLabel(state.pageShortcut):'';return;}$('record-page').textContent=shortcutLabel(state.pageShortcut);$('record-restore').textContent=shortcutLabel(state.restoreShortcut);$('record-block').textContent=shortcutLabel(state.blockShortcut);$('record-cancel').textContent=shortcutLabel(state.cancelShortcut);}
 function record(id,key){
  action(id,()=>{if(recording){$(recording.id).classList.remove('recording');}recording={id,key};$(id).classList.add('recording');$(id).textContent=t('recordKeys');});
  $(id)?.addEventListener('keydown',e=>{
@@ -175,8 +175,9 @@ function record(id,key){
  });
  $(id)?.addEventListener('blur',()=>{if(recording?.id===id){recording=null;$(id).classList.remove('recording');shortcutsView();}});
 }
-record('record-page','pageShortcut');record('record-block','blockShortcut');record('record-cancel','cancelShortcut');
+record('record-page','pageShortcut');record('record-restore','restoreShortcut');record('record-block','blockShortcut');record('record-cancel','cancelShortcut');
 action('clear-page',async()=>{await save({pageShortcut:null});shortcutsView();});
+action('clear-restore',async()=>{await save({restoreShortcut:null});shortcutsView();});
 action('clear-block',async()=>{await save({blockShortcut:null});shortcutsView();});
 action('clear-cancel',async()=>{await save({cancelShortcut:null});shortcutsView();});
 $('shortcut-test')?.addEventListener('keydown',e=>{e.preventDefault();$('shortcut-test').value=shortcutLabel(shortcutFromEvent(e));});

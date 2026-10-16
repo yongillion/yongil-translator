@@ -24,8 +24,8 @@ async function harness({options=false,connected=false,permission=false,url='http
  }
  assert.ok(gates.length>0&&gates.every(el=>el.hidden),'Protected UI must start hidden in HTML');
  const status={current:connected?{state:'connected',connectionId:'test-account',email:'user@example.invalid'}:{state:'disconnected'}};
- const grants={allowed:permission,result:true,pending:null,requestPending:null};const calls=[];let poll;
- const savedSettings={schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:8,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:true,shift:false,meta:false,code:'KeyT'},blockShortcut:null,cancelShortcut:null};
+ const grants={allowed:permission,result:true,pending:null,requestPending:null,requests:[]};const calls=[];let poll;
+ const savedSettings={schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:8,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:true,shift:false,meta:false,code:'KeyT'},restoreShortcut:{alt:true,ctrl:true,shift:false,meta:false,code:'KeyR'},blockShortcut:null,cancelShortcut:null};
  const event=()=>({listeners:[],addListener(fn){this.listeners.push(fn);},emit(...args){for(const fn of this.listeners)fn(...args);}});
  const body=element('body','class="'+(options?'options':'popup')+'"');body.dataset.connected='false';
  const document={body,documentElement:{dataset:{}},hidden:false,getElementById:id=>nodes.get(id)||null,
@@ -42,7 +42,7 @@ async function harness({options=false,connected=false,permission=false,url='http
   return {ok:true,data};}},tabs:{query:async()=>[{id:1,url}],create:async()=>{}},
   permissions:{onAdded:event(),onRemoved:event(),getAll:async()=>({origins:grants.allowed?['https://example.test/*']:[]}),
    contains:async()=>grants.pending?await grants.pending:grants.allowed,
-   request:async()=>{const result=grants.requestPending?await grants.requestPending:grants.result;if(result)grants.allowed=true;return result;},remove:async()=>{grants.allowed=false;return true;}}};
+   request:async options=>{grants.requests.push(JSON.parse(JSON.stringify(options)));const result=grants.requestPending?await grants.requestPending:grants.result;if(result)grants.allowed=true;return result;},remove:async()=>{grants.allowed=false;return true;}}};
  const context=vm.createContext({document,chrome,fetch:localeFetch,URL,Blob,Option:class{constructor(text,value){Object.assign(this,element('option'),{textContent:text,value});}},window:{close(){}},setInterval:fn=>{poll=fn;return 0;},setTimeout,clearTimeout,confirm:()=>true});
  const entry=new vm.SourceTextModule(source,{context,identifier:'ui.mjs'});
  const modules=new Map();
@@ -87,34 +87,59 @@ export async function uiStateTests(){
  await test('Granted site access stays hidden through account polling',async()=>{
   const h=await harness({connected:true,permission:true});assert.equal(h.nodes.get('permission-card').hidden,true);await h.poll();assert.equal(h.nodes.get('permission-card').hidden,true);
  });
+ await test('Popup access choices request their exact scope and activate the current page after approval',async()=>{
+  for(const [id,origins] of [['allow-site',['https://example.test/*']],['allow-all-sites',['http://*/*','https://*/*']]]){
+   const h=await harness({connected:true});
+   for(const button of ['allow-site','allow-all-sites']){assert.equal(h.nodes.get(button).hidden,false);assert.equal(h.nodes.get(button).disabled,false);}
+   await h.click(id);await tick();
+   assert.deepEqual(h.grants.requests,[{origins}]);assert.equal(h.nodes.get('permission-card').hidden,true);
+   assert.ok(h.gates.every(el=>!el.hidden));assert.ok(h.calls.includes('page.activate'));assert.ok(h.calls.includes('models.list'));
+  }
+ });
+ await test('A pending permission prompt disables both access choices and prevents duplicate requests',async()=>{
+  for(const id of ['allow-site','allow-all-sites']){
+   const h=await harness({connected:true});let release;h.grants.requestPending=new Promise(resolve=>{release=resolve;});
+   await h.click(id);assert.equal(h.grants.requests.length,1);
+   for(const button of ['allow-site','allow-all-sites']){assert.equal(h.nodes.get(button).disabled,true);await h.click(button);}
+   assert.equal(h.grants.requests.length,1);release(false);await tick();
+   assert.ok(h.gates.every(el=>el.hidden));
+   for(const button of ['allow-site','allow-all-sites'])assert.equal(h.nodes.get(button).disabled,false);
+  }
+ });
  await test('Granting access hides the card and revoking it shows the card again',async()=>{
   const h=await harness({connected:true});assert.equal(h.nodes.get('permission-card').hidden,false);await h.click('allow-site');await tick();assert.equal(h.nodes.get('permission-card').hidden,true);assert.ok(h.gates.every(el=>!el.hidden));assert.equal(h.nodes.get('account-card').hidden,false);assert.ok(h.calls.includes('page.activate'));assert.ok(h.calls.includes('models.list'));
   h.grants.allowed=false;h.chrome.permissions.onRemoved.emit();await tick();assert.equal(h.nodes.get('permission-card').hidden,false);assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('account-card').hidden,true);assert.equal(h.nodes.get('translate').disabled,true);
   h.grants.allowed=true;h.chrome.permissions.onAdded.emit();await tick();assert.equal(h.nodes.get('permission-card').hidden,true);
  });
- await test('Declining site access keeps all translation controls hidden and blocks page actions',async()=>{
-  const h=await harness({connected:true});h.grants.result=false;await h.click('allow-site');await tick();assert.equal(h.nodes.get('permission-card').hidden,false);assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('translate').disabled,true);assert.equal(h.nodes.get('permission-feedback').hidden,false);
-  for(const id of ['translate','select-block','restore','retry'])await h.click(id);await tick();
-  assert.ok(!h.calls.some(type=>type.startsWith('page.')));assert.ok(!h.calls.includes('models.list'));
+ await test('Declining either access choice keeps translation controls hidden and blocks page actions',async()=>{
+  for(const id of ['allow-site','allow-all-sites']){
+   const h=await harness({connected:true});h.grants.result=false;await h.click(id);await tick();
+   assert.equal(h.nodes.get('permission-card').hidden,false);assert.ok(h.gates.every(el=>el.hidden));
+   assert.equal(h.nodes.get('translate').disabled,true);assert.equal(h.nodes.get('permission-feedback').hidden,false);
+   for(const action of ['translate','select-block','restore','retry'])await h.click(action);await tick();
+   assert.ok(!h.calls.some(type=>type.startsWith('page.')));assert.ok(!h.calls.includes('models.list'));
+  }
  });
  await test('Logout hides every connected control and stale permission responses',async()=>{
   const h=await harness({connected:true});let release;h.grants.pending=new Promise(resolve=>{release=resolve;});h.chrome.permissions.onRemoved.emit();
   await h.click('logout');await tick();release(false);await tick();assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('permission-card').hidden,true);assert.equal(h.nodes.get('login').hidden,false);
  });
  await test('Unsupported pages do not show a request for site access',async()=>{
-  const h=await harness({connected:true,url:'chrome://extensions/'});assert.equal(h.nodes.get('permission-card').hidden,false);assert.equal(h.nodes.get('allow-site').hidden,true);assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('site-access-title').textContent,catalogs.ko.siteUnsupportedTitle.message);assert.ok(!h.calls.includes('models.list'));
+  const h=await harness({connected:true,url:'chrome://extensions/'});assert.equal(h.nodes.get('permission-card').hidden,false);assert.equal(h.nodes.get('allow-site').hidden,true);assert.equal(h.nodes.get('allow-all-sites').hidden,true);assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('site-access-title').textContent,catalogs.ko.siteUnsupportedTitle.message);assert.ok(!h.calls.includes('models.list'));
  });
  await test('A pending access check hides previously available controls until permission is confirmed',async()=>{
   const h=await harness({connected:true,permission:true});let release;h.grants.pending=new Promise(resolve=>{release=resolve;});
   h.chrome.permissions.onRemoved.emit();assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('account-card').hidden,true);
-  assert.equal(h.nodes.get('allow-site').hidden,true);assert.equal(h.nodes.get('site-access-title').textContent,catalogs.ko.siteAccessChecking.message);
+  assert.equal(h.nodes.get('allow-site').hidden,true);assert.equal(h.nodes.get('allow-all-sites').hidden,true);assert.equal(h.nodes.get('site-access-title').textContent,catalogs.ko.siteAccessChecking.message);
   release(false);await tick();assert.equal(h.nodes.get('allow-site').hidden,false);assert.equal(h.nodes.get('allow-site').disabled,false);
  });
- await test('A permission approval arriving after logout cannot reveal controls or activate a page',async()=>{
-  const h=await harness({connected:true});let release;h.grants.requestPending=new Promise(resolve=>{release=resolve;});
-  await h.click('allow-site');await h.click('logout');await tick();release(true);await tick();
-  assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('permission-card').hidden,true);assert.equal(h.nodes.get('account-card').hidden,false);
-  assert.ok(!h.calls.includes('page.activate'));assert.ok(!h.calls.includes('models.list'));
+ await test('Permission approvals arriving after logout cannot reveal controls or activate a page',async()=>{
+  for(const id of ['allow-site','allow-all-sites']){
+   const h=await harness({connected:true});let release;h.grants.requestPending=new Promise(resolve=>{release=resolve;});
+   await h.click(id);await h.click('logout');await tick();release(true);await tick();
+   assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('permission-card').hidden,true);assert.equal(h.nodes.get('account-card').hidden,false);
+   assert.ok(!h.calls.includes('page.activate'));assert.ok(!h.calls.includes('models.list'));
+  }
  });
  await test('Connection completion unlocks options and subsequent logout hides them',async()=>{
   const h=await harness({options:true});h.status.current={state:'connected',connectionId:'new-account'};await h.poll();assert.ok(h.gates.every(el=>!el.hidden));
@@ -134,7 +159,7 @@ export async function uiStateTests(){
   h.nodes.get('instructions-text').value='Unsaved instructions';h.nodes.get('excluded-sites').value='draft.example';
   language.value='en';await language.emit('change');
   assert.equal(h.savedSettings.uiLanguage,'en');assert.equal(h.document.documentElement.lang,'en');
-  assert.equal(h.nodes.get('account-title').textContent,'ChatGPT connected');assert.equal(h.nodes.get('target-language').value,'Korean');
+  assert.equal(h.nodes.get('account-title').textContent,'ChatGPT connected');assert.equal(h.nodes.get('target-language').value,'한국어 ∙ Korean');
   assert.equal(h.savedSettings.targetLanguage,'한국어');assert.equal(h.savedSettings.modelId,'test-model');
   assert.equal(h.nodes.get('instructions-text').value,'Unsaved instructions');assert.equal(h.nodes.get('excluded-sites').value,'draft.example');
   language.value='auto';await language.emit('change');assert.equal(h.document.documentElement.lang,'ko');
@@ -144,19 +169,48 @@ export async function uiStateTests(){
   h.chrome.storage.onChanged.emit({settings:{newValue:{...h.savedSettings}}},'local');await tick();
   assert.equal(h.document.documentElement.lang,'en');assert.equal(h.nodes.get('account-title').textContent,'ChatGPT connected');
  });
- await test('Options show one editable page shortcut alongside block and cancel shortcuts',async()=>{
+ await test('Language list shows native and localized region names, keeps the browser language first, and saves the chosen region',async()=>{
+  const h=await harness({options:true,connected:true,browserLanguage:'ko'});
+  await h.click('language-toggle');await tick();const list=h.nodes.get('language-list');
+  assert.equal(list.children[0].children[0].textContent,'한국어');assert.equal(list.children[0].children[1].textContent,catalogs.ko.browserLanguage.message);
+  const labels=list.children.map(row=>row.children[0].textContent);
+  for(const label of ['English (United States) ∙ 영어 (미국)','English (United Kingdom) ∙ 영어 (영국)','English (Australia) ∙ 영어 (호주)',
+   'Português (Brasil) ∙ 포르투갈어 (브라질)','Português (Portugal) ∙ 포르투갈어 (포르투갈)'])assert.ok(labels.includes(label));
+  const british=list.children.find(row=>row.children[0].textContent==='English (United Kingdom) ∙ 영어 (영국)');
+  await british.emit('click');assert.equal(h.savedSettings.targetLanguage,'English (United Kingdom)');
+  assert.equal(h.nodes.get('target-language').value,'English (United Kingdom) ∙ 영어 (영국)');
+  h.nodes.get('ui-language').value='en';await h.nodes.get('ui-language').emit('change');
+  assert.equal(h.savedSettings.targetLanguage,'English (United Kingdom)');assert.equal(h.nodes.get('target-language').value,'English (United Kingdom)');
+ });
+ await test('Language filtering accepts native names, localized countries, locale codes, and custom targets',async()=>{
+  const h=await harness({connected:true,permission:true,browserLanguage:'ko'}),input=h.nodes.get('target-language'),list=h.nodes.get('language-list');
+  for(const [query,expected] of [['Brasil','Português (Brasil) ∙ 포르투갈어 (브라질)'],['포르투갈','Português (Portugal) ∙ 포르투갈어 (포르투갈)'],['en-AU','English (Australia) ∙ 영어 (호주)']]){
+   input.value=query;await input.emit('input');assert.ok(list.children.some(row=>row.children[0].textContent===expected));
+  }
+  await input.emit('keydown',{key:'ArrowDown',preventDefault(){}});await input.emit('keydown',{key:'Enter',preventDefault(){}});await tick();
+  assert.equal(h.savedSettings.targetLanguage,'English (Australia)');
+  input.value='English (plain language)';await input.emit('input');await input.emit('keydown',{key:'Enter',preventDefault(){}});await tick();
+  assert.equal(h.savedSettings.targetLanguage,'English (plain language)');assert.equal(input.value,'English (plain language)');
+ });
+ await test('Options independently edit and clear page translation and restoration shortcuts',async()=>{
   const h=await harness({options:true,connected:true,browserLanguage:'en'});
   assert.equal(h.nodes.has('command-list'),false);assert.equal(h.nodes.has('open-shortcuts'),false);
   assert.ok(h.nodes.get('record-page').classList.contains('shortcut-button'));
   assert.equal(h.nodes.get('record-page').textContent,'Ctrl + Alt + T');
-  for(const id of ['record-page','record-block','record-cancel'])assert.ok(h.nodes.has(id));
-  assert.equal(h.all.filter(el=>el.dataset.i18n==='commandToggle').length,1);
+  assert.equal(h.nodes.get('record-restore').textContent,'Ctrl + Alt + R');
+  for(const id of ['record-page','record-restore','record-block','record-cancel'])assert.ok(h.nodes.has(id));
+  assert.equal(h.all.filter(el=>el.dataset.i18n==='commandTranslate').length,1);assert.equal(h.all.filter(el=>el.dataset.i18n==='commandRestore').length,1);
   assert.ok(!h.calls.includes('commands.list'));
   const button=h.nodes.get('record-page');await h.click('record-page');await tick();
   await button.emit('keydown',{altKey:false,ctrlKey:true,shiftKey:true,metaKey:false,code:'KeyY',preventDefault(){},stopPropagation(){}});
   await button.emit('keyup',{preventDefault(){}});
   assert.equal(h.savedSettings.pageShortcut.code,'KeyY');assert.equal(button.textContent,'Ctrl + Shift + Y');
   await h.click('clear-page');await tick();assert.equal(h.savedSettings.pageShortcut,null);assert.equal(button.textContent,'Not set');
+  assert.equal(h.savedSettings.restoreShortcut.code,'KeyR');
+  const restore=h.nodes.get('record-restore');await h.click('record-restore');await tick();
+  await restore.emit('keydown',{altKey:false,ctrlKey:true,shiftKey:true,metaKey:false,code:'KeyO',preventDefault(){},stopPropagation(){}});
+  await restore.emit('keyup',{preventDefault(){}});assert.equal(h.savedSettings.restoreShortcut.code,'KeyO');assert.equal(h.savedSettings.pageShortcut,null);
+  await h.click('clear-restore');await tick();assert.equal(h.savedSettings.restoreShortcut,null);assert.equal(restore.textContent,'Not set');
  });
  await test('Popup displays the configured page shortcut without querying browser commands',async()=>{
   const h=await harness({connected:true});assert.equal(h.nodes.get('translate-key').textContent,'Ctrl + Alt + T');
