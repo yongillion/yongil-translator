@@ -9,13 +9,13 @@
     "message": "Settings"
   },
   "siteAccessTitle": {
-    "message": "Always enable block selection on this site"
+    "message": "Allow access to translate"
   },
   "siteAccessNote": {
-    "message": "Allow access to select blocks on new pages without opening the popup."
+    "message": "Allow Yongil Translator to access this site to use page, block, and selected-text translation."
   },
   "allowAlways": {
-    "message": "Always allow"
+    "message": "Allow site access"
   },
   "translatePage": {
     "message": "Translate page"
@@ -135,7 +135,7 @@
     "message": "Save instructions"
   },
   "shortcutsNote": {
-    "message": "Click a shortcut button, then press your preferred keys. Allow site access or activate the page from the popup to use shortcuts."
+    "message": "Click a shortcut button, then press your preferred keys. Site access must be allowed to use translation and shortcuts."
   },
   "holdBlockKeys": {
     "message": "Hold to select a block"
@@ -165,7 +165,7 @@
     "message": "Site access"
   },
   "siteAccessHelp": {
-    "message": "On allowed sites, use the shortcut to select blocks immediately."
+    "message": "Allow access to a website before using translation and shortcuts there."
   },
   "allowAllSites": {
     "message": "Allow on all websites"
@@ -267,10 +267,10 @@
     "message": "No sites have been allowed yet."
   },
   "siteAccessDenied": {
-    "message": "Site access was not allowed."
+    "message": "Access was not allowed. Allow site access to start translating."
   },
   "siteAccessGranted": {
-    "message": "Site access enabled. Use Translate block to start on this page."
+    "message": "Site access enabled. Translation is ready on this page."
   },
   "recordKeys": {
     "message": "Press and release the keys"
@@ -390,7 +390,7 @@
     "message": "Translating into $1"
   },
   "permissionsChanged": {
-    "message": "Site permissions changed. Enable translation again from the popup."
+    "message": "Site permissions changed. Allow site access in the popup to use translation."
   },
   "pageChanged": {
     "message": "Page changed"
@@ -570,7 +570,7 @@
     "message": "This document is not supported."
   },
   "siteNotAllowed": {
-    "message": "Site access is unavailable. Start from the popup or allow this site."
+    "message": "Allow site access in the popup before using translation."
   },
   "siteExcluded": {
     "message": "This site is excluded from translation."
@@ -652,5 +652,17 @@
   },
   "pageShortcutKeyRequired": {
     "message": "Include a letter, number, or other non-modifier key for the page shortcut."
+  },
+  "siteAccessChecking": {
+    "message": "Checking site access…"
+  },
+  "siteAccessCheckingNote": {
+    "message": "Your translation controls will appear once site access is confirmed."
+  },
+  "siteUnsupportedTitle": {
+    "message": "This page cannot be translated"
+  },
+  "siteUnsupportedNote": {
+    "message": "Open a regular webpage, then allow site access to start translating."
   }
 }

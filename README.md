@@ -10,8 +10,8 @@ A Chromium extension that translates webpages in place using a ChatGPT subscript
 2. Open `chrome://extensions` in Chrome and enable Developer mode.
 3. Choose **Load unpacked** and select the repository's **extension** folder.
 4. Open the extension popup and sign in with **Continue with ChatGPT**.
-5. When no model is saved, the first model returned by your account is selected automatically. Choose another model if desired, then choose the target language.
-6. Run **Translate page** on a webpage. To use the block-selection shortcut immediately, grant access to that site. Refresh tabs that were already open, or activate them using the popup's block-selection button.
+5. Open a webpage and choose **Allow site access** in the popup. Until access is granted, only the header, Settings button, and highlighted access card appear after sign-in. Granting access activates the current page and reveals translation controls.
+6. When no model is saved, the first model returned by your account is selected automatically. Choose the target language and run **Translate page**. Site access is required for all translation features and shortcuts.
 
 Chrome internal pages, extension stores, the browser's PDF viewer, and text inside images are outside the translation scope. Some sites are also subject to browser-enforced script injection restrictions.
 
@@ -29,9 +29,9 @@ Chrome internal pages, extension stores, the browser's PDF viewer, and text insi
 | Exit selection mode | Escape (configurable), Exit block selection in the page toolbar, or toggle Translate block in the popup |
 | Change page, block-selection, and cancel keys | Record a key combination under Settings → Shortcuts; Clear disables a shortcut |
 
-- Before sign-in, the popup shows the Yongil TRANSLATOR header, Settings button, and ChatGPT connection area. The options page shows the connection area. Translation controls and settings appear after connection and hide again on sign-out.
-- After sign-in, the popup shows the optional site-access card first only when the current website has not been allowed. Granting access hides the card. Translate page, Translate block, and Restore original follow, then language, model, and account controls.
-- Persistent site access is optional: popup actions can use Chrome's temporary activeTab permission. Allowing a site makes page and block shortcuts available on newly loaded pages without first invoking the extension. Otherwise, activate the page using a popup action first. Shortcuts require focus in the webpage and do not run in editors or the browser address bar. Existing on-page restoration controls remain available after sign-out.
+- Before sign-in, the popup shows the Yongil TRANSLATOR header, Settings button, and ChatGPT connection area. The options page shows the connection area. The options page unlocks after connection. Popup translation controls additionally require access to the current site, and hide again on sign-out.
+- After sign-in, an unapproved site shows only a highlighted access card below the persistent header and Settings button. Translation controls, language/model settings, account information, and the footer stay hidden until access is confirmed. The card uses a larger, bold accent-colored title and a full-width primary button. Permission denial stays inside the card. Unsupported browser pages show an explanatory message with no permission button.
+- Site access is required. The extension no longer requests temporary activeTab access. Popup actions, page toggles, and inference requests check the granted host permission; frames require access to both their own origin and the containing site. Revoking access hides the controls and stops translation jobs. Shortcuts require focus in the webpage and do not run in editors or the browser address bar. Existing on-page restoration controls remain available after sign-out.
 - Settings → Translation → Concurrent translation requests accepts 1–16, with a default of 8. The service worker shares this limit across tabs. Changes take effect when a new translation starts; requests already running are allowed to finish.
 - Page batches run in parallel and display completed results immediately, even when earlier batches are still running.
 - The interface supports English and Korean. Settings → Data & appearance → UI language offers Follow browser settings (default), Korean, and English. Unsupported browser languages fall back to English. The preference applies to the popup, settings, page controls, and messages, including before sign-in. It is independent of the translation target.
@@ -40,7 +40,7 @@ Chrome internal pages, extension stores, the browser's PDF viewer, and text insi
 - The default page shortcut is Ctrl+Alt+T. The settings row **Translate/Restore the current page** uses the same recording and Clear controls as block selection and cancel. All accessible frames share the translate/restore decision; holding the key does not repeat the action.
 - The default block shortcut is Ctrl+Alt. Legacy saved Alt+Shift defaults migrate once; other combinations and disabled shortcuts are preserved. Choosing Alt+Shift again after upgrading is respected.
 - Hovering over a block shows no action popup, including while translating. Only block selection displays a translate/restore hint. Use the page or extension popup controls to stop or retry page translations.
-- The selection button requires the page script to be active. Allow site access for automatic availability on new pages, or first activate the page using the extension popup.
+- Granting site access activates the current page without starting a translation and automatically enables the page script on future visits. After updating the extension, refresh pages that were already open.
 - Selected-text translation uses the current model, target language, and instructions without replacing page text. It starts only when its button is clicked. Closing the popup cancels its request and discards late results. Selections are limited to 16,000 characters; editors and excluded content are ignored.
 - The language field supports both list selection and direct input.
 - The initial language is based on the **browser UI language**. A reliable way to read the operating system language from the extension has not been established, so it is not labeled as the OS language.

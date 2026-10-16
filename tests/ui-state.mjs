@@ -24,7 +24,7 @@ async function harness({options=false,connected=false,permission=false,url='http
  }
  assert.ok(gates.length>0&&gates.every(el=>el.hidden),'Protected UI must start hidden in HTML');
  const status={current:connected?{state:'connected',connectionId:'test-account',email:'user@example.invalid'}:{state:'disconnected'}};
- const grants={allowed:permission,result:true,pending:null};const calls=[];let poll;
+ const grants={allowed:permission,result:true,pending:null,requestPending:null};const calls=[];let poll;
  const savedSettings={schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:8,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:true,shift:false,meta:false,code:'KeyT'},blockShortcut:null,cancelShortcut:null};
  const event=()=>({listeners:[],addListener(fn){this.listeners.push(fn);},emit(...args){for(const fn of this.listeners)fn(...args);}});
  const body=element('body','class="'+(options?'options':'popup')+'"');body.dataset.connected='false';
@@ -42,7 +42,7 @@ async function harness({options=false,connected=false,permission=false,url='http
   return {ok:true,data};}},tabs:{query:async()=>[{id:1,url}],create:async()=>{}},
   permissions:{onAdded:event(),onRemoved:event(),getAll:async()=>({origins:grants.allowed?['https://example.test/*']:[]}),
    contains:async()=>grants.pending?await grants.pending:grants.allowed,
-   request:async()=>{if(grants.result)grants.allowed=true;return grants.result;},remove:async()=>{grants.allowed=false;return true;}}};
+   request:async()=>{const result=grants.requestPending?await grants.requestPending:grants.result;if(result)grants.allowed=true;return result;},remove:async()=>{grants.allowed=false;return true;}}};
  const context=vm.createContext({document,chrome,fetch:localeFetch,URL,Blob,Option:class{constructor(text,value){Object.assign(this,element('option'),{textContent:text,value});}},window:{close(){}},setInterval:fn=>{poll=fn;return 0;},setTimeout,clearTimeout,confirm:()=>true});
  const entry=new vm.SourceTextModule(source,{context,identifier:'ui.mjs'});
  const modules=new Map();
@@ -63,11 +63,12 @@ export async function uiStateTests(){
  await test('Signing in keeps controls hidden until authentication completes',async()=>{
   const h=await harness();await h.click('login');assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('cancel-login').hidden,false);
   h.status.current={state:'connected',connectionId:'test-account',email:'user@example.invalid'};await h.poll();
-  assert.ok(h.gates.every(el=>!el.hidden));assert.equal(h.nodes.get('permission-card').hidden,false);assert.ok(h.calls.includes('models.list'));
+  assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('permission-card').hidden,false);assert.equal(h.nodes.get('account-card').hidden,true);assert.ok(!h.calls.includes('models.list'));
+  assert.equal(h.nodes.get('open-options').hidden,false);assert.ok(h.all.some(el=>el.classList.contains('brand')&&!el.hidden));
  });
  await test('First model load selects and saves the first available model in popup and options',async()=>{
   for(const options of [false,true]){
-   const h=await harness({options,connected:true,modelId:'',items:[{id:'first-model',name:'First model'},{id:'second-model',name:'Second model'}]});
+   const h=await harness({options,connected:true,permission:true,modelId:'',items:[{id:'first-model',name:'First model'},{id:'second-model',name:'Second model'}]});
    assert.equal(h.nodes.get('model').value,'first-model');assert.equal(h.savedSettings.modelId,'first-model');
    assert.equal(h.calls.filter(type=>type==='settings.update').length,1);
    if(!options)assert.equal(h.nodes.get('translate').disabled,false);
@@ -76,30 +77,44 @@ export async function uiStateTests(){
  });
  await test('Saved model choices are preserved even when absent from a refreshed list',async()=>{
   for(const modelId of ['second-model','previous-model']){
-   const h=await harness({connected:true,modelId,items:[{id:'first-model',name:'First model'},{id:'second-model',name:'Second model'}]});
+   const h=await harness({connected:true,permission:true,modelId,items:[{id:'first-model',name:'First model'},{id:'second-model',name:'Second model'}]});
    assert.equal(h.nodes.get('model').value,modelId);assert.equal(h.savedSettings.modelId,modelId);assert.ok(!h.calls.includes('settings.update'));
   }
  });
  await test('Empty model lists do not create a model selection',async()=>{
-  const h=await harness({connected:true,modelId:'',items:[]});assert.equal(h.savedSettings.modelId,'');assert.ok(!h.calls.includes('settings.update'));assert.equal(h.nodes.get('translate').disabled,true);
+  const h=await harness({connected:true,permission:true,modelId:'',items:[]});assert.equal(h.savedSettings.modelId,'');assert.ok(!h.calls.includes('settings.update'));assert.equal(h.nodes.get('translate').disabled,true);
  });
  await test('Granted site access stays hidden through account polling',async()=>{
   const h=await harness({connected:true,permission:true});assert.equal(h.nodes.get('permission-card').hidden,true);await h.poll();assert.equal(h.nodes.get('permission-card').hidden,true);
  });
  await test('Granting access hides the card and revoking it shows the card again',async()=>{
-  const h=await harness({connected:true});assert.equal(h.nodes.get('permission-card').hidden,false);await h.click('allow-site');await tick();assert.equal(h.nodes.get('permission-card').hidden,true);
-  h.grants.allowed=false;h.chrome.permissions.onRemoved.emit();await tick();assert.equal(h.nodes.get('permission-card').hidden,false);
+  const h=await harness({connected:true});assert.equal(h.nodes.get('permission-card').hidden,false);await h.click('allow-site');await tick();assert.equal(h.nodes.get('permission-card').hidden,true);assert.ok(h.gates.every(el=>!el.hidden));assert.equal(h.nodes.get('account-card').hidden,false);assert.ok(h.calls.includes('page.activate'));assert.ok(h.calls.includes('models.list'));
+  h.grants.allowed=false;h.chrome.permissions.onRemoved.emit();await tick();assert.equal(h.nodes.get('permission-card').hidden,false);assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('account-card').hidden,true);assert.equal(h.nodes.get('translate').disabled,true);
   h.grants.allowed=true;h.chrome.permissions.onAdded.emit();await tick();assert.equal(h.nodes.get('permission-card').hidden,true);
  });
- await test('Declining optional access keeps translation controls available',async()=>{
-  const h=await harness({connected:true});h.grants.result=false;await h.click('allow-site');await tick();assert.equal(h.nodes.get('permission-card').hidden,false);assert.ok(h.gates.every(el=>!el.hidden));assert.equal(h.nodes.get('translate').disabled,false);
+ await test('Declining site access keeps all translation controls hidden and blocks page actions',async()=>{
+  const h=await harness({connected:true});h.grants.result=false;await h.click('allow-site');await tick();assert.equal(h.nodes.get('permission-card').hidden,false);assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('translate').disabled,true);assert.equal(h.nodes.get('permission-feedback').hidden,false);
+  for(const id of ['translate','select-block','restore','retry'])await h.click(id);await tick();
+  assert.ok(!h.calls.some(type=>type.startsWith('page.')));assert.ok(!h.calls.includes('models.list'));
  });
  await test('Logout hides every connected control and stale permission responses',async()=>{
   const h=await harness({connected:true});let release;h.grants.pending=new Promise(resolve=>{release=resolve;});h.chrome.permissions.onRemoved.emit();
   await h.click('logout');await tick();release(false);await tick();assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('permission-card').hidden,true);assert.equal(h.nodes.get('login').hidden,false);
  });
  await test('Unsupported pages do not show a request for site access',async()=>{
-  const h=await harness({connected:true,url:'chrome://extensions/'});assert.equal(h.nodes.get('permission-card').hidden,true);
+  const h=await harness({connected:true,url:'chrome://extensions/'});assert.equal(h.nodes.get('permission-card').hidden,false);assert.equal(h.nodes.get('allow-site').hidden,true);assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('site-access-title').textContent,catalogs.ko.siteUnsupportedTitle.message);assert.ok(!h.calls.includes('models.list'));
+ });
+ await test('A pending access check hides previously available controls until permission is confirmed',async()=>{
+  const h=await harness({connected:true,permission:true});let release;h.grants.pending=new Promise(resolve=>{release=resolve;});
+  h.chrome.permissions.onRemoved.emit();assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('account-card').hidden,true);
+  assert.equal(h.nodes.get('allow-site').hidden,true);assert.equal(h.nodes.get('site-access-title').textContent,catalogs.ko.siteAccessChecking.message);
+  release(false);await tick();assert.equal(h.nodes.get('allow-site').hidden,false);assert.equal(h.nodes.get('allow-site').disabled,false);
+ });
+ await test('A permission approval arriving after logout cannot reveal controls or activate a page',async()=>{
+  const h=await harness({connected:true});let release;h.grants.requestPending=new Promise(resolve=>{release=resolve;});
+  await h.click('allow-site');await h.click('logout');await tick();release(true);await tick();
+  assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('permission-card').hidden,true);assert.equal(h.nodes.get('account-card').hidden,false);
+  assert.ok(!h.calls.includes('page.activate'));assert.ok(!h.calls.includes('models.list'));
  });
  await test('Connection completion unlocks options and subsequent logout hides them',async()=>{
   const h=await harness({options:true});h.status.current={state:'connected',connectionId:'new-account'};await h.poll();assert.ok(h.gates.every(el=>!el.hidden));

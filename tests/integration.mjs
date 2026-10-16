@@ -148,14 +148,32 @@ export async function integrationTests(){
   }finally{chrome.permissions.contains=original;chrome.scripting.executeScript=oldInject;}
  });
  await check('Page restoration routes to documents without inference',async()=>{const before=requests.length;await send({type:'page.restore',tabId:1});assert.equal(requests.length,before);assert.ok(tabMessages.some(x=>x.msg.type==='page.restore'));});
- await check('Failed frame injection cannot grant temporary translation access',async()=>{
-  chrome.permissions.contains=async()=>false;
-  chrome.webNavigation.getAllFrames=async()=>[{frameId:0,url:'https://example.test/'},{frameId:1,url:'https://denied.test/'}];
-  await send({type:'page.restore',tabId:1});
-  const denied=await send({type:'job.begin'},{...content,frameId:1,documentId:'denied-frame',url:'https://denied.test/'});
-  assert.equal(denied.error.code,'PERMISSION');
-  const sameOrigin=await send({type:'job.begin'},{...content,url:'https://example.test/after-spa'});assert.equal(sameOrigin.ok,true);
-  chrome.permissions.contains=async()=>true;chrome.webNavigation.getAllFrames=async()=>[{frameId:0,url:'https://example.test/'}];
+ await check('Unapproved sites cannot activate or translate even after a prior permitted popup action',async()=>{
+  await send({type:'page.activate',tabId:1});
+  const oldContains=chrome.permissions.contains,oldInject=chrome.scripting.executeScript;let injected=false;
+  const count=requests.length;chrome.permissions.contains=async()=>false;
+  chrome.scripting.executeScript=async()=>{injected=true;return [{frameId:0}];};
+  try{
+   for(const type of ['page.activate','page.translate','page.select','page.retry','page.toggle']){
+    const denied=await send({type,tabId:1});assert.equal(denied.ok,false);assert.equal(denied.error.code,'PERMISSION');
+   }
+   for(const type of ['job.begin','page.toggle']){
+    const denied=await send({type},{...content,url:'https://example.test/after-spa'});assert.equal(denied.error.code,'PERMISSION');
+   }
+   const batch=await send({type:'job.batch',jobId:job.id,blocks:[{id:'b',nodes:[{id:'n',text:'Blocked'}]}]},content);
+   assert.equal(batch.error.code,'PERMISSION');assert.equal(injected,false);assert.equal(requests.length,count);
+  }finally{chrome.permissions.contains=oldContains;chrome.scripting.executeScript=oldInject;}
+ });
+ await check('A frame needs access to its own origin and the containing site before translating',async()=>{
+  const oldContains=chrome.permissions.contains;
+  try{
+   const child={...content,frameId:1,documentId:'child',url:'https://frame.test/'};
+   for(const allowedOrigin of ['https://example.test/*','https://frame.test/*']){
+    chrome.permissions.contains=async({origins})=>origins[0]===allowedOrigin;
+    assert.equal((await send({type:'job.begin'},child)).error.code,'PERMISSION');
+   }
+   chrome.permissions.contains=async()=>true;assert.equal((await send({type:'job.begin'},child)).ok,true);
+  }finally{chrome.permissions.contains=oldContains;}
  });
  await check('Configured concurrency is shared across tabs and survives settings roundtrips',async()=>{
   assert.equal((await send({type:'settings.get'})).data.maxConcurrentBatches,8);

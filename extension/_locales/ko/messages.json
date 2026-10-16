@@ -9,13 +9,13 @@
     "message": "설정"
   },
   "siteAccessTitle": {
-    "message": "이 사이트에서 블록 선택 키 항상 사용"
+    "message": "번역하려면 사이트 접근을 허용하세요"
   },
   "siteAccessNote": {
-    "message": "허용하면 새 페이지에서도 팝업을 열지 않고 블록을 선택할 수 있습니다."
+    "message": "이 사이트의 페이지, 블록, 선택한 텍스트를 번역하려면 Yongil Translator의 접근을 허용해 주세요."
   },
   "allowAlways": {
-    "message": "항상 허용"
+    "message": "사이트 접근 허용"
   },
   "translatePage": {
     "message": "페이지 번역"
@@ -135,7 +135,7 @@
     "message": "인스트럭션 저장"
   },
   "shortcutsNote": {
-    "message": "단축키 버튼을 클릭하고 원하는 키를 누르세요. 사이트 접근을 허용하거나 팝업에서 페이지 기능을 활성화하면 단축키를 사용할 수 있습니다."
+    "message": "단축키 버튼을 클릭하고 원하는 키를 누르세요. 번역과 단축키를 사용하려면 사이트 접근을 허용해야 합니다."
   },
   "holdBlockKeys": {
     "message": "블록 선택 키 유지"
@@ -165,7 +165,7 @@
     "message": "사이트 접근"
   },
   "siteAccessHelp": {
-    "message": "허용한 사이트에서는 단축키로 바로 블록을 선택할 수 있습니다."
+    "message": "번역과 단축키를 사용하려면 먼저 해당 사이트의 접근을 허용하세요."
   },
   "allowAllSites": {
     "message": "모든 웹사이트에서 사용 허용"
@@ -267,10 +267,10 @@
     "message": "아직 허용한 사이트가 없습니다."
   },
   "siteAccessDenied": {
-    "message": "사이트 접근이 허용되지 않았습니다."
+    "message": "접근이 허용되지 않았습니다. 번역하려면 사이트 접근을 허용해 주세요."
   },
   "siteAccessGranted": {
-    "message": "항상 허용했습니다. 현재 페이지에서는 블록 번역 버튼으로 시작하세요."
+    "message": "사이트 접근이 허용되었습니다. 이 페이지에서 번역을 사용할 수 있습니다."
   },
   "recordKeys": {
     "message": "키를 누른 뒤 놓으세요"
@@ -390,7 +390,7 @@
     "message": "$1로 번역"
   },
   "permissionsChanged": {
-    "message": "사이트 권한이 변경되었습니다. 팝업에서 다시 활성화하세요."
+    "message": "사이트 접근 권한이 변경되었습니다. 번역하려면 팝업에서 사이트 접근을 허용해 주세요."
   },
   "pageChanged": {
     "message": "페이지가 변경되었습니다"
@@ -570,7 +570,7 @@
     "message": "지원하지 않는 문서입니다."
   },
   "siteNotAllowed": {
-    "message": "이 사이트의 접근 권한이 없습니다. 팝업에서 실행하거나 사이트를 허용하세요."
+    "message": "번역을 사용하려면 팝업에서 사이트 접근을 허용해 주세요."
   },
   "siteExcluded": {
     "message": "번역 제외 사이트입니다."
@@ -652,5 +652,17 @@
   },
   "pageShortcutKeyRequired": {
     "message": "페이지 단축키에는 문자, 숫자 등 보조키 이외의 키를 포함해 주세요."
+  },
+  "siteAccessChecking": {
+    "message": "사이트 접근 권한 확인 중…"
+  },
+  "siteAccessCheckingNote": {
+    "message": "사이트 접근 권한이 확인되면 번역 기능이 표시됩니다."
+  },
+  "siteUnsupportedTitle": {
+    "message": "이 페이지는 번역할 수 없습니다"
+  },
+  "siteUnsupportedNote": {
+    "message": "일반 웹페이지를 연 다음 사이트 접근을 허용해 번역을 시작하세요."
   }
 }

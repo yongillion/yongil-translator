@@ -6,7 +6,6 @@
   "minimum_chrome_version": "120",
   "permissions": [
     "storage",
-    "activeTab",
     "scripting",
     "tabs",
     "alarms",

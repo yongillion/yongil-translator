@@ -15,11 +15,11 @@ Restoring original text does not send a new translation request. This does not m
 ## Permissions
 
 - storage: settings, authentication state, and temporary sign-in state
-- activeTab and scripting: inject translation functionality into a webpage where the user explicitly invokes the extension
+- scripting: inject translation functionality only on websites with granted host access
 - tabs: identify the dedicated sign-in tab and the current target tab
 - alarms: check sign-in timeouts and missed callbacks
 - webNavigation: enumerate accessible frames, invalidate requests when documents navigate, and detect the designated sign-in callback
 - auth.openai.com and chatgpt.com: authentication, model discovery, and subscription-backed translation
-- Access to selected websites: keep the block-selection shortcut available on those sites
+- Access to selected websites: required before page, block, and selected-text translation can be used; the extension does not request temporary activeTab access
 
 The extension contains no analytics SDKs, advertisements, remotely executed code, or developer-operated proxy.

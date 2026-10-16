@@ -4,7 +4,7 @@ import {AppError,RequestQueue,validateBlocks} from './lib/protocol.mjs';
 import {storageReady,authStatus,startLogin,cancelLogin,signOut,observeLogin,watchLogin} from './lib/auth.mjs';
 import {models,translate} from './lib/provider.mjs';
 
-const queue=new RequestQueue(8),jobs=new Map(),activeDocuments=new Map();
+const queue=new RequestQueue(8),jobs=new Map();
 const contentFiles=['document-core.js','selection-ui.js','content.js'];
 const settingsReady=storageReady.then(async()=>{
  const {settings:stored}=await chrome.storage.local.get('settings');
@@ -30,8 +30,12 @@ async function registerScripts(){
  await chrome.scripting.unregisterContentScripts({ids:['translator']}).catch(()=>{});
  if(matches.length)await chrome.scripting.registerContentScripts([{id:'translator',matches,js:contentFiles,runAt:'document_idle',allFrames:true,persistAcrossSessions:true}]);
 }
+async function requireSiteAccess(url){
+ if(!isWeb(url))throw new AppError('PAGE','webpagesOnly');
+ if(!await chrome.permissions.contains({origins:[new URL(url).origin+'/*']}))throw new AppError('PERMISSION','siteNotAllowed');
+}
 async function frames(tabId,inject=false){
- const tab=await chrome.tabs.get(tabId);if(!isWeb(tab.url))throw new AppError('PAGE','webpagesOnly');
+ const tab=await chrome.tabs.get(tabId);await requireSiteAccess(tab.url);
  let injected=null;
  if(inject){
   try{injected=await chrome.scripting.executeScript({target:{tabId,allFrames:true},files:contentFiles});}
@@ -45,7 +49,8 @@ async function pageAction(tabId,action){
  if(!Number.isInteger(tabId))throw new AppError('PAGE','noTranslationTab');
  const all=await frames(tabId,action!=='page.status');
  const currentSettings=await settings();
- if(action!=='page.status'){for(const f of all){activeDocuments.set(tabId+':'+f.frameId,new URL(f.url).origin);await chrome.tabs.sendMessage(tabId,{type:'content.enable',settings:currentSettings,locale:localeData()},{frameId:f.frameId}).catch(()=>{});}}
+ if(action!=='page.status'){for(const f of all){await chrome.tabs.sendMessage(tabId,{type:'content.enable',settings:currentSettings,locale:localeData()},{frameId:f.frameId}).catch(()=>{});}}
+ if(action==='page.activate')action='page.status';
  let active;
  if(action==='page.select'||action==='page.toggle'){
   const statuses=await Promise.allSettled(all.map(f=>chrome.tabs.sendMessage(tabId,{type:'page.status'},{frameId:f.frameId})));
@@ -59,9 +64,8 @@ async function pageAction(tabId,action){
 }
 async function contentAllowed(sender){
  if(!sender.tab||!isWeb(sender.url))throw new AppError('SENDER','documentUnsupported');
- const origin=new URL(sender.url).origin+'/*';
- const permitted=await chrome.permissions.contains({origins:[origin]});
- if(!permitted&&activeDocuments.get(sender.tab.id+':'+sender.frameId)!==new URL(sender.url).origin)throw new AppError('PERMISSION','siteNotAllowed');
+ await requireSiteAccess(sender.url);
+ const tab=await chrome.tabs.get(sender.tab.id);if(new URL(tab.url).origin!==new URL(sender.url).origin)await requireSiteAccess(tab.url);
  const s=await settings();if(s.excludedSites.includes(new URL(sender.url).hostname))throw new AppError('EXCLUDED','siteExcluded');
  return s;
 }
@@ -121,7 +125,7 @@ async function route(message,sender){
   case 'models.list':return models(!!message.force);
   case 'options.open':await chrome.runtime.openOptionsPage();return {};
   case 'cache.clear':await broadcast('cache.clear');return {};
-  case 'page.toggle':case 'page.translate':case 'page.restore':case 'page.select':case 'page.stop':case 'page.retry':case 'page.status':
+  case 'page.activate':case 'page.toggle':case 'page.translate':case 'page.restore':case 'page.select':case 'page.stop':case 'page.retry':case 'page.status':
    return pageAction(message.tabId,message.type);
   default:throw new AppError('MESSAGE','requestUnknown');
  }
@@ -131,18 +135,17 @@ chrome.runtime.onMessage.addListener((message,sender,reply)=>{
 });
 chrome.tabs.onUpdated.addListener((id,change,tab)=>{if(change.url||tab.pendingUrl)void observeLogin(id,tab.pendingUrl||change.url).catch(()=>{});});
 chrome.tabs.onRemoved.addListener(id=>{
- queue.cancel(id+':');for(const key of activeDocuments.keys())if(key.startsWith(id+':'))activeDocuments.delete(key);for(const key of jobs.keys())if(key.startsWith(id+':'))jobs.delete(key);
+ queue.cancel(id+':');for(const key of jobs.keys())if(key.startsWith(id+':'))jobs.delete(key);
  void watchLogin();
 });
 chrome.webNavigation.onCommitted.addListener(details=>{
- activeDocuments.delete(details.tabId+':'+details.frameId);
  for(const [key,job] of jobs)if(job.tabId===details.tabId&&job.frameId===details.frameId){queue.cancel(key+':');jobs.delete(key);}
  if(details.frameId===0){queue.cancel(details.tabId+':');for(const key of jobs.keys())if(key.startsWith(details.tabId+':'))jobs.delete(key);}
 });
 chrome.webNavigation.onBeforeNavigate.addListener(details=>{void observeLogin(details.tabId,details.url).catch(()=>{});},{url:[{hostEquals:'localhost',ports:[1455],pathEquals:'/auth/callback'}]});
 chrome.alarms.onAlarm.addListener(alarm=>{if(alarm.name==='login-watch')void watchLogin();});
 chrome.permissions.onAdded.addListener(()=>void registerScripts());
-chrome.permissions.onRemoved.addListener(()=>{queue.cancel('');jobs.clear();activeDocuments.clear();void registerScripts();void broadcast('permissions.changed');});
+chrome.permissions.onRemoved.addListener(()=>{queue.cancel('');jobs.clear();void registerScripts();void broadcast('permissions.changed');});
 chrome.runtime.onInstalled.addListener(()=>{void storageReady.then(()=>registerScripts());});
 chrome.runtime.onStartup.addListener(()=>{void storageReady.then(()=>registerScripts());});
 setInterval(()=>{for(const [key,job] of jobs)if(job.created<Date.now()-300000){queue.cancel(key+':');jobs.delete(key);}},60000);

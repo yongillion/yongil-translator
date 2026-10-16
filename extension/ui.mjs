@@ -5,13 +5,29 @@ paintIcons();
 const $=id=>document.getElementById(id),isOptions=document.body.classList.contains('options');
 let state,account,tab,modelResult,recording=null,polling=false,sitePermission=null,permissionRevision=0;
 const rpc=async(type,data={})=>{const r=await chrome.runtime.sendMessage({type,...data});if(!r?.ok)throw new Error(r?.error?.message||t('connectionCheck'));return r.data;};
-function feedback(message,success=false){const el=$('feedback');el.hidden=!message;el.textContent=message;el.classList.toggle('success',success);}
+function feedback(message,success=false){
+ const target=!isOptions&&account?.state==='connected'&&sitePermission!=='granted'?'permission-feedback':'feedback';
+ for(const id of ['feedback','permission-feedback']){const el=$(id);if(!el)continue;el.hidden=!message||id!==target;el.textContent=id===target?message:'';el.classList.toggle('success',success);}
+}
 const action=(id,fn)=>{if($(id))$(id).addEventListener('click',()=>Promise.resolve().then(fn).catch(e=>feedback(e.message)));};
 async function save(patch){state=await rpc('settings.update',{patch});document.documentElement.dataset.theme=state.theme;return state;}
 function permissionCardView(){
  if(isOptions)return;
- const show=account?.state==='connected'&&sitePermission==='missing';
- $('permission-card').hidden=!show;$('allow-site').disabled=!show;
+ const connected=account?.state==='connected',ready=connected&&sitePermission==='granted';
+ document.body.dataset.siteAccess=sitePermission||'checking';
+ for(const el of document.querySelectorAll('[data-connected-only]'))el.hidden=!ready;
+ $('account-card').hidden=connected&&!ready;
+ $('permission-card').hidden=!connected||ready;
+ $('allow-site').hidden=sitePermission!=='missing';$('allow-site').disabled=!connected||sitePermission!=='missing';
+ const unsupported=sitePermission==='unsupported',checking=!sitePermission;
+ $('site-access-title').textContent=t(unsupported?'siteUnsupportedTitle':checking?'siteAccessChecking':'siteAccessTitle');
+ $('site-state').textContent=t(unsupported?'siteUnsupportedNote':checking?'siteAccessCheckingNote':'siteAccessNote');
+ $('site-host').textContent=/^https?:\/\//.test(tab?.url||'')?new URL(tab.url).hostname:'';
+ $('site-host').hidden=!$('site-host').textContent;
+ $('translate').disabled=!ready||!state?.modelId;
+ for(const id of ['select-block','restore','stop','retry'])$(id).disabled=!ready;
+ if(!ready){closeLanguage();if(connected)$('feedback').hidden=true;}
+ else $('permission-feedback').hidden=true;
 }
 function setAccount(next){
  const changed=next.state!==account?.state||next.connectionId!==account?.connectionId;
@@ -22,18 +38,17 @@ function setAccount(next){
 function accountView(){
  const connected=account?.state==='connected',busy=account?.state==='signing_in';
  document.body.dataset.connected=String(connected);
- for(const el of document.querySelectorAll('[data-connected-only]'))el.hidden=!connected;
+ if(isOptions)for(const el of document.querySelectorAll('[data-connected-only]'))el.hidden=!connected;
  if(!connected){closeLanguage();if(recording){$(recording.id).classList.remove('recording');recording=null;}}
  permissionCardView();
  $('account-title').textContent=connected?t('chatGPTConnected'):busy?t('signingIn'):t('connectChatGPT');
  $('account-email').textContent=connected?(account.email||t('connectedSubscription')):busy?t('finishSignIn'):account?.message||t('subscriptionPrompt');
  $('account-dot').classList.toggle('connected',connected);
  $('login').hidden=connected||busy;$('cancel-login').hidden=!busy;$('logout').hidden=!connected;
- if($('translate'))$('translate').disabled=!connected||!state?.modelId;
- $('refresh-models').disabled=!connected;
+ $('refresh-models').disabled=!connected||(!isOptions&&sitePermission!=='granted');
 }
 async function loadModels(force=false){
- if(account?.state!=='connected')return;
+ if(account?.state!=='connected'||(!isOptions&&sitePermission!=='granted'))return;
  $('refresh-models').disabled=true;
  const connectionId=account.connectionId;
  try{
@@ -95,6 +110,7 @@ action('open-options',()=>rpc('options.open'));
 action('edit-instructions',async()=>{await chrome.tabs.create({url:chrome.runtime.getURL('options.html#instructions')});});
 async function page(type){
  if(!tab?.id)throw new Error(t('noWebpage'));
+ if(!isOptions&&sitePermission!=='granted')throw new Error(t('siteNotAllowed'));
  if(!await chooseLanguage($('target-language').value))return;
  await rpc(type,{tabId:tab.id});await refreshProgress();
 }
@@ -102,9 +118,9 @@ action('translate',()=>page('page.translate'));action('restore',()=>page('page.r
 action('select-block',async()=>{await page('page.select');window.close();});
 action('stop',()=>page('page.stop'));action('retry',()=>page('page.retry'));
 async function refreshProgress(){
- if(isOptions||!tab?.id||account?.state!=='connected')return;
+ if(isOptions||!tab?.id||account?.state!=='connected'||sitePermission!=='granted')return;
  try{const s=await rpc('page.status',{tabId:tab.id});
-  if(account?.state!=='connected')return;
+  if(account?.state!=='connected'||sitePermission!=='granted')return;
   $('progress').hidden=!s.total&&!s.running;$('progress').textContent=s.running?t('progressRunning',[s.translated]):t('progressTranslated',[s.translated])+(s.failed?' · '+t('progressFailed',[s.failed]):'');
   $('stop').hidden=!s.running;$('retry').hidden=!s.failed;
   const message=s.frames?.map(f=>f.error).filter(Boolean)[0];if(message)feedback(message);
@@ -115,7 +131,7 @@ async function permissionsView(){
  if(!isOptions){
   if(account?.state!=='connected'){sitePermission=null;permissionCardView();return;}
   const web=/^https?:\/\//.test(tab?.url||'');
-  if(!web){sitePermission=null;permissionCardView();return;}
+  if(!web){sitePermission='unsupported';permissionCardView();return;}
   const origin=new URL(tab.url).origin+'/*';
   const has=await chrome.permissions.contains({origins:[origin]});
   if(revision!==permissionRevision||account?.state!=='connected')return;
@@ -134,11 +150,12 @@ async function permissionsView(){
 if($('allow-site'))$('allow-site').addEventListener('click',()=>{
  if(account?.state!=='connected'||!/^https?:\/\//.test(tab?.url||''))return;
  // Invoke request directly in the click gesture, before asynchronous work.
+ const connectionId=account.connectionId;
  chrome.permissions.request({origins:[new URL(tab.url).origin+'/*']}).then(async granted=>{
+  if(account?.state!=='connected'||account.connectionId!==connectionId)return;
   if(!granted){feedback(t('siteAccessDenied'));return;}
-  sitePermission='granted';permissionRevision++;permissionCardView();
-  await permissionsView();
-  if(account?.state==='connected')feedback(t('siteAccessGranted'),true);
+  feedback('');await connectedView();
+  if(account?.state==='connected'&&account.connectionId===connectionId&&sitePermission==='granted')await rpc('page.activate',{tabId:tab.id});
  }).catch(e=>feedback(e.message));
 });
 if($('allow-all'))$('allow-all').addEventListener('click',()=>{
@@ -199,7 +216,9 @@ action('reset-settings',async()=>{if(!confirm(t('resetConfirm')))return;
  state=await rpc('settings.reset');await configureLanguage(state.uiLanguage);localizeDocument();settingsView();await loadModels();feedback(t('settingsReset'),true);});
 async function connectedView(){
  if(account?.state!=='connected')return;
- const results=await Promise.allSettled([loadModels(),permissionsView(),refreshProgress()]);
+ await permissionsView();
+ if(account?.state!=='connected'||(!isOptions&&sitePermission!=='granted'))return;
+ const results=await Promise.allSettled([loadModels(),refreshProgress()]);
  if(account?.state==='connected')for(const r of results)if(r.status==='rejected')feedback(r.reason.message);
 }
 async function init(){
@@ -219,7 +238,10 @@ chrome.storage?.onChanged.addListener((changes,area)=>{
  const next=changes.settings?.newValue;
  if(area==='local'&&state&&next&&next.uiLanguage!==state.uiLanguage){state.uiLanguage=next.uiLanguage;void refreshLanguage().catch(e=>feedback(e.message));}
 });
-const refreshPermissions=()=>void permissionsView().catch(e=>feedback(e.message));
+const refreshPermissions=()=>{
+ if(!isOptions){sitePermission=null;permissionRevision++;permissionCardView();}
+ void connectedView().catch(e=>feedback(e.message));
+};
 chrome.permissions.onAdded.addListener(refreshPermissions);
 chrome.permissions.onRemoved.addListener(refreshPermissions);
 await init().catch(e=>feedback(e.message));

@@ -5,9 +5,9 @@ Review date: 2026-10-16
 ## Completed checks
 
 - Unit and regression tests: **37 passed**
-- Mock service-worker integration tests: **21 passed**
+- Mock service-worker integration tests: **22 passed**
 - Page-job and block-interaction regression tests: **21 passed**
-- UI state tests with mock DOM and browser APIs: **17 passed**
+- UI state tests with mock DOM and browser APIs: **19 passed**
 - Localization catalog and preference tests: **5 passed**
 - Selected-text popup regression tests: **6 passed**
 - Extension JavaScript syntax checks: **12 files passed**
@@ -37,7 +37,8 @@ Key coverage:
 - Recognizing the options page when Chrome supplies tab metadata, including query strings and hash anchors; sharing the popup account and settings; rejecting unrelated URLs and extension identities
 - Rejecting job ID reuse across documents and fixing settings at job start
 - Request handling for sign-out, excluded sites, and explicit original-text restoration
-- Signed-out connection views, persistent popup title and Settings button, completion and cancellation states, permission grant/denial/revocation, and stale permission results after sign-out
+- Signed-out connection views; persistent popup title and Settings button; permission-only connected views; delayed access checks; grant, denial, and revocation; unsupported pages; and stale approval/check responses after sign-out
+- Translation cannot use earlier temporary activation: page actions and inference require granted host permissions, including the containing site for frames; granting permission activates the current page without inference
 
 ## User-reported verification
 
@@ -47,15 +48,15 @@ The user reported successful translation with GPT-6.1 Sol on 2026-10-15. This re
 
 | Item | Status and reason |
 |---|---|
-| Actual Chrome extension installation and UI review | The Chrome control tool returned no connected browser |
+| Actual Chrome extension installation and UI review | No connected browser; a headless popup preview also failed because Chrome GPU subprocesses exited |
 | Authentication with the specified, already signed-in account | Not performed because no browser control connection was available |
 | Live model discovery, inference, and token refresh | Unverified because sign-in with a real account was not completed |
 | Page/block translation and restoration in Chrome | Actual browser E2E tests were not run |
 | Edge and Brave | Not tested |
 | Icons and UI across all display scales and themes | The full set of combinations was not tested |
-| Git commits | Creating .git/index.lock was blocked by Permission denied |
+| Git commits | The user manages commits; these changes are left uncommitted |
 
-The browser-launch tool returned `Browser is not available: chrome`, and the browser list was also empty afterward. This limitation is not treated as an account sign-in failure.
+The browser-launch tool returned `Browser is not available: chrome`, and the browser list was also empty afterward. This limitation is not treated as an account sign-in failure. A subsequent headless Chrome attempt with an isolated preview profile exited with “GPU process is not usable” before a screenshot was produced. The permission-card layout and colors still require visual browser review.
 
 ## Re-running checks
 
@@ -84,11 +85,11 @@ The raw execution results are stored in [test-results.json](test-results.json).
 11. Check refreshes, SPA navigation, frames, open Shadow DOM, sign-out, and offline restoration.
 12. Review the popup and settings screen in light and dark themes at 100%, 125%, 150%, and 200% display scaling.
 13. Verify that the signed-out popup retains its Yongil TRANSLATOR header and Settings button above the ChatGPT connection area, including during login. The options page should show its connection area until sign-in. Complete login and verify that controls appear. Open Settings from the signed-in popup and confirm that the existing account is recognized without signing in again, including when navigating directly to an options hash anchor. Sign out and confirm that controls hide again without briefly flashing.
-14. On a website without persistent access, verify that the optional block-selection access card is first. Grant access and verify that the card disappears; revoke it and verify that it returns. Declining access must leave popup translation available. Restricted browser pages must not show a site-access request.
+14. Sign in on an unapproved website. Verify that only the header, Settings button, and highlighted access card appear, with no translation, settings, account, or footer controls. Verify the bold accent title and primary permission button in both themes and languages. Decline access: controls stay hidden and the denial message appears inside the card. Grant access: the card disappears, controls appear, and the page script activates without sending text. Revoke access: controls hide and jobs stop. Verify that delayed checks and approvals cannot reveal controls after sign-out. Restricted browser pages show an unsupported-page explanation without a permission button.
 15. Set concurrent requests to 1, 8, and 16; start fresh translations across two tabs and verify the shared limit. Confirm that lowering the value drains requests already running without exceeding the new limit afterward. Verify that export/import preserves the setting and older settings receive the default of 8.
 16. Compare time to first completed translation and time to full completion on the same page and model with cold caches. A concurrency increase does not imply an equal multiplier in live speed.
 17. Verify popup, settings, page controls, accessibility labels, and errors with English and Korean browser UI languages. With an unsupported browser language, verify English fallback. In Settings → Data & appearance, choose each UI language and return to Follow browser settings. Open multiple extension screens and a translated page: verify immediate updates, preserved translation targets/models/drafts, and saved overrides after reopening, export/import, and reset. Browser-owned metadata continues to follow the browser language.
 18. Drag to select supported page text. Confirm that a translation button appears but no request is sent until it is clicked. Verify the translated result, title dragging, native corner resizing, scrolling, Close, and Escape. Confirm that page text is unchanged and editor selections are ignored. Close during translation and immediately start another selection; late results must not reopen the popup or overwrite the newer result. Repeat in dark mode and narrow viewports. The resize handle and actual rendered layout require these browser checks; mock tests cover behavior and CSS configuration only.
 19. Translate a block, restore it, and translate it again with both Ctrl+Alt-click and button-activated selection. Verify that the cached result appears without another inference request. Repeat with page restoration on a page containing more than 200 blocks. Change one source block and verify that only that block sends a new request. Change the target, model, enabled instructions, or account connection to verify separate cache entries. Refresh the page and verify that translation requires a fresh request. Clearing the cache must preserve restoration snapshots.
-20. In Settings → Shortcuts, verify that the page toggle has the same recording/Clear controls as block selection and cancellation and that the three obsolete browser command rows are absent. Press Ctrl+Alt+T on an original page: it should translate. Translate only one block, including one inside an accessible frame, and press it again: every frame should restore. Hold the key to verify that auto-repeat does not toggle repeatedly. Change and clear the shortcut, and confirm persistence after reopening settings and export/import. Verify that editors and the address bar do not trigger it. On a newly loaded site without access, activate a popup action or allow site access before testing the shortcut.
+20. In Settings → Shortcuts, verify that the page toggle has the same recording/Clear controls as block selection and cancellation and that the three obsolete browser command rows are absent. Press Ctrl+Alt+T on an original page: it should translate. Translate only one block, including one inside an accessible frame, and press it again: every frame should restore. Hold the key to verify that auto-repeat does not toggle repeatedly. Change and clear the shortcut, and confirm persistence after reopening settings and export/import. Verify that editors and the address bar do not trigger it. On a newly loaded site without access, allow site access before testing the shortcut; popup actions cannot bypass this requirement.
 21. Repeat equivalent checks in Edge and Brave and record the actual compatibility results.
