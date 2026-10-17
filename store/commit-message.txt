@@ -1,0 +1,9 @@
+fix: reliably toggle the developer log side panel
+
+- Open or close logs in the current browser window from popup and settings
+- Query panel ownership and visibility instead of filtering context windowId -1
+- Synchronize button labels and pressed state with panel visibility
+- Preserve log recording and history when closing the panel
+- Support older Chromium versions without the native close API
+- Ignore hidden panels and log pages opened in regular tabs
+- Cover Chromium context metadata, window isolation, manual closure, and errors

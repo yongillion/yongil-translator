@@ -42,6 +42,15 @@ async function refresh(){
 $('log-search').addEventListener('input',render);$('log-level').addEventListener('change',render);$('log-follow').addEventListener('change',render);
 // Chromium closes this panel's own view without changing recording or other windows.
 $('close-logs').addEventListener('click',()=>window.close());
+// Context metadata has no usable windowId for side panels. Resolve our owning
+// window inside this view and answer only trusted UI queries for that window.
+const [{id:panelWindowId},panelTab]=await Promise.all([chrome.windows.getCurrent(),chrome.tabs.getCurrent()]);
+chrome.runtime.onMessage.addListener((message,sender,reply)=>{
+ if(panelTab||!['logs.panel.status','logs.panel.close'].includes(message?.type)||!Number.isInteger(panelWindowId)||panelWindowId<0||message.windowId!==panelWindowId)return;
+ if(sender.id!==chrome.runtime.id||![chrome.runtime.getURL('popup.html'),chrome.runtime.getURL('options.html')].includes(sender.url?.split(/[?#]/)[0]))return;
+ if(message.type==='logs.panel.status'){reply({ok:true,windowId:panelWindowId,open:!document.hidden});return;}
+ reply({ok:true});window.close();
+});
 $('clear-logs').addEventListener('click',async()=>{try{await rpc('logs.clear');await refresh();}catch(e){$('log-error').hidden=false;$('log-error').textContent=e.message;}});
 chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&(changes.developerLogs||changes.settings))void refresh();});
 await refresh();

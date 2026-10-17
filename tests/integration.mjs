@@ -232,5 +232,10 @@ export async function integrationTests(){
  });
  await check('Logout removes tokens and invalidates pending jobs',async()=>{await send({type:'auth.signOut'});assert.equal(local.data.auth,undefined);const r=await send({type:'job.batch',jobId:job.id,blocks:[{id:'b',nodes:[{id:'n',text:'x'}]}]},content);assert.equal(r.error.code,'INTERRUPTED');assert.ok(!JSON.stringify((await send({type:'auth.status'})).data).includes('TEST_ONLY'));});
  await check('Malformed messages are rejected without external requests',async()=>{const before=requests.length;assert.equal((await send({type:'unknown'})).ok,false);assert.equal(requests.length,before);});
+ await check('Panel status and close messages are left to the matching panel without a competing worker reply',async()=>{
+  let replies=0;const before=requests.length;
+  for(const type of ['logs.panel.status','logs.panel.close'])assert.equal(chrome.runtime.onMessage.listeners[0]({type,windowId:7},ui,()=>{replies++;}),undefined);
+  await new Promise(resolve=>setTimeout(resolve,0));assert.equal(replies,0);assert.equal(requests.length,before);
+ });
  return {passed:cases.filter(x=>x.passed).length,failed:cases.filter(x=>!x.passed).length,results:cases};
 }

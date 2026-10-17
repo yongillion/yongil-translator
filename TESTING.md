@@ -1,18 +1,18 @@
 # Verification Record
 
-Review date: 2026-10-16
+Review date: 2026-10-17
 
 ## Completed checks
 
 - Unit and regression tests: **46 passed**
-- Mock service-worker integration tests: **25 passed**
+- Mock service-worker integration tests: **26 passed**
 - Page-job and block-interaction regression tests: **31 passed**
-- UI state tests with mock DOM and browser APIs: **27 passed**
+- UI state tests with mock DOM and browser APIs: **34 passed**
 - Localization catalog and preference tests: **8 passed**
 - Selected-text popup regression tests: **6 passed**
 - Page-toolbar progress and action tests: **4 passed**
 - Retry and diagnostic-storage tests: **20 passed**
-- Log side-panel UI tests: **4 passed**
+- Log side-panel UI tests: **7 passed**
 - Extension JavaScript syntax checks: **15 files passed**
 - Brand PNG icon visual inspection: 128px output reviewed
 - ZIP packaging: verified the installation file list and included manifest and icons
@@ -26,6 +26,7 @@ Key coverage:
 - Recovery of a complete JSON object with extra trailing closing delimiters, exact preservation of all eight reported translations, escaped quotes/backslashes and Unicode, strict content validation after recovery, raw-response diagnostics, and rejection of prose, additional JSON values, internal syntax errors, or truncated responses
 - Configurable retries (0–10, default 4 additional attempts), original-input reuse, corrective JSON instructions, stream/network/server recovery, per-attempt timeout, cancellation during backoff, and account changes between attempts
 - Opt-in local diagnostic history, live stream events, credential-field redaction, trusted UI boundaries, restart persistence, configurable 1–1,000,000 entry retention (default 4,000), shared native storage quota accounting, concurrent quota changes, full-storage eviction, immediate limit reductions, clearing during active requests, and storage-error recovery
+- Current-window LOG toggling in popup and settings, Chromium side-panel contexts reporting windowId -1, initially open panels, hidden panels and regular log tabs, native close events and legacy polling, stale context responses, duplicate-click suppression, failed operations, trusted status/close messages, and preserved recording/history
 - Native side-panel opening from LOG, search and severity filters, stable chronological ordering, inert payload rendering, follow-scroll behavior, a close button that preserves recording/history, and English/Korean labels
 - Immediate activation before model discovery, permission grants outside the popup, and Alt shortcuts after content enable without navigation
 - Page and block restoration, restoration of selected blocks within a batch, and rejection of late results after restoration
@@ -58,6 +59,8 @@ The user reported successful translation with GPT-6.1 Sol on 2026-10-15. This re
 On 2026-10-16, the user supplied a Luna failure from attempt 4 of 5. All eight requested blocks were translated, but an extra `]}` followed the complete root object. The same suffix appeared in the streamed deltas and final provider output, confirming malformed provider output for this attempt rather than duplication by the extension's stream reader. Previously, strict JSON parsing rejected the entire batch and caused it to be requested again. The supplied attempt alone does not establish the cause of every earlier failure.
 
 The regression fixture in `tests/fixtures/luna-extra-closers.json` replays that final output without account metadata. It now passes the existing block, node, and text checks after removing only the redundant suffix. Tests verify success with zero retries, unchanged translated text, preserved raw diagnostics, and continued retries for unrecoverable output. The fix has not been tested against a live Luna request in Chrome.
+
+On 2026-10-17, the user reported that clicking LOG again did not close an open panel. The previous implementation filtered runtime contexts by the browser window ID, but Chromium reports `windowId: -1` for side-panel contexts. The previous mock incorrectly supplied a real window ID. A regression using Chromium's return shape fails with the previous code and passes with the corrected discovery logic. This reproduces the faulty state detection offline; live browser verification remains pending.
 
 ## Checks not yet completed
 
@@ -110,17 +113,19 @@ The raw execution results are stored in [test-results.json](test-results.json).
 21. In Korean UI, verify 한국어 appears once; English (United States), English (United Kingdom), English (Australia), Português (Brasil), and Português (Portugal) show native and Korean labels with regional names. Switch to English UI and confirm English entries appear once and the selected translation target keeps its country. Verify browser-language ordering, filtering by native/localized country names and locale codes, keyboard selection, and free-text targets. Review wrapping in the popup and options page.
 22. On a long page, set concurrency to 1, scroll to the middle, and start a fresh translation. Verify that requests contain visible blocks before offscreen blocks, including paragraphs that are only partly visible. Scroll elsewhere while a request is in flight: after it finishes, the next request should prioritize the new viewport. Repeat with window resizing, zooming, and several concurrent requests. In-flight requests must continue, every eligible block must eventually translate once, and the progress counter must increase only after results are applied. Repeat from a cold cache to distinguish request ordering from cache reuse.
 23. Set maximum retries to 0 and 4. With public test text, verify unrecoverable malformed or incomplete responses retry up to the configured limit, preserve original input, and advance progress only after valid output is applied. A complete JSON object followed only by extra closing delimiters should pass full validation without another request; developer logs should retain the raw output and include `translation.recovered`. Stop or restore during retry backoff; no subsequent request should be sent. Authentication, access, and usage-limit failures must stop immediately.
-24. Enable Developer mode in Data & appearance. Open LOG from the popup and verify the native side panel alongside the webpage (placement follows the browser setting). Expand requests and responses, inspect streaming updates, search/filter, disable Follow latest, and clear history during an active request. Close the panel with its upper-right X while recording and reopen it using LOG; retained and newer entries must still be present. Verify Maximum log entries appears only in developer mode, defaults to 4,000, accepts 1 and 1,000,000, and rejects out-of-range values. Lowering the count must trim older logs immediately. Fill the standard local quota with sample logs to verify oldest-first eviction without damaging settings or credentials. Reopen the browser to check retained history. Turn developer mode off to stop recording; re-enable and clear logs afterward. Use only nonpersonal sample text and English UI for screenshots.
+24. Enable Developer mode in Data & appearance. Open LOG from the popup and verify the native side panel alongside the webpage (placement follows the browser setting). Expand requests and responses, inspect streaming updates, search/filter, disable Follow latest, and clear history during an active request. While the panel is open, reopen the popup and click LOG to close it; click LOG again to reopen it. Repeat from settings and after closing with the panel's X or the browser control. The tooltip and accessible pressed state should follow the panel state, recording must continue, and retained and newer entries must still be present. Repeat with two browser windows; toggling in one must not close the other's panel. Verify Maximum log entries appears only in developer mode, defaults to 4,000, accepts 1 and 1,000,000, and rejects out-of-range values. Lowering the count must trim older logs immediately. Fill the standard local quota with sample logs to verify oldest-first eviction without damaging settings or credentials. Reopen the browser to check retained history. Turn developer mode off to stop recording; re-enable and clear logs afterward. Use only nonpersonal sample text and English UI for screenshots.
 25. Revoke and grant site access without reloading. Verify Alt-click and Alt+T after returning focus to the webpage, even while model discovery is slow or fails. Repeat with Chrome's site-access menu. No automatic navigation or translation should occur on permission grant.
 26. Verify that the floating toolbar's circular X overlaps its upper-right corner, remains visible in light/dark themes and narrow viewports, has a localized accessible name, and dismisses the toolbar without stopping an ongoing translation.
 27. Repeat equivalent checks in Edge and Brave and record the actual compatibility results.
 
 ## Store preparation checks
 
-All 171 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
+All 182 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
 
 ## Page toolbar progress
 
 The real toolbar rendering and job functions are exercised with mock DOM/browser APIs. Checks cover 16/120 completed blocks with queued batches, cached results, unchanged successful output, failed requests, edited/detached text, restoration, accessible progress values, indeterminate preparation, English/Korean labels, and page translation dispatch. Actual Chrome visual review remains pending. In a browser, verify the four-pixel top-edge bar at narrow widths and in light/dark themes, and confirm that the counter remains visible with an error message.
 
-The latest computer-use inventory still has no connected browser. Native side-panel behavior and the updated circular toolbar close button remain pending actual Chrome visual verification.
+The latest computer-use inventory still has no connected browser. LOG toggling has been verified with mock browser APIs, including the older-Chromium close fallback, but requires live browser verification. Native side-panel behavior and the updated circular toolbar close button remain pending actual Chrome visual verification.
+
+The toggle uses [runtime.getContexts](https://developer.chrome.com/docs/extensions/reference/api/runtime#method-getContexts) to discover log side-panel documents without a window filter. [Chromium's runtime regression test](https://chromium.googlesource.com/chromium/src/+/cc748d4034cf809a90bead06f9f9dcabd0dbbaf5/chrome/browser/extensions/api/runtime/runtime_apitest.cc) records `windowId: -1` for these contexts. A trusted status message asks the panel to identify its owning window and visibility; regular tabs displaying the log page do not answer. State is resolved before the LOG button is enabled so opening remains within the click gesture. Closing uses [sidePanel.close](https://developer.chrome.com/docs/extensions/reference/api/sidePanel#method-close) when available (Chrome 141+) and a trusted, window-scoped message to the panel otherwise. Lifecycle events are optional; polling also detects manual closure or hidden panels.

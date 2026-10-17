@@ -1,8 +1,8 @@
 {
-  "date": "2026-10-16",
+  "date": "2026-10-17",
   "version": "0.1.0",
   "automatedTests": {
-    "passed": 171,
+    "passed": 182,
     "failed": 0,
     "suites": [
       {
@@ -12,7 +12,7 @@
       },
       {
         "name": "integration",
-        "passed": 25,
+        "passed": 26,
         "failed": 0
       },
       {
@@ -22,7 +22,7 @@
       },
       {
         "name": "ui-state",
-        "passed": 27,
+        "passed": 34,
         "failed": 0
       },
       {
@@ -47,7 +47,7 @@
       },
       {
         "name": "logs-ui",
-        "passed": 4,
+        "passed": 7,
         "failed": 0
       }
     ],
@@ -59,8 +59,8 @@
   "package": {
     "file": "../dist/yongil-translator-0.1.0.zip",
     "files": 31,
-    "bytes": 206315,
-    "sha256": "5b6ac900feb8efe3d8814561f53566f6a3d9e39a91bae7ce49f3b0ea832936d3",
+    "bytes": 209426,
+    "sha256": "dfc1126523d73914ba972e9a63959b225230d776fb5c28b4c2fd332ea3359c4a",
     "archiveContentsMatchSource": true,
     "containsStoreFixtures": false
   },
@@ -72,7 +72,7 @@
   "browser": {
     "actualScreenshots": false,
     "liveAccountVerification": false,
-    "reason": "No connected Chrome browser was available during the latest browser inventory. Native side-panel closing, quota behavior in Chrome, and the circular toolbar close control still require actual browser verification. Automated tests use mock browser APIs. The Luna JSON recovery fix was verified by offline replay of the supplied response and mock transport tests, not live inference."
+    "reason": "The 2026-10-17 browser inventory returned no connected apps or browsers. LOG toggling now handles Chromium side-panel contexts with windowId -1; the regression fails with the previous code and passes with the fix. Native side-panel behavior, quota handling, and the toolbar close control still require actual browser verification. Automated checks use mock browser APIs and provider transport; Luna JSON recovery also uses offline replay of the supplied response."
   },
   "publication": {
     "uploaded": false,

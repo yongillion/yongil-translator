@@ -14,17 +14,17 @@ function element(tag='div',attributes=''){
   getAttribute:key=>attrs[key],setAttribute(key,value){attrs[key]=value;}
  };
 }
-async function harness(){
+async function harness({asTab=false}={}){
  const html=await readFile(new URL('../extension/logs.html',import.meta.url),'utf8'),nodes=new Map(),all=[];
  for(const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*)>/gi)){const node=element(match[1],match[2]);all.push(node);const id=match[2].match(/\bid="([^"]+)"/)?.[1];if(id)nodes.set(id,node);}
- const document={documentElement:{dataset:{}},getElementById:id=>nodes.get(id),createElement:tag=>element(tag),querySelectorAll:selector=>all.filter(node=>node.getAttribute(selector.slice(1,-1))!==undefined)};
- const settings={uiLanguage:'en',theme:'light'},data={enabled:true,entries:[],dropped:0};let changed,closed=0;
- const chrome={i18n:mockI18n('en'),storage:{onChanged:{addListener(fn){changed=fn;}}},runtime:{getURL:path=>'chrome-extension://test/'+path,sendMessage:async({type})=>{
+ const document={hidden:false,documentElement:{dataset:{}},getElementById:id=>nodes.get(id),createElement:tag=>element(tag),querySelectorAll:selector=>all.filter(node=>node.getAttribute(selector.slice(1,-1))!==undefined)};
+ const settings={uiLanguage:'en',theme:'light'},data={enabled:true,entries:[],dropped:0};let changed,closeMessage,closed=0;
+ const chrome={windows:{getCurrent:async()=>({id:7})},tabs:{getCurrent:async()=>asTab?{id:42,windowId:7}:undefined},i18n:mockI18n('en'),storage:{onChanged:{addListener(fn){changed=fn;}}},runtime:{id:'test',onMessage:{addListener(fn){closeMessage=fn;}},getURL:path=>'chrome-extension://test/'+path,sendMessage:async({type})=>{
   if(type==='logs.clear')data.entries=[];return {ok:true,data:type==='settings.get'?{...settings}:JSON.parse(JSON.stringify(data))};
  }}};
  const context=vm.createContext({document,chrome,window:{close(){closed++;}},fetch:localeFetch,URL}),entry=new vm.SourceTextModule(await readFile(new URL('../extension/logs.mjs',import.meta.url),'utf8'),{context});
  await entry.link(async()=>new vm.SourceTextModule(await readFile(new URL('../extension/lib/i18n.mjs',import.meta.url),'utf8'),{context}));await entry.evaluate();
- return {nodes,settings,data,get closed(){return closed;},async update(){changed({developerLogs:{newValue:data},settings:{newValue:settings}},'local');await tick();}};
+ return {nodes,settings,data,document,sendClose(message,sender){let response;closeMessage(message,sender,value=>{response=value;});return response;},get closed(){return closed;},async update(){changed({developerLogs:{newValue:data},settings:{newValue:settings}},'local');await tick();}};
 }
 const entry=(id,event,details={},level='info')=>({id,event,details,level,time:'2026-10-16T00:00:00Z'});
 export async function logsUITests(){
@@ -54,6 +54,31 @@ export async function logsUITests(){
   const close=h.nodes.get('close-logs');assert.equal(close.getAttribute('aria-label'),catalogs.en.closeLogs.message);
   h.settings.uiLanguage='ko';await h.update();assert.equal(close.getAttribute('title'),catalogs.ko.closeLogs.message);
   await close.emit('click');assert.equal(h.closed,1);assert.equal(h.data.enabled,true);assert.equal(h.data.entries.length,1);
+ });
+ await test('Legacy close commands accept only trusted popup/options senders and the matching window',async()=>{
+  const h=await harness(),message={type:'logs.panel.close',windowId:7};h.data.entries=[entry('1','http.request')];
+  for(const sender of [{id:'test',url:'https://example.test/'},{id:'another',url:'chrome-extension://test/popup.html'},{id:'test',url:'chrome-extension://test/logs.html'},{id:'test',url:'chrome-extension://test/popup.html/other'}]){
+   assert.equal(h.sendClose(message,sender),undefined);assert.equal(h.closed,0);
+  }
+  const popup={id:'test',url:'chrome-extension://test/popup.html'};
+  assert.equal(h.sendClose({...message,windowId:8},popup),undefined);assert.equal(h.closed,0);
+  assert.equal(h.sendClose({type:'logs.clear',windowId:7},popup),undefined);assert.equal(h.closed,0);
+  assert.equal(h.sendClose(message,popup).ok,true);assert.equal(h.closed,1);
+  assert.equal(h.sendClose(message,{id:'test',url:'chrome-extension://test/options.html?view=data#data'}).ok,true);assert.equal(h.closed,2);
+  assert.equal(h.data.enabled,true);assert.equal(h.data.entries.length,1);
+ });
+ await test('Panel status reports its owning window and visibility only to trusted UI',async()=>{
+  const h=await harness(),message={type:'logs.panel.status',windowId:7},sender={id:'test',url:'chrome-extension://test/popup.html'};
+  assert.deepEqual(JSON.parse(JSON.stringify(h.sendClose(message,sender))),{ok:true,windowId:7,open:true});assert.equal(h.closed,0);
+  h.document.hidden=true;assert.equal(h.sendClose(message,sender).open,false);
+  assert.equal(h.sendClose({...message,windowId:8},sender),undefined);
+  assert.equal(h.sendClose(message,{id:'test',url:'https://example.test/'}),undefined);
+  assert.equal(h.sendClose(message,{...sender,id:'untrusted'}),undefined);
+ });
+ await test('A logs page opened in a tab neither reports itself as a panel nor closes on panel commands',async()=>{
+  const h=await harness({asTab:true}),sender={id:'test',url:'chrome-extension://test/popup.html'};
+  for(const type of ['logs.panel.status','logs.panel.close'])assert.equal(h.sendClose({type,windowId:7},sender),undefined);
+  assert.equal(h.closed,0);
  });
  return {passed:results.filter(row=>row.passed).length,failed:results.filter(row=>!row.passed).length,results};
 }

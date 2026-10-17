@@ -105,11 +105,44 @@ action('login',async()=>{await rpc('auth.start');setAccount(await rpc('auth.stat
 action('cancel-login',async()=>{await rpc('auth.cancel');setAccount(await rpc('auth.status'));});
 action('logout',async()=>{await rpc('auth.signOut');setAccount(await rpc('auth.status'));$('model').replaceChildren(new Option(t('connectFirst'),''));feedback(t('disconnectedMessage'),true);});
 action('open-options',()=>rpc('options.open'));
-// Open directly in the click gesture; a background round trip can lose user activation.
+let logsOpen=false,logsReady=false,logsBusy=false,logsRevision=0;
+function logsButtonView(){
+ const button=$('open-logs');if(!button)return;
+ const key=logsOpen?'closeLogs':'openLogs';
+ button.hidden=!state?.developerMode;button.disabled=!logsReady||logsBusy;
+ button.dataset.i18nTitle=key;button.dataset.i18nAriaLabel=key;
+ button.setAttribute('title',t(key));button.setAttribute('aria-label',t(key));button.setAttribute('aria-pressed',String(logsOpen));
+}
+async function refreshLogsPanel(){
+ if(logsBusy||!Number.isInteger(windowId)||!chrome.runtime.getContexts)return;
+ const revision=logsRevision;
+ try{
+  // Chromium reports -1 as a side-panel context's windowId. Ask live panel
+  // documents which window they belong to instead of filtering that metadata.
+  const contexts=await chrome.runtime.getContexts({contextTypes:['SIDE_PANEL'],documentUrls:[chrome.runtime.getURL('logs.html')]});
+  const response=contexts.length?await chrome.runtime.sendMessage({type:'logs.panel.status',windowId}):null;
+  if(revision!==logsRevision||logsBusy)return;
+  logsOpen=response?.ok===true&&response.windowId===windowId&&response.open===true;logsReady=true;logsButtonView();
+ }catch{if(revision===logsRevision){logsReady=false;logsButtonView();}}
+}
+// Keep opening inside the click gesture; fetching state here can lose user activation.
+// State is discovered before the button is enabled and refreshed by events/polling.
 $('open-logs')?.addEventListener('click',()=>{
- if(!state?.developerMode)return;
+ if(!state?.developerMode||!logsReady||logsBusy)return;
  if(!chrome.sidePanel?.open||!Number.isInteger(windowId)){feedback(t('sidePanelUnavailable'));return;}
- chrome.sidePanel.open({windowId}).catch(e=>feedback(e.message));
+ const opening=!logsOpen;logsBusy=true;logsRevision++;logsButtonView();
+ let operation;
+ try{
+  operation=opening?chrome.sidePanel.open({windowId}):chrome.sidePanel.close?chrome.sidePanel.close({windowId}):
+   chrome.runtime.sendMessage({type:'logs.panel.close',windowId}).then(response=>{if(!response?.ok)throw Error(t('sidePanelUnavailable'));});
+ }catch(e){operation=Promise.reject(e);}
+ return operation.then(()=>{logsOpen=opening;}).catch(e=>{feedback(e.message);}).finally(()=>{
+  logsBusy=false;logsRevision++;logsButtonView();void refreshLogsPanel();
+ });
+});
+for(const [event,open]of [[chrome.sidePanel?.onOpened,true],[chrome.sidePanel?.onClosed,false]])event?.addListener(info=>{
+ if(info.windowId!==windowId||info.path!=='logs.html'||Number.isInteger(info.tabId)&&info.tabId>=0)return;
+ logsRevision++;logsOpen=open;logsReady=true;logsButtonView();
 });
 action('edit-instructions',async()=>{await chrome.tabs.create({url:chrome.runtime.getURL('options.html#instructions')});});
 async function page(type){
@@ -200,7 +233,7 @@ action('clear-cancel',async()=>{await save({cancelShortcut:null});shortcutsView(
 $('shortcut-test')?.addEventListener('keydown',e=>{e.preventDefault();$('shortcut-test').value=shortcutLabel(shortcutFromEvent(e));});
 function localizedSettingsView(){
  shortcutsView();
- if($('open-logs'))$('open-logs').hidden=!state.developerMode;
+ logsButtonView();
  if(!isOptions){$('instruction-status').textContent=state.instructionsEnabled?t('instructionsActive'):t('configureInstructions');return;}
  $('developer-options').hidden=!state.developerMode;
  $('ui-language').value=state.uiLanguage||'auto';
@@ -261,6 +294,7 @@ async function init(){
  const [settings,status]=await Promise.all([rpc('settings.get'),rpc('auth.status')]);
  state=settings;await configureLanguage(state.uiLanguage);localizeDocument();
  if(chrome.windows?.getCurrent)windowId=(await chrome.windows.getCurrent()).id;
+ await refreshLogsPanel();
  if(!isOptions)[tab]=await chrome.tabs.query({active:true,currentWindow:true});
  settingsView();setAccount(status);await connectedView();
 }
@@ -276,7 +310,7 @@ chrome.storage?.onChanged.addListener((changes,area)=>{
  if(area==='local'&&state&&next){
   state.developerMode=!!next.developerMode;
   if($('developer-mode'))$('developer-mode').checked=state.developerMode;
-  if($('open-logs'))$('open-logs').hidden=!state.developerMode;
+  logsButtonView();void refreshLogsPanel();
   if($('developer-options'))$('developer-options').hidden=!state.developerMode;
   if(next.maxLogEntries!==undefined&&next.maxLogEntries!==state.maxLogEntries){state.maxLogEntries=next.maxLogEntries;if($('max-log-entries'))$('max-log-entries').value=state.maxLogEntries;}
  }
@@ -292,6 +326,7 @@ await init().catch(e=>feedback(e.message));
 setInterval(async()=>{
  if(polling||document.hidden)return;polling=true;
  try{
+  await refreshLogsPanel();
   const changed=setAccount(await rpc('auth.status'));
   if(changed)await connectedView();else await refreshProgress();
  }catch{}finally{polling=false;}

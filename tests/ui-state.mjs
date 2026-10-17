@@ -15,7 +15,7 @@ function element(tag='div',attributes=''){
   append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;},
   getAttribute(name){return attrs[name];},setAttribute(name,value){attrs[name]=value;},removeAttribute(name){delete attrs[name];},scrollIntoView(){},focus(){},click(){}};
 }
-async function harness({options=false,connected=false,permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',developerMode=false,items=[{id:'test-model',name:'Test model'}]}={}){
+async function harness({options=false,connected=false,permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',developerMode=false,panelWindows=[],nativePanelClose=true,panelEvents=true,items=[{id:'test-model',name:'Test model'}]}={}){
  const html=await readFile(new URL('../extension/'+(options?'options':'popup')+'.html',import.meta.url),'utf8');
  const nodes=new Map(),gates=[],all=[];
  for(const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*)>/gi)){
@@ -27,11 +27,14 @@ async function harness({options=false,connected=false,permission=false,url='http
  const grants={allowed:permission,result:true,pending:null,requestPending:null,requests:[]};const calls=[];let poll;
  const savedSettings={schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,maxRetries:4,developerMode,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyT'},restoreShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyR'},blockShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:''},cancelShortcut:null};
  const event=()=>({listeners:[],addListener(fn){this.listeners.push(fn);},emit(...args){for(const fn of this.listeners)fn(...args);}});
+ const panels={windows:new Set(panelWindows),hidden:new Set(),queries:[],closeRequests:[]};
  const body=element('body','class="'+(options?'options':'popup')+'"');body.dataset.connected='false';
  const document={body,documentElement:{dataset:{}},hidden:false,getElementById:id=>nodes.get(id)||null,
   querySelectorAll:selector=>selector==='[data-connected-only]'?gates:all.filter(el=>el.getAttribute(selector.slice(1,-1))!==undefined),createElement:tag=>element(tag)};
- const chrome={i18n:mockI18n(browserLanguage),storage:{onChanged:event()},windows:{getCurrent:async()=>({id:7})},sidePanel:{opens:[],open(options){this.opens.push(options);return Promise.resolve();}},runtime:{getURL:p=>'chrome-extension://test/'+p,sendMessage:async message=>{
+ const chrome={i18n:mockI18n(browserLanguage),storage:{onChanged:event()},windows:{getCurrent:async()=>({id:7})},sidePanel:{opens:[],closes:[],onOpened:event(),onClosed:event(),open(options){this.opens.push(options);panels.windows.add(options.windowId);this.onOpened?.emit({...options,path:'logs.html'});return Promise.resolve();},close(options){this.closes.push(options);panels.windows.delete(options.windowId);this.onClosed?.emit({...options,path:'logs.html'});return Promise.resolve();}},runtime:{getURL:p=>'chrome-extension://test/'+p,getContexts:async filter=>{panels.queries.push(JSON.parse(JSON.stringify(filter)));return [...panels.windows].map(id=>({contextType:'SIDE_PANEL',documentUrl:'chrome-extension://test/logs.html',documentId:'logs-'+id,windowId:-1})).filter(context=>!filter.windowIds||filter.windowIds.includes(context.windowId));},sendMessage:async message=>{
   calls.push(message.type);let data={};
+  if(message.type==='logs.panel.status')return panels.windows.has(message.windowId)?{ok:true,windowId:message.windowId,open:!panels.hidden.has(message.windowId)}:undefined;
+  if(message.type==='logs.panel.close'){panels.closeRequests.push(JSON.parse(JSON.stringify(message)));panels.windows.delete(message.windowId);return {ok:true};}
   if(message.type==='settings.get')data={...savedSettings};
   if(message.type==='settings.update'){Object.assign(savedSettings,message.patch);data={...savedSettings};}
   if(message.type==='auth.status')data={...status.current};
@@ -43,6 +46,8 @@ async function harness({options=false,connected=false,permission=false,url='http
   permissions:{onAdded:event(),onRemoved:event(),getAll:async()=>({origins:grants.allowed?['https://example.test/*']:[]}),
    contains:async()=>grants.pending?await grants.pending:grants.allowed,
    request:async options=>{grants.requests.push(JSON.parse(JSON.stringify(options)));const result=grants.requestPending?await grants.requestPending:grants.result;if(result)grants.allowed=true;return result;},remove:async()=>{grants.allowed=false;return true;}}};
+ if(!nativePanelClose)delete chrome.sidePanel.close;
+ if(!panelEvents){delete chrome.sidePanel.onOpened;delete chrome.sidePanel.onClosed;}
  const context=vm.createContext({document,chrome,fetch:localeFetch,URL,Blob,Option:class{constructor(text,value){Object.assign(this,element('option'),{textContent:text,value});}},window:{close(){}},setInterval:fn=>{poll=fn;return 0;},setTimeout,clearTimeout,confirm:()=>true});
  const entry=new vm.SourceTextModule(source,{context,identifier:'ui.mjs'});
  const modules=new Map();
@@ -53,7 +58,7 @@ async function harness({options=false,connected=false,permission=false,url='http
   if(!modules.has(name))modules.set(name,readFile(new URL('../extension/lib/'+name,import.meta.url),'utf8').then(source=>new vm.SourceTextModule(source,{context,identifier:name})));
   return modules.get(name);
  });await entry.evaluate();
- return {nodes,gates,status,grants,calls,body,chrome,savedSettings,document,all,poll:()=>poll(),click:id=>nodes.get(id).emit('click')};
+ return {nodes,gates,status,grants,calls,body,chrome,savedSettings,document,all,panels,poll:()=>poll(),click:id=>nodes.get(id).emit('click')};
 }
 export async function uiStateTests(){
  const results=[];async function test(name,fn){try{await fn();results.push({name,passed:true});}catch(e){results.push({name,passed:false,error:e.stack||e.message});}}
@@ -73,6 +78,71 @@ export async function uiStateTests(){
   h.nodes.get('max-retries').valueAsNumber=0;await h.nodes.get('max-retries').emit('change');assert.equal(h.savedSettings.maxRetries,0);
   h.nodes.get('developer-mode').checked=true;await h.nodes.get('developer-mode').emit('change');assert.equal(h.savedSettings.developerMode,true);assert.equal(h.nodes.get('open-logs').hidden,false);
   assert.equal(h.savedSettings.targetLanguage,'한국어');assert.equal(h.savedSettings.modelId,'test-model');
+ });
+ await test('LOG toggles the current window panel and discovers panels already open when UI starts',async()=>{
+  for(const options of [false,true])for(const initiallyOpen of [false,true]){
+   const h=await harness({options,connected:true,developerMode:true,panelWindows:initiallyOpen?[7,8]:[8]}),button=h.nodes.get('open-logs');
+   assert.equal(button.getAttribute('aria-pressed'),String(initiallyOpen));
+   assert.equal(button.getAttribute('title'),catalogs.ko[initiallyOpen?'closeLogs':'openLogs'].message);
+   assert.deepEqual(h.panels.queries[0],{contextTypes:['SIDE_PANEL'],documentUrls:['chrome-extension://test/logs.html']});
+   const first=h.click('open-logs');
+   assert.equal(initiallyOpen?h.chrome.sidePanel.closes.length:h.chrome.sidePanel.opens.length,1,'The native operation must begin in the click handler');
+   await first;await tick();assert.equal(h.panels.windows.has(7),!initiallyOpen);assert.equal(h.panels.windows.has(8),true);
+   await h.click('open-logs');await tick();assert.equal(h.panels.windows.has(7),initiallyOpen);
+   assert.equal(button.getAttribute('aria-pressed'),String(initiallyOpen));assert.equal(h.savedSettings.developerMode,true);
+   assert.ok(!h.calls.includes('logs.clear'));assert.ok(!h.calls.includes('settings.update'));
+  }
+ });
+ await test('Panel events and legacy polling keep LOG synchronized with manual close and reopening',async()=>{
+  for(const panelEvents of [false,true]){
+   const h=await harness({options:true,connected:true,developerMode:true,panelWindows:[7,8],panelEvents}),button=h.nodes.get('open-logs');
+   h.chrome.sidePanel.onClosed?.emit({windowId:8,path:'logs.html'});assert.equal(button.getAttribute('aria-pressed'),'true');
+   h.panels.windows.delete(7);h.chrome.sidePanel.onClosed?.emit({windowId:7,path:'logs.html'});await h.poll();
+   assert.equal(button.getAttribute('aria-pressed'),'false');assert.equal(button.getAttribute('aria-label'),catalogs.ko.openLogs.message);
+   await h.click('open-logs');await tick();assert.equal(h.chrome.sidePanel.opens.length,1);assert.equal(button.getAttribute('aria-pressed'),'true');
+   h.chrome.storage.onChanged.emit({settings:{newValue:{...h.savedSettings,uiLanguage:'en'}}},'local');await tick();
+   assert.equal(button.getAttribute('title'),catalogs.en.closeLogs.message);
+  }
+ });
+ await test('Legacy panel close targets its own window and works without sidePanel.close or lifecycle events',async()=>{
+  const h=await harness({connected:true,developerMode:true,panelWindows:[7,8],nativePanelClose:false,panelEvents:false});
+  await h.click('open-logs');await tick();assert.deepEqual(h.panels.closeRequests,[{type:'logs.panel.close',windowId:7}]);
+  assert.equal(h.panels.windows.has(7),false);assert.equal(h.panels.windows.has(8),true);
+  await h.click('open-logs');await tick();assert.equal(h.chrome.sidePanel.opens.length,1);assert.equal(h.panels.windows.has(7),true);
+ });
+ await test('Pending and rejected toggle operations neither double-toggle nor leave LOG disabled',async()=>{
+  const h=await harness({connected:true,permission:true,developerMode:true});let reject;
+  h.chrome.sidePanel.open=()=>new Promise((resolve,fail)=>{reject=fail;});
+  const pending=h.click('open-logs');assert.equal(h.nodes.get('open-logs').disabled,true);
+  await h.click('open-logs');assert.equal(h.chrome.sidePanel.closes.length,0);
+  reject(Error('Cannot open panel'));await pending;await tick();
+  assert.equal(h.nodes.get('open-logs').disabled,false);assert.equal(h.nodes.get('open-logs').getAttribute('aria-pressed'),'false');
+  assert.equal(h.nodes.get('feedback').textContent,'Cannot open panel');
+  h.panels.windows.add(7);await h.poll();assert.equal(h.nodes.get('open-logs').getAttribute('aria-pressed'),'true');h.chrome.sidePanel.close=()=>Promise.reject(Error('Cannot close panel'));
+  await h.click('open-logs');await tick();assert.equal(h.nodes.get('open-logs').getAttribute('aria-pressed'),'true');
+  assert.equal(h.nodes.get('open-logs').disabled,false);assert.equal(h.nodes.get('feedback').textContent,'Cannot close panel');
+ });
+ await test('Delayed context discovery cannot overwrite a newer native close event',async()=>{
+  const h=await harness({connected:true,developerMode:true,panelWindows:[7]});let resolve;
+  h.chrome.runtime.getContexts=()=>new Promise(done=>{resolve=done;});const pending=h.poll();
+  h.panels.windows.delete(7);h.chrome.sidePanel.onClosed.emit({windowId:7,path:'logs.html'});resolve([{windowId:7}]);await pending;
+  assert.equal(h.nodes.get('open-logs').getAttribute('aria-pressed'),'false');
+ });
+ await test('Chromium contexts with windowId -1 still close an existing panel instead of reopening it',async()=>{
+  const h=await harness({connected:true,developerMode:true,panelWindows:[7,8],panelEvents:false});
+  const contexts=await h.chrome.runtime.getContexts({contextTypes:['SIDE_PANEL']});assert.ok(contexts.every(context=>context.windowId===-1));
+  assert.equal(h.nodes.get('open-logs').getAttribute('aria-pressed'),'true');
+  await h.click('open-logs');await tick();assert.equal(h.chrome.sidePanel.closes.length,1);assert.equal(h.chrome.sidePanel.opens.length,0);
+  assert.equal(h.panels.windows.has(7),false);assert.equal(h.panels.windows.has(8),true);
+  await h.click('open-logs');await tick();assert.equal(h.chrome.sidePanel.opens.length,1);
+ });
+ await test('Hidden panel documents do not count as open and global events accept tabId -1',async()=>{
+  const h=await harness({connected:true,developerMode:true,panelWindows:[7,8]});
+  h.panels.hidden.add(7);await h.poll();assert.equal(h.nodes.get('open-logs').getAttribute('aria-pressed'),'false');
+  h.panels.hidden.delete(7);h.chrome.sidePanel.onOpened.emit({windowId:7,path:'logs.html',tabId:-1});
+  assert.equal(h.nodes.get('open-logs').getAttribute('aria-pressed'),'true');
+  h.chrome.sidePanel.onClosed.emit({windowId:7,path:'logs.html',tabId:9});assert.equal(h.nodes.get('open-logs').getAttribute('aria-pressed'),'true');
+  h.chrome.sidePanel.onClosed.emit({windowId:7,path:'logs.html',tabId:-1});assert.equal(h.nodes.get('open-logs').getAttribute('aria-pressed'),'false');
  });
  await test('Log retention control is shown only in developer mode and saves the upper limit',async()=>{
   const h=await harness({options:true,connected:true}),input=h.nodes.get('max-log-entries');

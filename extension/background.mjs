@@ -141,6 +141,8 @@ async function route(message,sender){
  }
 }
 chrome.runtime.onMessage.addListener((message,sender,reply)=>{
+ // The matching side-panel document handles this command, including sender validation.
+ if(['logs.panel.status','logs.panel.close'].includes(message?.type))return;
  route(message,sender).then(data=>reply({ok:true,data})).catch(e=>{
   if(isUI(sender)||isLogUI(sender)||sender.id===chrome.runtime.id&&isWeb(sender.url))developerLog.add('action.error',{type:message?.type,code:e.code||e.name,message:e instanceof AppError?e.message:undefined},'error');
   reply({ok:false,error:{code:e.name==='AbortError'?'CANCELLED':e.code||'UNEXPECTED',messageKey:e instanceof AppError?e.messageKey:undefined,substitutions:e instanceof AppError?e.substitutions:undefined,message:e instanceof AppError?e.message:e.name==='AbortError'?t('jobCancelled'):t('unexpectedError')}});
