@@ -3,7 +3,11 @@ import {LANGUAGES,languageLabel,shortcutLabel,sanitizeSettings,defaults} from '.
 import {displayLanguage as languageDisplay,targetLanguageValue} from './lib/languages.mjs';
 import {paintIcons} from './icons.mjs';
 import {discoverChromeAI,chromeAILanguage} from './lib/chrome-ai.mjs';
-import {discoverTranslator,translatorLanguage} from './lib/translator.mjs';
+import {discoverTranslator,translatorLanguage,translatorAvailability} from './lib/translator.mjs';
+import {nativeSourceLanguages} from './lib/native-languages.mjs';
+let sourceInitialization;
+let sourceDocument='',sourceLanguage='',sourceLoaded=false,sourceChoices=[],sourceActive=-1,languageControlsKey='',languageControlsRevision=0;
+let capabilitiesReady=false;
 let translatorAvailable=false,translatorLanguages=new Set();
 const translatorDiscovery=discoverTranslator();
 function supportedTranslatorLanguage(value){try{return translatorLanguages.has(translatorLanguage(value));}catch{return false;}}
@@ -36,9 +40,9 @@ function permissionCardView(){
  $('site-state').textContent=t(unsupported?'siteUnsupportedNote':checking?'siteAccessCheckingNote':'siteAccessNote');
  $('site-host').textContent=/^https?:\/\//.test(tab?.url||'')?new URL(tab.url).hostname:'';
  $('site-host').hidden=!$('site-host').textContent;
- $('translate').disabled=!ready||!state?.modelId||nativeProvider()&&!supportedTarget(state?.targetLanguage);
- for(const id of ['select-block','restore','stop','retry'])$(id).disabled=!ready;
- if(!ready){closeLanguage();if(connected)$('feedback').hidden=true;}
+ $('translate').disabled=!ready||!sourceLoaded||!state?.modelId||nativeProvider()&&!supportedTarget(state?.targetLanguage);
+ for(const id of ['select-block','restore','stop','retry'])$(id).disabled=!ready||(['select-block','retry'].includes(id)&&!sourceLoaded);
+ if(!ready){closeLanguage();closeSource();if(connected)$('feedback').hidden=true;}
  else $('permission-feedback').hidden=true;
 }
 function setAccount(next){
@@ -89,6 +93,7 @@ function accountView(){
  }
  for(const id of ['edit-instructions','instructions','instructions-nav'])if($(id))$(id).hidden=account?.provider==='translator'||!connected;
  $('usage-link').hidden=localAI||translator||!connected;
+ for(const id of ['language-packs','language-packs-nav'])if($(id))$(id).hidden=!connected||!translatorAvailable;
  $('refresh-models').disabled=!connected||(!isOptions&&sitePermission!=='granted');
 }
 async function loadModels(force=false){
@@ -111,6 +116,128 @@ async function loadModels(force=false){
 }
 function displayLanguage(value){return languageDisplay(value,t('uiLocale'));}
 function targetValue(value){return targetLanguageValue(value,t('uiLocale'));}
+function nativeCode(value){return account?.provider==='translator'?translatorLanguage(value):chromeAILanguage(value);}
+function languageName(code){return LANGUAGES.find(([value])=>{try{return translatorLanguage(value)===code;}catch{return false;}})?.[1]||languageLabel(code);}
+function selectOptions(id,values,value,auto=false){
+ const select=$(id);if(!select)return;
+ const options=values.map(code=>{const option=document.createElement('option');option.value=code;option.textContent=displayLanguage(languageName(code));return option;});
+ if(auto){const option=document.createElement('option');option.value='';option.textContent=t('sourceAuto');options.unshift(option);}
+ if(!auto&&!values.includes(value)){const option=document.createElement('option');option.value='';option.textContent=t('chooseLanguage');option.disabled=true;options.unshift(option);}
+ select.replaceChildren(...options);select.value=values.includes(value)||auto?value:'';
+}
+let availableSources=[];
+async function refreshLanguageControls(){
+ if(!state||!account)return;
+ const native=nativeProvider(),key=JSON.stringify([capabilitiesReady,account.provider,state.targetLanguage,sourceLanguage,t('uiLocale')]);
+ $('target-combobox').hidden=native;$('target-language-select').hidden=!native;
+ $('target-language-label').htmlFor=native?'target-language-select':'target-language';
+ if($('source-language')){
+  $('source-language').disabled=!sourceLoaded;$('source-language-toggle').disabled=!sourceLoaded;
+  $('source-combobox').hidden=native;$('source-language-select').hidden=!native;
+  $('source-language-label').htmlFor=native?'source-language-select':'source-language';
+  $('source-language').value=sourceLanguage?displayLanguage(sourceLanguage):t('sourceAuto');
+ }
+ if(key===languageControlsKey)return;
+ languageControlsKey=key;const revision=++languageControlsRevision;
+ if(!native){closeSource();return;}
+ closeLanguage();closeSource();
+ let target;try{target=nativeCode(state.targetLanguage);}catch{}
+ const targets=[...new Set(LANGUAGES.filter(([,name])=>supportedTarget(name)).map(([,name])=>nativeCode(name)))];
+ selectOptions('target-language-select',targets,target);
+ if(!$('source-language-select'))return;
+ $('source-language-select').disabled=true;
+ const sources=await nativeSourceLanguages(account.provider,state.targetLanguage);
+ if(revision!==languageControlsRevision)return;
+ if(account.provider==='translator'&&supportedTarget(state.targetLanguage)&&!sources.includes(target))sources.unshift(target);
+ availableSources=sources;
+ let source;try{source=sourceLanguage?nativeCode(sourceLanguage):'';}catch{source='';}
+ if(sourceLanguage&&!sources.includes(source)){
+  sourceLanguage='';source='';
+  if(sourceLoaded&&sitePermission==='granted')await persistSource();
+ }
+ selectOptions('source-language-select',sources,source,true);$('source-language-select').disabled=!sourceLoaded;
+ $('source-language').value=sourceLanguage?displayLanguage(sourceLanguage):t('sourceAuto');
+}
+async function persistSource(){
+ if(!tab?.id||sitePermission!=='granted')return;
+ await rpc('page.language.set',{tabId:tab.id,url:tab.url,documentId:sourceDocument,sourceLanguage});
+}
+function initializePageLanguage(){
+ if(!sourceInitialization)sourceInitialization=initializeSource().finally(()=>{sourceInitialization=null;});return sourceInitialization;
+}
+async function initializeSource(){
+ if(isOptions||sourceLoaded||!tab?.id||sitePermission!=='granted')return;
+ const saved=await rpc('page.language.get',{tabId:tab.id,url:tab.url});
+ sourceDocument=saved?.documentId||'';
+ if(typeof saved?.sourceLanguage==='string')sourceLanguage=saved.sourceLanguage;
+ else if(translatorAvailable&&chrome.tabs.detectLanguage){
+  let timer;
+  try{
+   const code=await Promise.race([chrome.tabs.detectLanguage(tab.id),new Promise(resolve=>{timer=setTimeout(()=>resolve('und'),2000);})]);
+   if(code&&code!=='und')sourceLanguage=targetValue(languageLabel(translatorLanguage(code)));
+  }catch{}finally{clearTimeout(timer);}
+ }
+ sourceLoaded=true;languageControlsKey='';await refreshLanguageControls();await persistSource();permissionCardView();
+}
+function closeSource(){
+ if(!$('source-language-list'))return;
+ $('source-language-list').hidden=true;$('source-language').setAttribute('aria-expanded','false');$('source-language').removeAttribute('aria-activedescendant');sourceActive=-1;
+}
+function openSource(filter=false){
+ if(nativeProvider())return;
+ const query=filter?$('source-language').value.trim():'',needle=query.toLowerCase();
+ sourceChoices=[t('sourceAuto'),...LANGUAGES.map(([,name])=>displayLanguage(name))].filter(name=>!needle||name.toLowerCase().includes(needle)||LANGUAGES.some(([code,native])=>displayLanguage(native)===name&&code.toLowerCase().includes(needle)));
+ if(query&&query!==t('sourceAuto')&&!LANGUAGES.some(([,name])=>name===targetValue(query)))sourceChoices.unshift(query);
+ $('source-language-list').replaceChildren();sourceActive=-1;
+ sourceChoices.forEach((name,index)=>{
+  const item=document.createElement('li');item.id='source-choice-'+index;item.role='option';item.textContent=name;item.setAttribute('aria-selected','false');
+  item.addEventListener('mousedown',event=>event.preventDefault());item.addEventListener('click',()=>chooseSource(name));$('source-language-list').append(item);
+ });
+ $('source-language-list').hidden=false;$('source-language').setAttribute('aria-expanded','true');
+}
+async function chooseSource(value){
+ const previous=sourceLanguage;
+ try{
+  const automatic=!value||value===t('sourceAuto')||value.toLowerCase()==='auto';
+  const next=automatic?'':targetValue(value);
+  if(nativeProvider()&&next&&!availableSources.includes(nativeCode(next)))throw new Error(t(account.provider==='translator'?'translatorLanguages':'chromeAILanguages'));
+  sourceLanguage=next;await persistSource();sourceLoaded=true;closeSource();await refreshLanguageControls();return true;
+ }catch(error){sourceLanguage=previous;languageControlsKey='';await refreshLanguageControls();feedback(error.message);return false;}
+}
+$('target-language-select').addEventListener('change',()=>chooseLanguage($('target-language-select').value));
+$('source-language-select')?.addEventListener('change',()=>chooseSource($('source-language-select').value));
+$('source-language')?.addEventListener('input',()=>openSource(true));
+$('source-language')?.addEventListener('blur',()=>{closeSource();if($('source-language').value!==(sourceLanguage?displayLanguage(sourceLanguage):t('sourceAuto')))void chooseSource($('source-language').value);});
+$('source-language')?.addEventListener('keydown',event=>{
+ if(event.key==='Escape'){closeSource();event.preventDefault();}
+ if(['ArrowDown','ArrowUp'].includes(event.key)){
+  event.preventDefault();if($('source-language-list').hidden)openSource();if(!sourceChoices.length)return;
+  sourceActive=(sourceActive+(event.key==='ArrowDown'?1:-1)+sourceChoices.length)%sourceChoices.length;
+  [...$('source-language-list').children].forEach((item,index)=>item.setAttribute('aria-selected',String(index===sourceActive)));
+  $('source-language').setAttribute('aria-activedescendant','source-choice-'+sourceActive);$('source-language-list').children[sourceActive].scrollIntoView({block:'nearest'});
+ }
+ if(event.key==='Enter'){event.preventDefault();void chooseSource(sourceActive>=0?sourceChoices[sourceActive]:$('source-language').value);}
+});
+action('source-language-toggle',()=>{if($('source-language-list').hidden)openSource();else closeSource();$('source-language').focus();});
+let packsRevision=0;
+async function refreshPacks(){
+ if(!isOptions||!translatorAvailable||account?.state!=='connected')return;
+ const revision=++packsRevision,pairs=await rpc('translator.packs.list');
+ const states=await Promise.all((Array.isArray(pairs)?pairs:[]).map(async pair=>({...pair,state:await translatorAvailability(pair)})));
+ if(revision!==packsRevision)return;
+ const list=$('language-pack-list');list.replaceChildren();
+ if(!states.length){list.textContent=t('languagePacksEmpty');return;}list.textContent='';
+ for(const pair of states){
+  const row=document.createElement('div');row.className='pack-row';
+  const label=document.createElement('span');label.textContent=displayLanguage(languageName(pair.sourceLanguage))+' → '+displayLanguage(languageName(pair.targetLanguage));
+  const status=document.createElement('small');status.textContent=t(pair.state==='available'?'translatorPairAvailable':pair.state==='downloading'?'translatorPairDownloading':pair.state==='downloadable'?'translatorPairDownload':'translatorPairUnavailable');
+  const remove=document.createElement('button');remove.className='text-button danger';remove.textContent=t('removeLanguagePair');remove.setAttribute('aria-label',t('removeLanguagePair')+': '+label.textContent);
+  remove.addEventListener('click',async()=>{try{remove.disabled=true;await rpc('translator.packs.remove',{pair:{sourceLanguage:pair.sourceLanguage,targetLanguage:pair.targetLanguage}});await refreshPacks();}catch(error){remove.disabled=false;feedback(error.message);}});
+  row.append(label,status,remove);list.append(row);
+ }
+}
+action('add-language-pack',()=>rpc('translator.packs.add'));
+action('refresh-language-packs',refreshPacks);
 let choices=[],active=-1;
 function languageItems(query=''){
  const initial=displayLanguage(languageLabel(state.defaultLocale));
@@ -126,9 +253,9 @@ function languageItems(query=''){
   li.addEventListener('mousedown',e=>e.preventDefault());li.addEventListener('click',()=>chooseLanguage(name));$('language-list').append(li);
  });
 }
-function openLanguage(filter=false){languageItems(filter?$('target-language').value:'');$('language-list').hidden=false;$('target-language').setAttribute('aria-expanded','true');}
+function openLanguage(filter=false){if(nativeProvider())return;languageItems(filter?$('target-language').value:'');$('language-list').hidden=false;$('target-language').setAttribute('aria-expanded','true');}
 function closeLanguage(){$('language-list').hidden=true;$('target-language').setAttribute('aria-expanded','false');$('target-language').removeAttribute('aria-activedescendant');}
-async function chooseLanguage(value){try{if(nativeProvider()&&!supportedTarget(targetValue(value)))throw new Error(t(account.provider==='translator'?'translatorLanguages':'chromeAILanguages'));await save({targetLanguage:targetValue(value)});accountView();$('target-language').value=displayLanguage(state.targetLanguage);closeLanguage();return true;}catch(e){feedback(e.message);$('target-language').value=displayLanguage(state.targetLanguage);return false;}}
+async function chooseLanguage(value){try{if(nativeProvider()&&!supportedTarget(targetValue(value)))throw new Error(t(account.provider==='translator'?'translatorLanguages':'chromeAILanguages'));await save({targetLanguage:targetValue(value)});accountView();$('target-language').value=displayLanguage(state.targetLanguage);closeLanguage();await refreshLanguageControls();return true;}catch(e){feedback(e.message);$('target-language').value=displayLanguage(state.targetLanguage);return false;}}
 $('target-language').addEventListener('input',()=>openLanguage(true));
 $('target-language').addEventListener('keydown',e=>{
  if(e.key==='Escape'){closeLanguage();e.preventDefault();}
@@ -212,11 +339,18 @@ action('edit-instructions',async()=>{await chrome.tabs.create({url:chrome.runtim
 async function page(type){
  if(!tab?.id)throw new Error(t('noWebpage'));
  if(!isOptions&&sitePermission!=='granted')throw new Error(t('siteNotAllowed'));
- if(['page.translate','page.retry'].includes(type)&&!await chooseLanguage($('target-language').value))return;
- await rpc(type,{tabId:tab.id});await refreshProgress();
+ if(['page.translate','page.retry','page.select'].includes(type)){
+  if(!await chooseLanguage($('target-language').value)||!await chooseSource(nativeProvider()?$('source-language-select').value:$('source-language').value))return;
+  if(account.provider==='translator'&&sourceLanguage&&type!=='page.select'){
+   const pair={sourceLanguage:translatorLanguage(sourceLanguage),targetLanguage:translatorLanguage(state.targetLanguage)},availability=await translatorAvailability(pair);
+   if(availability==='unavailable')throw new Error(t('translatorLanguages'));
+   if(availability!=='available'){await rpc('translator.open',{pair});feedback(t('translatorSetupRequired'));return;}
+  }
+ }
+ await rpc(type,{tabId:tab.id});await refreshProgress();return true;
 }
 action('translate',()=>page('page.translate'));action('restore',()=>page('page.restore'));
-action('select-block',async()=>{await page('page.select');window.close();});
+action('select-block',async()=>{if(await page('page.select'))window.close();});
 action('stop',()=>page('page.stop'));action('retry',()=>page('page.retry'));
 async function refreshProgress(){
  if(isOptions||!tab?.id||account?.state!=='connected'||sitePermission!=='granted')return;
@@ -348,10 +482,12 @@ $('import-settings')?.addEventListener('change',async()=>{
 action('reset-settings',async()=>{if(!confirm(t('resetConfirm')))return;
  state=await rpc('settings.reset');await configureLanguage(state.uiLanguage);localizeDocument();settingsView();await loadModels();feedback(t('settingsReset'),true);});
 async function connectedView(){
+ await refreshLanguageControls();
  if(account?.state!=='connected')return;
  await permissionsView();
  if(account?.state!=='connected'||(!isOptions&&sitePermission!=='granted'))return;
- const results=await Promise.allSettled([loadModels(),refreshProgress()]);
+ await refreshLanguageControls();if(capabilitiesReady)await initializePageLanguage();
+ const results=await Promise.allSettled([loadModels(),refreshProgress(),refreshPacks()]);
  if(account?.state==='connected')for(const r of results)if(r.status==='rejected')feedback(r.reason.message);
 }
 async function init(){
@@ -362,8 +498,8 @@ async function init(){
  if(!isOptions)[tab]=await chrome.tabs.query({active:true,currentWindow:true});
  settingsView();setAccount(status);await connectedView();
  const [capability,translatorSupport]=await Promise.all([localDiscovery,translatorDiscovery]);chromeAIAvailable=capability.state!=='unavailable';localLanguages=new Set(capability.languages);
- translatorAvailable=translatorSupport.state!=='unavailable';translatorLanguages=new Set(translatorSupport.pairs.map(pair=>pair.targetLanguage));
- if(nativeProvider()){setAccount(await rpc('auth.status'));await connectedView();}else accountView();
+ translatorAvailable=translatorSupport.state!=='unavailable';translatorLanguages=new Set(translatorSupport.pairs.map(pair=>pair.targetLanguage));capabilitiesReady=true;
+ if(nativeProvider()){setAccount(await rpc('auth.status'));await connectedView();}else{accountView();await initializePageLanguage();await refreshPacks();}
 }
 async function refreshLanguage(){
  await configureLanguage(state.uiLanguage);localizeDocument();closeLanguage();
@@ -373,6 +509,7 @@ $('ui-language')?.addEventListener('change',async()=>{
  try{await save({uiLanguage:$('ui-language').value});await refreshLanguage();}catch(e){feedback(e.message);}
 });
 chrome.storage?.onChanged.addListener((changes,area)=>{
+ if(area==='local'&&changes.translatorPreparedPairs)void refreshPacks().catch(e=>feedback(e.message));
  const next=changes.settings?.newValue;
  if(area==='local'&&state&&next){
   state.developerMode=!!next.developerMode;

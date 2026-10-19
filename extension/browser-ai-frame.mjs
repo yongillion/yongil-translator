@@ -39,7 +39,7 @@ window.runBrowserAI=(message,emit)=>{
   }catch(cause){
    const error=(message.provider==='translator'?translatorError:chromeAIError)(cause);
    emit({type:'error',id:message.id,code:error.name==='AbortError'?'CANCELLED':error.code,
-    ...(error.code==='LOCAL_NOT_READY'?{setup:message.provider==='translator'?engine.pending.values().next().value:message.options}: {})});
+    ...(error.code==='LOCAL_NOT_READY'?{setup:message.provider==='translator'?error.setup||engine.pending.values().next().value:message.options}: {})});
   }finally{controllers.delete(message.id);document.getElementById('state').textContent='Idle';}
  });
 };

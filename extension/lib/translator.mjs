@@ -29,7 +29,7 @@ export async function discoverTranslator(api=globalThis.Translator){
   while(index<targets.length&&Date.now()<deadline){
    const targetLanguage=targets[index++];
    for(const sourceLanguage of sources){
-    if(sourceLanguage===targetLanguage)continue;
+    if((sourceLanguage.startsWith('zh')?sourceLanguage:sourceLanguage.split('-')[0])===(targetLanguage.startsWith('zh')?targetLanguage:targetLanguage.split('-')[0]))continue;
     const remaining=deadline-Date.now();if(remaining<=0)break;
     const pair={sourceLanguage,targetLanguage},state=await translatorAvailability(pair,api,remaining);
     if(state!=='unavailable'){pairs.push({...pair,state});break;}
@@ -75,15 +75,15 @@ export class BrowserTranslator {
   const state=await translatorAvailability(pair,this.api);
   if(signal?.aborted)throw new DOMException('Aborted','AbortError');
   if(state==='unavailable')throw new AppError('LANGUAGE','translatorLanguages');
-  if(state!=='available'){this.pending.set(key,pair);throw new AppError('LOCAL_NOT_READY','translatorSetupRequired');}
-  try{return await this.prepare(pair,signal);}catch(cause){if(cause.code==='LOCAL_NOT_READY')this.pending.set(key,pair);throw cause;}
+  if(state!=='available'){this.pending.set(key,pair);throw Object.assign(new AppError('LOCAL_NOT_READY','translatorSetupRequired'),{setup:pair});}
+  try{return await this.prepare(pair,signal);}catch(cause){if(cause.code==='LOCAL_NOT_READY'){this.pending.set(key,pair);cause.setup=pair;}throw cause;}
  }
- async translate({blocks,targetLanguage},signal,detect,onNode){
+ async translate({blocks,targetLanguage,sourceLanguage},signal,detect,onNode){
   validateBlocks(blocks);const target=translatorLanguage(targetLanguage),result=[];let size=0;
   const check=()=>{if(signal?.aborted)throw new DOMException('Aborted','AbortError');};
   for(const block of blocks){
    check();const sourceText=block.nodes.map(node=>node.text).join(' ');
-   const source=/\p{L}/u.test(sourceText)?await detectSource(sourceText,block.sourceLanguage,detect):null;
+   const source=/\p{L}/u.test(sourceText)?(sourceLanguage?translatorLanguage(sourceLanguage):await detectSource(sourceText,block.sourceLanguage,detect)):null;
    check();const nodes=[];
    for(const node of block.nodes){
     check();let text=node.text;

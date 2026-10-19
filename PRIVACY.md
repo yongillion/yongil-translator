@@ -6,7 +6,7 @@ Yongil Translator is an independent, open-source browser extension maintained th
 
 Yongil Translator does not collect page content or account information on developer-operated servers.
 
-In a cloud connection, when a translation requires a new result, the extension sends the selected page or block text, target language, selected model, and enabled custom instructions directly to the selected provider: the OpenAI subscription service, OpenAI API, or Anthropic Claude API. Input forms, passwords, content being edited, and hidden elements are excluded from collection. The source URL's query string and fragment are not attached to translation requests.
+In a cloud connection, when a translation requires a new result, the extension sends the selected page or block text, source-language selection, target language, selected model, and enabled custom instructions directly to the selected provider: the OpenAI subscription service, OpenAI API, or Anthropic Claude API. Input forms, passwords, content being edited, and hidden elements are excluded from collection. The source URL's query string and fragment are not attached to translation requests.
 
 OAuth sign-in uses OpenAI's sign-in page. The extension does not read or store your password. It receives an authorization code from the dedicated sign-in tab, exchanges it using PKCE, and validates the ID token's signature, issuer, audience, expiration, and nonce. It does not collect sign-in codes from other tabs or browsing history.
 
@@ -26,9 +26,15 @@ Discovery calls availability only. Model creation/download begins when the user 
 
 ## Browser Translator API
 
-Translator API is an optional connection separate from the Prompt API. Source text, automatically detected source language or a declared page-language hint, and the selected target language are processed by the browser translation engine in bundled extension documents. Custom instructions and cloud credentials are not sent to this engine. The browser controls language-pack downloads and processing location; API presence alone is not a local-only processing guarantee. The extension never automatically routes these requests to its OpenAI or Anthropic connections.
+Translator API is an optional connection separate from the Prompt API. Source text, the selected source language, automatic detection, or a declared page-language hint, and the selected target language are processed by the browser translation engine in bundled extension documents. Custom instructions and cloud credentials are not sent to this engine. The browser controls language-pack downloads and processing location; API presence alone is not a local-only processing guarantee. The extension never automatically routes these requests to its OpenAI or Anthropic connections.
 
 Language packs are prepared after an explicit click when required. Translator sessions run in a verified hidden document when supported, or in the explicitly indicated visible-tab fallback. Stop or Disconnect releases sessions; closing the visible fallback tab also releases them. Browser-managed downloaded packs follow the browser’s retention controls. Page restoration, in-memory translation caching, and opt-in diagnostic copies follow the same retention rules described here. Translator API shares the offscreen execution host and permission described above.
+
+## Page languages and prepared language pairs
+
+When Translator API support is detected and site access is granted, the popup uses the browser extension page-language detector to suggest the source language. Unknown or unavailable detection defaults to Auto. The source selection, tab URL, and document identifier are held in trusted session storage to scope the choice to the current page. Reload, navigation, or tab closure clears it; it is not included in settings exports or retained across browser restarts. The extension sends no page text to a cloud provider for this suggestion.
+
+Prepared Translator language pairs and the most recently requested preparation pair are stored locally without page text or URLs. Settings can remove the prepared-pair record; this does not delete browser-owned model files. The browser API exposes neither a complete installed-pack inventory nor an uninstall operation. These records are independent of connection credentials and may remain after Disconnect.
 
 ## Optional developer diagnostics
 

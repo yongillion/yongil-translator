@@ -8,6 +8,7 @@ const definitions=[
  ['de','Deutsch'],['de-DE','Deutsch'],['de-AT','Deutsch'],['de-CH','Deutsch'],
  ['pt','Português'],['pt-BR','Português'],['pt-PT','Português'],
  ['it','Italiano'],['ru','Русский'],['ar','العربية'],['hi','हिन्दी'],['vi','Tiếng Việt'],
+ ['bg','Български'],['bn','বাংলা'],['cs','Čeština'],['da','Dansk'],['el','Ελληνικά'],['fi','Suomi'],['he','עברית'],['hr','Hrvatski'],['hu','Magyar'],['kn','ಕನ್ನಡ'],['lt','Lietuvių'],['mr','मराठी'],['nl','Nederlands'],['no','Norsk'],['ro','Română'],['sk','Slovenčina'],['sl','Slovenščina'],['sv','Svenska'],['ta','தமிழ்'],['te','తెలుగు'],
  ['th','ไทย'],['id','Bahasa Indonesia'],['tr','Türkçe'],['pl','Polski'],['uk','Українська']
 ];
 const normalized=value=>String(value||'').trim().toLowerCase().replaceAll('_','-');

@@ -127,5 +127,29 @@ export async function nativeBackgroundTests(){
   page.onMessage.emit({type:'stopped',explicit:true});await tick();release();assert.equal((await result).error.code,'LOCAL_NOT_READY');
   assert.ok(!h.ports[0].sent.some(x=>x.type==='translate'));
  });
+ await test('Explicit source overrides reach both hidden engines without automatic detection',async()=>{
+  for(const provider of ['translator','chrome']){
+   const h=await backgroundHarness();(await h.prepare(provider)).disconnect();h.state.packs.add('fr>ko');
+   await h.send({type:'page.language.set',tabId:1,url:'https://example.test/',sourceLanguage:'fr'});
+   let detections=0;h.chrome.i18n.detectLanguage=async()=>{detections++;throw Error('not expected');};
+   const job=await h.job();assert.equal((await h.send({type:'job.batch',jobId:job.id,blocks},h.content)).ok,true);assert.equal(detections,0);
+   const request=h.creates.at(-1);if(provider==='translator')assert.equal(request.sourceLanguage,'fr');else assert.ok(request.expectedInputs[0].languages.includes('fr'));
+  }
+ });
+ await test('Missing hidden packs open a single setup tab with the exact pair and prepared records are removable',async()=>{
+  const h=await backgroundHarness();(await h.prepare('translator')).disconnect();const created=[];
+  h.chrome.tabs.query=async()=>created.map((tab,index)=>({...tab,id:index+2}));
+  h.chrome.tabs.create=async options=>{created.push(options);return {id:created.length+1};};
+  h.chrome.i18n.detectLanguage=async()=>({isReliable:true,languages:[{language:'ja',percentage:100}]});
+  const job=await h.job();
+  for(let i=0;i<2;i++)assert.equal((await h.send({type:'job.batch',jobId:job.id,blocks},h.content)).error.code,'LOCAL_NOT_READY');
+  assert.equal(created.length,1);assert.equal(created[0].url,'chrome-extension://test/translator.html');assert.equal(created[0].active,true);
+  h.chrome.tabs.query=async()=>[];await h.send({type:'job.batch',jobId:job.id,blocks},h.content);assert.equal(created.length,2);
+  assert.equal(h.local.data.translatorSetupPair.sourceLanguage,'ja');assert.equal(h.local.data.translatorSetupPair.targetLanguage,'ko');
+  const pairs=(await h.send({type:'translator.packs.list'})).data;assert.equal(pairs.length,1);assert.equal(pairs[0].sourceLanguage,'en');
+  assert.equal((await h.send({type:'translator.packs.remove',pair:pairs[0]},h.content)).error.code,'SENDER');
+  await h.send({type:'translator.packs.remove',pair:pairs[0]});assert.equal((await h.send({type:'translator.packs.list'})).data.length,0);
+  assert.ok(h.state.packs.has('en>ko'));assert.ok(h.local.data.auth);assert.equal(h.requests.length,0);
+ });
  return {passed:results.filter(r=>r.passed).length,failed:results.filter(r=>!r.passed).length,results};
 }

@@ -45,6 +45,7 @@ function connect(){
       if(detected.isReliable)sourceLanguages=detected.languages.filter(x=>x.percentage>=20&&x.language!=='und').map(x=>x.language.split('-')[0]);
      }catch{} // Detection is optional; the model can still reject unsupported input.
     }
+    if(message.sourceLanguage)sourceLanguages=[chromeAILanguage(message.sourceLanguage)];
     prepareOptions=chromeAIOptions(chromeAILanguage(message.targetLanguage),sourceLanguages);
     const text=await promptChromeAI({...message,sourceLanguages},controller.signal,chunk=>post({type:'chunk',id:message.id,text:chunk}));
     post({type:'result',id:message.id,text});

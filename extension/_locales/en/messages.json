@@ -1008,7 +1008,7 @@
     "message": "The original language could not be detected for this text."
   },
   "translatorExecutionNote": {
-    "message": "Processes one block at a time. Custom instructions are not applied. A new language pack may require another preparation click. There is no automatic switch to a cloud provider."
+    "message": "Processes one block at a time without custom instructions. Missing language packs open a preparation tab. Prepare the pack, then retry translation."
   },
   "nativeBackgroundReady": {
     "message": "Ready. You can close this tab; translation will continue in the background."
@@ -1045,5 +1045,32 @@
   },
   "nativeBackgroundChecking": {
     "message": "Checking background execution. Keep this tab open until ready."
+  },
+  "sourceLanguage": {
+    "message": "Source language"
+  },
+  "sourceAuto": {
+    "message": "Auto"
+  },
+  "sourceLanguageNote": {
+    "message": "Applies to this page until it reloads. Auto detects each block."
+  },
+  "chooseLanguage": {
+    "message": "Choose a supported language"
+  },
+  "languagePacks": {
+    "message": "Browser language packs"
+  },
+  "languagePacksNote": {
+    "message": "Language pairs prepared with this extension. The browser manages downloads. Removing a pair from this list does not delete its downloaded files; the browser does not provide an uninstall API."
+  },
+  "languagePacksEmpty": {
+    "message": "No language pairs have been prepared with this extension yet."
+  },
+  "addLanguagePack": {
+    "message": "Add language pair"
+  },
+  "removeLanguagePair": {
+    "message": "Remove from list"
   }
 }

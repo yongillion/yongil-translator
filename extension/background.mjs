@@ -6,8 +6,10 @@ import {models,translate} from './lib/provider.mjs';
 import {developerLog} from './lib/logger.mjs';
 import {attachChromeAI,openChromeAI} from './lib/chrome-ai-bridge.mjs';
 import {chromeAILanguage} from './lib/chrome-ai.mjs';
-import {attachTranslator,openTranslator} from './lib/translator-bridge.mjs';
+import {attachTranslator,openTranslator,removeTranslatorPair} from './lib/translator-bridge.mjs';
 import {translatorLanguage} from './lib/translator.mjs';
+import {pageLanguage,setPageLanguage,clearPageLanguage,pageDocument} from './lib/page-language.mjs';
+import {preparedPairs} from './lib/translator-packs.mjs';
 attachChromeAI();attachTranslator();
 
 const queue=new RequestQueue(defaults().maxConcurrentBatches),jobs=new Map();
@@ -113,6 +115,7 @@ async function route(message,sender){
    if(!content)throw new AppError('SENDER','notDocument');
    await connectionChanges.catch(()=>{});
    const s=await contentAllowed(sender),auth=await authStatus();
+   const currentTab=await chrome.tabs.get(sender.tab.id);s.sourceLanguage=(await pageLanguage(sender.tab.id,currentTab.url,await pageDocument(sender.tab.id)))?.sourceLanguage||'';
    if(auth.state!=='connected')throw new AppError('AUTH_REQUIRED','connectAccountFirst');
    if(!s.modelId)throw new AppError('MODEL_REQUIRED','selectModelPopup');
    const localAI=['chrome','translator'].includes(auth.provider);if(auth.provider==='chrome')chromeAILanguage(s.targetLanguage);if(auth.provider==='translator')translatorLanguage(s.targetLanguage);
@@ -154,7 +157,19 @@ async function route(message,sender){
   case 'auth.cancel':return changeConnection(async()=>{await cancelLogin();return authStatus();});
   case 'auth.signOut':return changeConnection(async()=>{await signOut();return {};});
   case 'auth.provider':return changeConnection(()=>selectProvider(message.provider));
-  case 'translator.open':if(await selectedProvider()!=='translator')throw new AppError('INPUT','connectionProviderInvalid');return openTranslator();
+  case 'translator.open':if(await selectedProvider()!=='translator')throw new AppError('INPUT','connectionProviderInvalid');return openTranslator(message.pair);
+  case 'translator.packs.list':return preparedPairs();
+  case 'translator.packs.add':return openTranslator(message.pair);
+  case 'translator.packs.remove':await removeTranslatorPair(message.pair);return {};
+  case 'page.language.get':case 'page.language.set':{
+   if(!Number.isInteger(message.tabId))throw new AppError('PAGE','noTranslationTab');
+   const current=await chrome.tabs.get(message.tabId);await requireSiteAccess(current.url);
+   if(current.url!==message.url)throw new AppError('PAGE','noTranslationTab');
+   const documentId=await pageDocument(current.id);
+   if(message.type==='page.language.get')return {documentId,...await pageLanguage(current.id,current.url,documentId)};
+   if((message.documentId||'')!==documentId)throw new AppError('PAGE','noTranslationTab');
+   return setPageLanguage(current.id,current.url,message.sourceLanguage,documentId);
+  }
   case 'chromeAI.open':if(await selectedProvider()!=='chrome')throw new AppError('INPUT','connectionProviderInvalid');return openChromeAI();
   case 'auth.apiKey':return changeConnection(()=>connectAPI(message.apiKey,message.provider));
   case 'models.list':await connectionChanges.catch(()=>{});return models(!!message.force);
@@ -175,12 +190,13 @@ chrome.runtime.onMessage.addListener((message,sender,reply)=>{
 });
 chrome.tabs.onUpdated.addListener((id,change,tab)=>{if(change.url||tab.pendingUrl)void observeLogin(id,tab.pendingUrl||change.url).catch(()=>{});});
 chrome.tabs.onRemoved.addListener(id=>{
+ void clearPageLanguage(id);
  queue.cancel(id+':');for(const key of jobs.keys())if(key.startsWith(id+':'))jobs.delete(key);
  void watchLogin();
 });
 chrome.webNavigation.onCommitted.addListener(details=>{
  for(const [key,job] of jobs)if(job.tabId===details.tabId&&job.frameId===details.frameId){queue.cancel(key+':');jobs.delete(key);}
- if(details.frameId===0){queue.cancel(details.tabId+':');for(const key of jobs.keys())if(key.startsWith(details.tabId+':'))jobs.delete(key);}
+ if(details.frameId===0){void clearPageLanguage(details.tabId);queue.cancel(details.tabId+':');for(const key of jobs.keys())if(key.startsWith(details.tabId+':'))jobs.delete(key);}
 });
 chrome.webNavigation.onBeforeNavigate.addListener(details=>{void observeLogin(details.tabId,details.url).catch(()=>{});},{url:[{hostEquals:'localhost',ports:[1455],pathEquals:'/auth/callback'}]});
 chrome.alarms.onAlarm.addListener(alarm=>{if(alarm.name==='login-watch')void watchLogin();});

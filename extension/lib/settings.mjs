@@ -75,4 +75,4 @@ export function shortcutLabel(s) {
  if(!s)return t('shortcutUnassigned');
  return [...(s.ctrl?['Ctrl']:[]),...(s.alt?['Alt']:[]),...(s.shift?['Shift']:[]),...(s.meta?['⌘']:[]),s.code.replace(/^Key|^Digit/,'')].filter(Boolean).join(' + ');
 }
-export const fingerprint=s=>JSON.stringify([s.targetLanguage,s.modelId,s.instructionsEnabled?s.instructions:'',1]);
+export const fingerprint=s=>JSON.stringify([s.sourceLanguage||'',s.targetLanguage,s.modelId,s.instructionsEnabled?s.instructions:'',1]);

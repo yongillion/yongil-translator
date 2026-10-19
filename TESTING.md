@@ -16,8 +16,10 @@ Review date: 2026-10-19
 - API connection and provider-isolation tests: **12 passed**
 - Claude API connection, streaming, and isolation tests: **19 passed**
 - On-Device AI capability detection, language support, bridge, and lifecycle tests: **24 passed**
-- Translator API capability, source detection, language-pack lifecycle, UI, isolation, and retry tests: **20 passed**
-- Extension JavaScript syntax checks: **23 files passed**
+- Translator API capability, source detection, language-pack lifecycle, UI, isolation, and retry tests: **26 passed**
+- Hidden native-execution integration tests: **16 passed**
+- Source-language selection and prepared-pair management tests: **13 passed**
+- Extension JavaScript syntax checks: **29 files passed**
 - Brand PNG icon visual inspection: 128px output reviewed
 - ZIP packaging: verified the installation file list and included manifest and icons
 
@@ -133,7 +135,7 @@ The raw execution results are stored in [test-results.json](test-results.json).
 
 ## Store preparation checks
 
-All 281 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
+All 298 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
 
 ## Page toolbar progress
 
@@ -163,7 +165,7 @@ Manual release checks still required: install the unpacked extension in each int
 
 ## Translator API verification status
 
-24 dedicated Translator cases and 14 hidden-execution integration cases pass, bringing the full suite to 281 passes. They cover API-method and pair availability probes without downloads; browser-brand independence; unavailable/blocked/timed-out API behavior; regional/Chinese script mapping; source detection and page-language hints; plain-text node translation with whitespace and IDs retained; same-language bypass; prepared-session reuse; gesture-required new language packs; cancellation and cleanup; strict runner identity; provider switching; no cloud fallback; omitted custom instructions; bounded retries; diagnostics; and both UI languages. All 26 extension JavaScript files pass syntax checks.
+26 dedicated Translator cases, 16 hidden-execution integration cases, and 13 source-language cases pass, bringing the full suite to 298 passes. They cover API-method and pair availability probes without downloads; browser-brand independence; unavailable/blocked/timed-out API behavior; regional/Chinese script mapping; source detection and page-language hints; plain-text node translation with whitespace and IDs retained; same-language bypass; prepared-session reuse; gesture-required new language packs; cancellation and cleanup; strict runner identity; provider switching; no cloud fallback; omitted custom instructions; bounded retries; diagnostics; and both UI languages. All 29 extension JavaScript files pass syntax checks.
 
 English connected/unsupported popup states and the translator setup page were inspected in the in-app browser using mocked browser APIs. The setup button transitioned to Ready, and unsupported previews showed no native API choices. These were local UI previews, not real extension captures or live browser translation.
 
@@ -171,8 +173,16 @@ Manual checks still required: install in each intended browser, confirm Translat
 
 ## Background execution and language-pack selectors
 
-The setup page offers localized Source and Target language selectors with native/regional names. Tests cover selected-pair creation from the original click, unavailable/same-language pairs, readiness feedback, and reopening setup for an additional required pair. These selectors prepare packs without changing the translation target in Settings or disabling automatic source detection.
+The setup page offers localized Source and Target language selectors with native/regional names. Tests cover selected-pair creation from the original click, unavailable/same-language pairs, readiness feedback, and reopening setup for an additional required pair. These selectors prepare packs independently of the translation target in Settings and the per-page source selected in the popup.
 
 The hidden-execution suite runs the real iframe engine against mocked browser AI APIs and exercises both provider bridges: preparation-tab closure before/during translation, one shared offscreen host, lazy restoration after worker restart, document recreation, exact sender checks, cancellation, provider switching, setup/Stop races, language-pack requests, explicit disconnect, and visible-tab fallback. It verifies no cloud requests or credentials enter the native execution channel. The offscreen parent scripts a packaged same-origin iframe using the IFRAME_SCRIPTING reason; only runtime messaging is used by the offscreen host.
 
 English selectors and background-ready feedback were reviewed in an isolated browser preview with mocked APIs. No installed extension, real offscreen model initialization, download, or native inference has been verified in this environment. Manual checks: reload the extension with its offscreen permission; prepare a pair/model and wait for the close-tab confirmation; close setup before starting and during translation; restore/retranslate; restart the worker/browser; prepare a new source pair; stop/disconnect during setup and inference; verify explicit tab fallback when hidden creation is blocked. Test each intended browser/device.
+
+## Popup source languages and prepared language pairs
+
+Thirteen dedicated cases cover supported-browser page detection, Auto fallback, retained explicit Auto, editable cloud source names, closed native language selectors, source/target availability, identity translation, automatic setup before page translation, prepared-pair status and record removal, per-tab/document isolation, frozen job prompts, cache identity, trusted-message boundaries, stale-document rejection, navigation cleanup, and explicit-source precedence. Two further hidden-execution cases verify explicit sources without redetection and exact missing-pair setup, reuse/reopening of setup tabs, and prepared-pair records. Translator tests also reject identity-only capability reports and preserve manual setup choices during status inspection.
+
+English popup and Settings previews were inspected with mocked APIs: detected English, native French selection, cloud Auto/custom input, and removing one prepared-pair record. No real download or browser-owned file deletion was performed. The Translator API exposes neither a complete installed-pack inventory nor an uninstall operation; Settings lists pairs prepared by this extension, and Remove from list only deletes that record.
+
+Manual checks: detect the active page language on a compatible browser; select another source or Auto; verify Alt+T, block, and selected-text translation use it; restore/retranslate with the new cache identity; reload or navigate and confirm fresh detection. Verify cloud custom language names and native supported choices in both UI languages. Request an unprepared pair, prepare it in the automatically opened tab, then retry. Confirm Settings adds that pair, refreshes browser-reported availability, and removes only the chosen record while leaving browser-managed files intact.

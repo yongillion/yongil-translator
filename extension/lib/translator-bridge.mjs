@@ -1,7 +1,8 @@
 import {attachNativeBackground,nativeStatus,enableNative,stopNative,requestNative} from './native-background.mjs';
 import {AppError} from './protocol.mjs';
+import {languagePair,rememberPair} from './translator-packs.mjs';
 
-let runner=null,opening=null;
+let runner=null,opening=null,lastAutomaticTab=null;
 const pending=new Map();
 const notReady=()=>new AppError('LOCAL_NOT_READY','translatorSetupRequired');
 export async function translatorStatus(){
@@ -24,6 +25,7 @@ export function attachTranslator(){
    if(runner!==current)return;
    if(message?.type==='inspect'){void nativeStatus('translator').then(state=>{if(runner===current)port.postMessage({type:'background-state',...state});});return;}
    if(message?.type==='ready'){
+    if(message.options)void rememberPair(message.options).catch(()=>{});
     const revision=++current.revision;
     if(!current.ready)current.connectionId='translator:'+crypto.randomUUID();
     const accept=background=>{if(runner===current&&revision===current.revision){current.ready=true;port.postMessage({type:'accepted',background});}};
@@ -40,7 +42,8 @@ export function attachTranslator(){
    if(message.type==='result'&&typeof message.text==='string')task.resolve(message.text);
    if(message.type==='error'){
     const errors={SOURCE_LANGUAGE:'translatorSourceUnknown',RESULT:'resultFormat',LANGUAGE:'translatorLanguages',CONTEXT:'translatorContext',LOCAL_NOT_READY:'translatorSetupRequired',LOCAL_MODEL:'translatorFailed'};
-    task.reject(message.code==='CANCELLED'?new DOMException('Aborted','AbortError'):new AppError(errors[message.code]?message.code:'LOCAL_MODEL',errors[message.code]||'translatorFailed'));
+    const error=message.code==='CANCELLED'?new DOMException('Aborted','AbortError'):new AppError(errors[message.code]?message.code:'LOCAL_MODEL',errors[message.code]||'translatorFailed');
+    if(message.setup)error.setup=message.setup;task.reject(error);
    }
   });
   port.onDisconnect.addListener(()=>{
@@ -50,17 +53,30 @@ export function attachTranslator(){
   port.postMessage({type:'connected'});
  });
 }
-export async function openTranslator(){
+export async function removeTranslatorPair(pair){await rememberPair(pair,true);}
+export async function openTranslator(pair,automatic=false){
+ const clean=pair?languagePair(pair):null;
+ if(clean)await chrome.storage.local.set({translatorSetupPair:clean});
+ if(clean&&runner)runner.port.postMessage({type:'select-pair',pair:clean});
  if(opening)return opening;
  opening=(async()=>{
   const url=chrome.runtime.getURL('translator.html'),tabs=await chrome.tabs.query({url});
   const existing=tabs.find(tab=>tab.url===url);
-  if(existing)await chrome.tabs.update(existing.id,{active:true});
-  else await chrome.tabs.create({url,active:true});
+  if(existing){if(!automatic||lastAutomaticTab!==existing.id)await chrome.tabs.update(existing.id,{active:true});if(automatic)lastAutomaticTab=existing.id;}
+  else {const created=await chrome.tabs.create({url,active:true});if(automatic)lastAutomaticTab=created.id;}
   return {};
  })();try{return await opening;}finally{opening=null;}
 }
 export async function requestTranslator(payload,connectionId,signal,onChunk){
+ try{return await translateRequest(payload,connectionId,signal,onChunk);}
+ catch(error){
+  if(error.code==='LOCAL_NOT_READY'&&error.setup&&!signal?.aborted){
+   await openTranslator(error.setup,true).catch(()=>{});
+  }
+  throw error;
+ }
+}
+async function translateRequest(payload,connectionId,signal,onChunk){
  if(await nativeStatus('translator'))return requestNative('translator',payload,connectionId,signal,onChunk);
  if(!runner?.ready)throw notReady();
  if(runner.connectionId!==connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');

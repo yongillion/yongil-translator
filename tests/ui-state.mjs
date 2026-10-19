@@ -15,7 +15,7 @@ function element(tag='div',attributes=''){
   append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;},
   getAttribute(name){return attrs[name];},setAttribute(name,value){attrs[name]=value;},removeAttribute(name){delete attrs[name];},scrollIntoView(){},focus(){},click(){}};
 }
-async function harness({navigator,LanguageModel,Translator,options=false,connected=false,provider='subscription',permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',developerMode=false,panelWindows=[],nativePanelClose=true,panelEvents=true,items=[{id:'test-model',name:'Test model'}]}={}){
+async function harness({navigator,LanguageModel,Translator,detectedLanguage='und',sourceLanguage,preparedPairs=[],options=false,connected=false,provider='subscription',permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',developerMode=false,panelWindows=[],nativePanelClose=true,panelEvents=true,items=[{id:'test-model',name:'Test model'}]}={}){
  const html=await readFile(new URL('../extension/'+(options?'options':'popup')+'.html',import.meta.url),'utf8');
  const nodes=new Map(),gates=[],all=[];
  for(const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*)>/gi)){
@@ -24,6 +24,7 @@ async function harness({navigator,LanguageModel,Translator,options=false,connect
  }
  assert.ok(gates.length>0&&gates.every(el=>el.hidden),'Protected UI must start hidden in HTML');
  const status={current:connected?{state:'connected',provider,connectionId:'test-account',email:'user@example.invalid'}:{state:'disconnected',provider}},api={pending:null,error:null,submissions:0};
+ const language={sourceLanguage,documentId:'page-document'},detection={calls:0},packData={pairs:preparedPairs};
  const grants={allowed:permission,result:true,pending:null,requestPending:null,requests:[]};const calls=[];let poll;
  const savedSettings={schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,maxRetries:4,developerMode,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyT'},restoreShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyR'},blockShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:''},cancelShortcut:null};
  const event=()=>({listeners:[],addListener(fn){this.listeners.push(fn);},emit(...args){for(const fn of this.listeners)fn(...args);}});
@@ -35,6 +36,11 @@ async function harness({navigator,LanguageModel,Translator,options=false,connect
   calls.push(message.type);let data={};
   if(message.type==='logs.panel.status')return panels.windows.has(message.windowId)?{ok:true,windowId:message.windowId,open:!panels.hidden.has(message.windowId)}:undefined;
   if(message.type==='logs.panel.close'){panels.closeRequests.push(JSON.parse(JSON.stringify(message)));panels.windows.delete(message.windowId);return {ok:true};}
+  if(message.type==='page.language.get')data={...language};
+  if(message.type==='page.language.set'){Object.assign(language,{sourceLanguage:message.sourceLanguage});data={...language};}
+  if(message.type==='translator.packs.list')data=packData.pairs;
+  if(message.type==='translator.packs.remove')packData.pairs=packData.pairs.filter(p=>p.sourceLanguage!==message.pair.sourceLanguage||p.targetLanguage!==message.pair.targetLanguage);
+  if(message.type==='translator.open')language.setup=message.pair;
   if(message.type==='settings.get')data={...savedSettings};
   if(message.type==='settings.update'){Object.assign(savedSettings,message.patch);data={...savedSettings};}
   if(message.type==='auth.status')data={...status.current};
@@ -44,7 +50,7 @@ async function harness({navigator,LanguageModel,Translator,options=false,connect
   if(message.type==='auth.cancel'||message.type==='auth.signOut')status.current={state:'disconnected',provider:status.current.provider};
   if(message.type==='models.list')data={items};
   if(message.type==='page.status')data={total:0,running:false,frames:[]};
-  return {ok:true,data};}},tabs:{query:async()=>[{id:1,url}],create:async()=>{}},
+  return {ok:true,data};}},tabs:{detectLanguage:async()=>{detection.calls++;return typeof detectedLanguage==='function'?detectedLanguage():detectedLanguage;},query:async()=>[{id:1,url}],create:async()=>{}},
   permissions:{onAdded:event(),onRemoved:event(),getAll:async()=>({origins:grants.allowed?['https://example.test/*']:[]}),
    contains:async()=>grants.pending?await grants.pending:grants.allowed,
    request:async options=>{grants.requests.push(JSON.parse(JSON.stringify(options)));const result=grants.requestPending?await grants.requestPending:grants.result;if(result)grants.allowed=true;return result;},remove:async()=>{grants.allowed=false;return true;}}};
@@ -60,7 +66,7 @@ async function harness({navigator,LanguageModel,Translator,options=false,connect
   if(!modules.has(name))modules.set(name,readFile(new URL('../extension/lib/'+name,import.meta.url),'utf8').then(source=>new vm.SourceTextModule(source,{context,identifier:name})));
   return modules.get(name);
  });await entry.evaluate();
- return {nodes,gates,status,grants,calls,body,chrome,savedSettings,document,all,panels,api,poll:()=>poll(),click:id=>nodes.get(id).emit('click')};
+ return {language,detection,packData,nodes,gates,status,grants,calls,body,chrome,savedSettings,document,all,panels,api,poll:()=>poll(),click:id=>nodes.get(id).emit('click')};
 }
 export async function uiStateTests(){
  const results=[];async function test(name,fn){try{await fn();results.push({name,passed:true});}catch(e){results.push({name,passed:false,error:e.stack||e.message});}}
@@ -239,7 +245,7 @@ export async function uiStateTests(){
    for(const button of ['allow-site','allow-all-sites']){assert.equal(h.nodes.get(button).hidden,false);assert.equal(h.nodes.get(button).disabled,false);}
    await h.click(id);await tick();
    assert.deepEqual(h.grants.requests,[{origins}]);assert.equal(h.nodes.get('permission-card').hidden,true);
-   assert.ok(h.gates.every(el=>!el.hidden));assert.ok(h.calls.includes('page.activate'));assert.ok(h.calls.includes('models.list'));
+   assert.ok(h.gates.filter(el=>el.getAttribute('id')!=='language-packs').every(el=>!el.hidden));assert.ok(h.calls.includes('page.activate'));assert.ok(h.calls.includes('models.list'));
    assert.ok(h.calls.indexOf('page.activate')<h.calls.indexOf('models.list'),'Already-open documents must activate before model discovery');
   }
  });
@@ -254,7 +260,7 @@ export async function uiStateTests(){
   }
  });
  await test('Granting access hides the card and revoking it shows the card again',async()=>{
-  const h=await harness({connected:true});assert.equal(h.nodes.get('permission-card').hidden,false);await h.click('allow-site');await tick();assert.equal(h.nodes.get('permission-card').hidden,true);assert.ok(h.gates.every(el=>!el.hidden));assert.equal(h.nodes.get('account-card').hidden,false);assert.ok(h.calls.includes('page.activate'));assert.ok(h.calls.includes('models.list'));
+  const h=await harness({connected:true});assert.equal(h.nodes.get('permission-card').hidden,false);await h.click('allow-site');await tick();assert.equal(h.nodes.get('permission-card').hidden,true);assert.ok(h.gates.filter(el=>el.getAttribute('id')!=='language-packs').every(el=>!el.hidden));assert.equal(h.nodes.get('account-card').hidden,false);assert.ok(h.calls.includes('page.activate'));assert.ok(h.calls.includes('models.list'));
   h.grants.allowed=false;h.chrome.permissions.onRemoved.emit();await tick();assert.equal(h.nodes.get('permission-card').hidden,false);assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('account-card').hidden,true);assert.equal(h.nodes.get('translate').disabled,true);
   h.grants.allowed=true;h.chrome.permissions.onAdded.emit();await tick();assert.equal(h.nodes.get('permission-card').hidden,true);
  });
@@ -289,7 +295,7 @@ export async function uiStateTests(){
   }
  });
  await test('Connection completion unlocks options and subsequent logout hides them',async()=>{
-  const h=await harness({options:true});h.status.current={state:'connected',connectionId:'new-account'};await h.poll();assert.ok(h.gates.every(el=>!el.hidden));
+  const h=await harness({options:true});h.status.current={state:'connected',connectionId:'new-account'};await h.poll();assert.ok(h.gates.filter(el=>el.getAttribute('id')!=='language-packs').every(el=>!el.hidden));
   h.status.current={state:'disconnected'};await h.poll();assert.ok(h.gates.every(el=>el.hidden));
  });
  await test('Popup and options localize text and accessibility labels using browser language or override',async()=>{

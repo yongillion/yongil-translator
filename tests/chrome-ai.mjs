@@ -88,8 +88,8 @@ export async function chromeAITests(){
  });
  await test('Local target picker offers supported languages while cloud mode retains Korean',async()=>{
   const h=await uiHarness({navigator:chromeNavigator,LanguageModel:feature,provider:'chrome',connected:true,permission:true,uiLanguage:'en'});
-  await h.click('language-toggle');assert.ok(h.nodes.get('language-list').children.length>5);
-  assert.ok(!h.nodes.get('language-list').children.some(row=>row.children[0].textContent.includes('Korean')));
+  assert.equal(h.nodes.get('target-combobox').hidden,true);assert.ok(h.nodes.get('target-language-select').children.length>1);
+  assert.ok(!h.nodes.get('target-language-select').children.some(row=>row.textContent.includes('Korean')));
   const cloud=await uiHarness({provider:'api',connected:true,permission:true,uiLanguage:'en'});await cloud.click('language-toggle');assert.ok(cloud.nodes.get('language-list').children.some(row=>row.children[0].textContent.includes('Korean')));
  });
  await test('Worker requires a ready extension runner without inspecting browser identity',async()=>{
@@ -165,8 +165,8 @@ export async function chromeAITests(){
   const model={availability:async options=>options?.expectedOutputs?.[0]?.languages?.some(x=>!['en','ko'].includes(x))?'unavailable':'available',create(){throw new Error('Discovery must not download');}};
   const support=await discoverChromeAI(model);assert.deepEqual(support.languages,['ko','en']);
   const h=await uiHarness({navigator:forks.at(-1),LanguageModel:model,provider:'chrome',connected:true,permission:true,uiLanguage:'en'});
-  assert.equal(h.nodes.get('translate').disabled,false);await h.click('language-toggle');
-  assert.ok(h.nodes.get('language-list').children.some(row=>row.children[0].textContent.includes('Korean')));
+  assert.equal(h.nodes.get('translate').disabled,false);assert.equal(h.nodes.get('target-combobox').hidden,true);
+  assert.ok(h.nodes.get('target-language-select').children.some(row=>row.textContent.includes('Korean')));
   assert.ok(!h.nodes.get('language-list').children.some(row=>row.children[0].textContent.includes('Japanese')));
  });
  await test('Inference checks the exact source and target options and rejects unsupported pairs before creation',async()=>{

@@ -99,8 +99,8 @@ export async function translatorTests(){
  await test('Unsupported saved Translator connections stay disconnected and target choices reflect actual pairs',async()=>{
   const unavailable=await uiHarness({provider:'translator',connected:true});assert.equal(unavailable.body.dataset.connected,'false');assert.equal(unavailable.nodes.get('open-translator').hidden,true);await unavailable.click('use-translator');assert.ok(!unavailable.calls.includes('auth.provider'));
   const h=await uiHarness({provider:'translator',Translator:{...feature,availability:async p=>p.targetLanguage==='ja'?'available':'unavailable'},connected:true,permission:true});
-  assert.equal(h.nodes.get('translate').disabled,true);await h.click('language-toggle');assert.equal(h.nodes.get('language-list').children.length,1);
-  h.nodes.get('target-language').value='日本語';await h.nodes.get('target-language').emit('blur');await tick();assert.equal(h.nodes.get('translate').disabled,false);
+  assert.equal(h.nodes.get('translate').disabled,true);assert.equal(h.nodes.get('target-combobox').hidden,true);assert.deepEqual(h.nodes.get('target-language-select').children.filter(x=>x.value).map(x=>x.value),['ja']);
+  h.nodes.get('target-language-select').value='ja';await h.nodes.get('target-language-select').emit('change');await tick();assert.equal(h.nodes.get('translate').disabled,false);
  });
  await test('Translator runner is trusted only at the exact extension URL with a tab, and duplicate runners are rejected',async()=>{
   const h=await connectionHarness();for(const sender of [{id:'other',url:'chrome-extension://test/translator.html',tab:{id:2}},{id:'test',url:'https://example.test/',tab:{id:2}},{id:'test',url:'chrome-extension://test/chrome-ai.html',tab:{id:2}},{id:'test',url:'chrome-extension://test/translator.html'}])assert.equal(runner(h,sender).disconnected,true);
@@ -153,7 +153,7 @@ export async function translatorTests(){
  });
  await test('Language pack selectors prepare the chosen source and target directly on click',async()=>{
   const pairs=[];const h=await pageHarness({...feature,create:async pair=>{pairs.push(pair);return feature.create();}});
-  h.port.onMessage.emit({type:'connected'});h.nodes.get('source-language').value='fr';h.nodes.get('target-language').value='de';h.nodes.get('source-language').listeners.change();await tick();
+  h.port.onMessage.emit({type:'connected'});h.nodes.get('source-language').value='fr';h.nodes.get('target-language').value='de';h.nodes.get('target-language').listeners.change();await tick();
   await h.click('prepare-local');assert.equal(pairs[0].sourceLanguage,'fr');assert.equal(pairs[0].targetLanguage,'de');
   assert.ok(h.nodes.get('source-language').children.some(x=>x.textContent.includes('한국어')&&x.textContent.includes('Korean')));
   assert.ok(h.nodes.get('target-language').children.some(x=>x.value==='en-GB'&&x.textContent==='English (United Kingdom)'));
@@ -174,6 +174,16 @@ export async function translatorTests(){
   const h=await pageHarness(feature);h.port.onMessage.emit({type:'connected'});
   h.port.onMessage.emit({type:'background-state',background:true,state:'connected',pendingSetup:{sourceLanguage:'ja',targetLanguage:'ko'}});await tick();
   assert.equal(h.nodes.get('source-language').value,'ja');assert.equal(h.nodes.get('target-language').value,'ko');assert.equal(h.nodes.get('prepare-local').disabled,false);
+ });
+ await test('Identity-only availability does not expose Translator as a usable translation provider',async()=>{
+  const support=await discoverTranslator({...feature,availability:async pair=>(pair.sourceLanguage.startsWith('zh')?pair.sourceLanguage:pair.sourceLanguage.split('-')[0])===(pair.targetLanguage.startsWith('zh')?pair.targetLanguage:pair.targetLanguage.split('-')[0])?'available':'unavailable'});
+  assert.equal(support.state,'unavailable');assert.equal(support.pairs.length,0);
+ });
+ await test('Background status polling does not overwrite a manually selected preparation pair',async()=>{
+  const h=await pageHarness(feature);h.port.onMessage.emit({type:'connected'});
+  h.nodes.get('target-language').value='fr';h.nodes.get('target-language').listeners.change();await tick();
+  h.port.onMessage.emit({type:'background-state',background:true,pendingSetup:{sourceLanguage:'ja',targetLanguage:'ko'}});await tick();
+  assert.equal(h.nodes.get('target-language').value,'fr');
  });
  return {passed:results.filter(r=>r.passed).length,failed:results.filter(r=>!r.passed).length,results};
 }

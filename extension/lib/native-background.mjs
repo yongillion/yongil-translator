@@ -83,8 +83,8 @@ export async function requestNative(provider,payload,connectionId,signal,onChunk
  const saved=await nativeStatus(provider);if(!saved)throw notReady(provider);
  if(saved.connectionId!==connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');
  const detections={};
- for(const block of payload.blocks){try{detections[block.id]=await chrome.i18n.detectLanguage(block.nodes.map(n=>n.text).join(' '));}catch{}}
- const sourceLanguages=[...new Set(Object.values(detections).filter(d=>d.isReliable).flatMap(d=>d.languages.filter(x=>x.percentage>=20&&x.language!=='und').map(x=>x.language.split('-')[0])))];
+ for(const block of payload.sourceLanguage?[]:payload.blocks){try{detections[block.id]=await chrome.i18n.detectLanguage(block.nodes.map(n=>n.text).join(' '));}catch{}}
+ const sourceLanguages=provider==='translator'?[]:payload.sourceLanguage?[chromeAILanguage(payload.sourceLanguage)]:[...new Set(Object.values(detections).filter(d=>d.isReliable).flatMap(d=>d.languages.filter(x=>x.percentage>=20&&x.language!=='und').map(x=>x.language.split('-')[0])))];
  const options=provider==='chrome'?chromeAIOptions(chromeAILanguage(payload.targetLanguage),sourceLanguages):undefined;
  if((epochs.get(provider)||0)!==epoch)throw notReady(provider);
  try{return await call(provider,{...payload,type:'translate',detections,sourceLanguages,options},signal,onChunk);}

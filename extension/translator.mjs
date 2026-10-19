@@ -2,18 +2,28 @@ import {LANGUAGES,displayLanguage} from './lib/languages.mjs';
 import {configureLanguage,localizeDocument,t,localeData} from './lib/i18n.mjs';
 import {BrowserTranslator,discoverTranslator,translatorLanguage,translatorAvailability,translatorError} from './lib/translator.mjs';
 
+import {nativeSourceLanguages} from './lib/native-languages.mjs';
+let supportedSources=[];
 const $=id=>document.getElementById(id),engine=new BrowserTranslator(),controllers=new Map();
 let port,connected=false,ready=false,capability=false,closing=false,preparing=null,initialPair,tail=Promise.resolve();
+let pairChosen=false;
 let background=false,pairState='unavailable',pairRevision=0,lastPending='';
 let statusKey='translatorSetupRequired',statusValues=[];
 function status(key,values=[]){statusKey=key;statusValues=values;$('local-status').textContent=t(key,values);}
 function post(message){try{port?.postMessage(message);}catch{}}
 function nextPair(){return initialPair;}
-function selectPair(pair){initialPair={sourceLanguage:pair.sourceLanguage,targetLanguage:pair.targetLanguage};$('source-language').value=pair.sourceLanguage;$('target-language').value=pair.targetLanguage;return checkPair();}
+async function selectPair(pair){
+ const revision=++pairRevision;pairState='checking';controls();
+ const sources=await nativeSourceLanguages('translator',pair.targetLanguage);
+ if(revision!==pairRevision)return;
+ supportedSources=sources;
+ initialPair={sourceLanguage:sources.includes(pair.sourceLanguage)?pair.sourceLanguage:sources[0]||'',targetLanguage:pair.targetLanguage};
+ languageOptions();await checkPair();
+}
 function languageOptions(){
  for(const id of ['source-language','target-language']){
   const options=[],seen=new Set();
-  for(const [code,label] of LANGUAGES){const value=translatorLanguage(code);if(seen.has(value))continue;seen.add(value);const option=document.createElement('option');option.value=value;option.textContent=displayLanguage(label,localeData().language);options.push(option);}
+  for(const [code,label] of LANGUAGES){const value=translatorLanguage(code);if(seen.has(value)||!(id==='source-language'?supportedSources.includes(value):support.pairs.some(pair=>pair.targetLanguage===value)))continue;seen.add(value);const option=document.createElement('option');option.value=value;option.textContent=displayLanguage(label,localeData().language);options.push(option);}
   $(id).replaceChildren(...options);
  }
  if(initialPair){$('source-language').value=initialPair.sourceLanguage;$('target-language').value=initialPair.targetLanguage;}
@@ -25,12 +35,12 @@ async function checkPair(){
  pairState=state;controls();
 }
 for(const id of ['source-language','target-language'])$(id).addEventListener('change',()=>{
- initialPair={sourceLanguage:$('source-language').value,targetLanguage:$('target-language').value};void checkPair();
+ pairChosen=true;const pair={sourceLanguage:$('source-language').value,targetLanguage:$('target-language').value};if(id==='target-language')void selectPair(pair);else{initialPair=pair;void checkPair();}
 });
 function controls(){
  const pair=nextPair();
  $('prepare-local').hidden=!capability||!pair||!!preparing;$('prepare-local').disabled=!connected||!['available','downloadable','downloading'].includes(pairState);
- for(const id of ['source-language','target-language'])$(id).disabled=!!preparing||!capability;
+ for(const id of ['source-language','target-language'])$(id).disabled=!!preparing||!capability||pairState==='checking';
  $('cancel-local').hidden=!ready&&!preparing;
  $('language-pair').textContent=pair?t(({checking:'translatorPairChecking',same:'translatorPairSame',unavailable:'translatorPairUnavailable',available:'translatorPairAvailable',downloadable:'translatorPairDownload',downloading:'translatorPairDownloading'})[pairState]):'';
 }
@@ -48,9 +58,10 @@ function connect(){
   if(message.type==='accepted'){background=message.background===true;idle();}
   if(message.type==='background-state'&&message.background){
    background=true;ready=true;
-   if(message.pendingSetup){const value=JSON.stringify(message.pendingSetup);if(value!==lastPending){lastPending=value;void selectPair(message.pendingSetup);}status('translatorSetupRequired');controls();}
+   if(message.pendingSetup){const value=JSON.stringify(message.pendingSetup);if(value!==lastPending){lastPending=value;if(!pairChosen&&!preparing)void selectPair(message.pendingSetup);}status('translatorSetupRequired');controls();}
    else idle();
   }
+  if(message.type==='select-pair'&&!preparing){pairChosen=true;void selectPair(message.pair);status('translatorSetupRequired');}
   if(message.type==='stop')stop();
   if(message.type==='cancel')controllers.get(message.id)?.abort();
   if(message.type!=='translate')return;
@@ -61,7 +72,7 @@ function connect(){
     status('translatorTranslating');
     const text=await engine.translate(message,controller.signal,source=>chrome.i18n.detectLanguage(source),node=>post({type:'chunk',id:message.id,text:JSON.stringify(node)+'\n'}));
     post({type:'result',id:message.id,text});
-   }catch(cause){const error=translatorError(cause);post({type:'error',id:message.id,code:error.name==='AbortError'?'CANCELLED':error.code});}
+   }catch(cause){const error=translatorError(cause);post({type:'error',id:message.id,code:error.name==='AbortError'?'CANCELLED':error.code,setup:error.setup||engine.pending.values().next().value});}
    finally{controllers.delete(message.id);const needed=engine.pending.values().next().value;if(needed)void selectPair(needed);idle();}
   });
  });
@@ -84,12 +95,13 @@ $('prepare-local').addEventListener('click',()=>{
 });
 $('cancel-local').addEventListener('click',()=>stop(true));
 window.addEventListener('pagehide',()=>{closing=true;stop();port?.disconnect();});
-const {settings={}}=await chrome.storage.local.get('settings');
+const {settings={},translatorSetupPair}=await chrome.storage.local.get(['settings','translatorSetupPair']);
 await configureLanguage(settings.uiLanguage);localizeDocument();document.documentElement.dataset.theme=settings.theme||'system';
 const support=await discoverTranslator();capability=support.state!=='unavailable';
 if(capability){
  let target;try{target=translatorLanguage(settings.targetLanguage);}catch{}
  initialPair=support.pairs.find(pair=>pair.targetLanguage===target)||support.pairs[0];
+ if(translatorSetupPair&&await translatorAvailability(translatorSetupPair)!=='unavailable'){initialPair=translatorSetupPair;pairChosen=true;}
  initialPair={sourceLanguage:initialPair.sourceLanguage,targetLanguage:initialPair.targetLanguage};
  languageOptions();await selectPair(initialPair);idle();connect();
 }else status('translatorUnavailable');
