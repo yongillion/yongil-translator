@@ -1,24 +1,26 @@
 import {t} from './i18n.mjs';
 import {AppError} from './protocol.mjs';
 import {verifyAPIKey} from './api.mjs';
+import {verifyClaudeKey} from './claude.mjs';
 import {AUTH_ORIGIN,CLIENT_ID,REDIRECT,randomToken,pkceChallenge,authorizeURL,callbackCode,verifyIdentity} from './oauth.mjs';
 let exchange=null,refreshing=null;
 const local=chrome.storage.local,session=chrome.storage.session;
 export const storageReady=Promise.all([local.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'}),session.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'})]);
-export async function selectedProvider(){await storageReady;return (await local.get('connectionProvider')).connectionProvider==='api'?'api':'subscription';}
+export async function selectedProvider(){await storageReady;const {connectionProvider}=await local.get('connectionProvider');return ['api','claude'].includes(connectionProvider)?connectionProvider:'subscription';}
 export async function selectProvider(provider){
- if(!['subscription','api'].includes(provider))throw new AppError('INPUT','connectionProviderInvalid');
+ if(!['subscription','api','claude'].includes(provider))throw new AppError('INPUT','connectionProviderInvalid');
  await storageReady;await cancelLogin();
  // Invalidate a pending OAuth exchange while preserving an existing subscription.
  const {auth}=await local.get('auth');await local.set({authEpoch:auth?.connectionId||randomToken(),connectionProvider:provider});
  await local.remove('modelCache');
  return authStatus();
 }
-export async function connectAPI(value){
+export async function connectAPI(value,expectedProvider){
  await storageReady;
- if(await selectedProvider()!=='api')throw new AppError('INPUT','connectionProviderInvalid');
- const {apiKey,items}=await verifyAPIKey(value),connectionId='api:'+randomToken();
- await local.set({apiAuth:{apiKey,connectionId},modelCache:{items,connectionId,time:Date.now()}});
+ const provider=await selectedProvider();
+ if(!['api','claude'].includes(provider)||expectedProvider&&expectedProvider!==provider)throw new AppError('INPUT','connectionProviderInvalid');
+ const {apiKey,items}=await (provider==='claude'?verifyClaudeKey:verifyAPIKey)(value),connectionId=provider+':'+randomToken();
+ await local.set({[provider==='claude'?'claudeAuth':'apiAuth']:{apiKey,connectionId},modelCache:{items,connectionId,time:Date.now()}});
  return authStatus();
 }
 async function tokenRequest(fields){
@@ -30,9 +32,10 @@ async function tokenRequest(fields){
 }
 export async function authStatus(){
  await storageReady;
- if(await selectedProvider()==='api'){
-  const {apiAuth}=await local.get('apiAuth');
-  return {state:apiAuth?'connected':'signed_out',provider:'api',...(apiAuth?{connectionId:apiAuth.connectionId}:{})};
+ const provider=await selectedProvider();
+ if(provider!=='subscription'){
+  const key=provider==='claude'?'claudeAuth':'apiAuth',auth=(await local.get(key))[key];
+  return {state:auth?'connected':'signed_out',provider,...(auth?{connectionId:auth.connectionId}:{})};
  }
  const [{auth,authError},{loginAttempt}]=await Promise.all([local.get(['auth','authError']),session.get('loginAttempt')]);
  if(loginAttempt&&loginAttempt.expiresAt>Date.now())return {state:'signing_in',provider:'subscription'};
@@ -59,7 +62,8 @@ export async function cancelLogin(expectedState){
  if(loginAttempt?.tabId)await chrome.tabs.remove(loginAttempt.tabId).catch(()=>{});
 }
 export async function signOut(){
- if(await selectedProvider()==='api'){await local.remove(['apiAuth','modelCache']);return;}
+ const provider=await selectedProvider();
+ if(provider!=='subscription'){await local.remove([provider==='claude'?'claudeAuth':'apiAuth','modelCache']);return;}
  await storageReady;await local.set({authEpoch:randomToken()});
  await local.remove(['auth','authError','modelCache']);await cancelLogin();
 }
@@ -94,9 +98,10 @@ export async function watchLogin(){
  try{const tab=await chrome.tabs.get(a.tabId);await observeLogin(a.tabId,tab.pendingUrl||tab.url||'');}catch{await cancelLogin();}
 }
 export async function getAuth(force=false){
- if(await selectedProvider()==='api'){
-  const {apiAuth}=await local.get('apiAuth');if(!apiAuth)throw new AppError('AUTH_REQUIRED','apiKeyRequired');
-  return {...apiAuth,provider:'api'};
+ const provider=await selectedProvider();
+ if(provider!=='subscription'){
+  const key=provider==='claude'?'claudeAuth':'apiAuth',auth=(await local.get(key))[key];if(!auth)throw new AppError('AUTH_REQUIRED',provider==='claude'?'claudeKeyRequired':'apiKeyRequired');
+  return {...auth,provider};
  }
  await storageReady;const {auth}=await local.get('auth');
  if(!auth)throw new AppError('AUTH_REQUIRED','authRequired');

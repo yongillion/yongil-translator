@@ -2,7 +2,7 @@
 export const LOG_KEY='developerLogs',MAX_LOG_ENTRIES=4000;
 const DEFAULT_LOCAL_QUOTA_BYTES=10*1024*1024,STORAGE_HEADROOM=64*1024;
 const byteLength=value=>new TextEncoder().encode(JSON.stringify(value)).byteLength;
-const secretKey=/^(authorization|proxyauthorization|cookie|setcookie|apikey|openaikey|accesstoken|refreshtoken|idtoken|clientsecret|password|codeverifier)$/i;
+const secretKey=/^(authorization|proxyauthorization|cookie|setcookie|apikey|xapikey|openaikey|anthropickey|claudekey|accesstoken|refreshtoken|idtoken|clientsecret|password|codeverifier)$/i;
 export function redact(value){
  if(typeof value==='string')return value.replace(/Bearer\s+[^\s"<>]+/gi,'Bearer [REDACTED]').replace(/\bsk-[A-Za-z0-9_*-]{8,}/g,'[REDACTED]');
  if(Array.isArray(value))return value.map(redact);

@@ -2,14 +2,14 @@
 
 ## Access requirements
 
-Yongil Translator is an independent open-source extension. Choose a compatible ChatGPT subscription account with available usage or an OpenAI API key with model access and quota. API usage is billed separately by OpenAI. The extension does not provide a subscription or credits and does not charge its own fee. No companion executable is installed.
+Yongil Translator is an independent open-source extension. Choose a compatible ChatGPT subscription account with available usage or an OpenAI or Claude API key with model access and quota. API usage is billed separately by the selected provider, OpenAI or Anthropic. Claude supports API keys only. The extension does not provide a subscription or credits and does not charge its own fee. No companion executable is installed.
 
 No credentials are included in this repository or submission kit. If review requires special account access, arrange a provider-permitted review method through the dashboard's private Test instructions field. Do not publish or supply a personal account's password, session cookies, API keys, or OAuth tokens in these files. The maintainer has not yet established a dedicated review access arrangement.
 
 ## Test flow
 
 1. Install the submitted extension and pin it to the toolbar. Open a normal HTTP/HTTPS page with readable text. Browser-internal pages and the built-in PDF viewer are unsupported.
-2. Open the popup. Before sign-in, the brand, Settings button, GitHub icon link, and connection-method choices are visible. Select ChatGPT subscription and follow Continue with ChatGPT, or select OpenAI API, enter a review key privately, and click Connect OpenAI API.
+2. Open the popup. Before sign-in, the brand, Settings button, GitHub icon link, and connection-method choices are visible. Select ChatGPT subscription and follow Continue with ChatGPT, or select OpenAI API or Claude API, enter a matching review key privately, and use its Connect button.
 3. After sign-in, an unapproved site shows a highlighted access card. Choose Allow only this site. Declining access keeps translation controls hidden. Allow all sites is a separate optional choice.
 4. Open Settings → Data & appearance → UI language → English to use the English interface regardless of browser language. Settings has a GitHub entry in its left navigation.
 5. Pick a target language different from the source text. The model list comes from the connected account. The first returned model is selected when no choice has been saved; models vary by account.
@@ -21,13 +21,13 @@ No credentials are included in this repository or submission kit. If review requ
 11. In Settings, change concurrency within 1–64 (default 16), record different shortcuts, try a regional target language, and enable/save custom instructions. Saved values persist; already saved concurrency values are not overwritten by a changed default.
 12. Disconnect the account. The selected method's local credential and cached model metadata are removed; the other saved connection is preserved. Original text already tracked in the current page can still be restored using the on-page controls.
 13. Check that both GitHub links open https://github.com/yongillion/yongil-translator in a new tab.
-14. Repeat connection, page/block/selection translation, restoration, and model refresh using the other connection method. Each method keeps its model choice; switching cancels current work. In API mode, test Replace API key, a rejected key, rate/quota errors, and Disconnect. The saved key is never prefilled or exported. Verify logs contain no key or authentication header. Neither method falls back to the other after an error.
+14. Repeat connection, page/block/selection translation, restoration, and model refresh using each other connection method. Each method keeps its model choice; switching cancels current work. In API mode, test Replace API key, a rejected key, rate/quota errors, and Disconnect. The saved key is never prefilled or exported. Verify logs contain no key or authentication header. No method falls back to another provider after an error.
 
 ## Technical notes for review
 
 The current implementation uses a Codex-compatible public-client OAuth flow with PKCE and observes http://localhost:1455/auth/callback only in its dedicated sign-in tab; it does not run a localhost server. It checks state and verifies the ID token's signature, issuer, audience, expiry, and nonce. Tokens are stored in trusted-context extension storage, which is not an OS credential vault.
 
-Subscription model discovery and translation use https://chatgpt.com/backend-api/codex. API mode uses https://api.openai.com/v1/models and /v1/responses with a user-supplied API key and a strict JSON output schema. Translation calls send store=false and stream=true. There is no developer proxy, remote executable code, analytics, or advertising. See auth-integration-review.md for the differences from the currently documented third-party OpenAI integration. This submission kit does not claim OpenAI approval of the current browser-only route.
+Subscription model discovery and translation use https://chatgpt.com/backend-api/codex. OpenAI API mode uses https://api.openai.com/v1/models and /v1/responses with a user-supplied API key and a strict JSON output schema. OpenAI translation calls send store=false and stream=true. Claude API mode uses https://api.anthropic.com/v1/models and /v1/messages with x-api-key authentication, streaming, and capability-gated JSON schema output. Claude calls have no OpenAI-specific store or Responses fields. No Claude subscription login or OAuth token flow is implemented. There is no developer proxy, remote executable code, analytics, or advertising. See auth-integration-review.md for the differences from the currently documented third-party OpenAI integration. This submission kit does not claim OpenAI approval of the current browser-only route.
 
 ## Known limits and support
 

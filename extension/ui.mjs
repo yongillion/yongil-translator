@@ -47,17 +47,18 @@ function accountView(){
  $('account-email').textContent=connected?(account.email||t('connectedSubscription')):busy?t('finishSignIn'):account?.message||t('subscriptionPrompt');
  $('account-dot').classList.toggle('connected',connected);
  $('login').hidden=connected||busy;$('cancel-login').hidden=!busy;$('logout').hidden=!connected;
- const api=account?.provider==='api';
- for(const [id,selected]of [['use-subscription',!api],['use-api',api]]){$(id).setAttribute('aria-pressed',String(selected));$(id).disabled=connectionBusy;}
+ const claude=account?.provider==='claude',api=account?.provider==='api'||claude;
+ for(const [id,selected]of [['use-subscription',!api],['use-api',api&&!claude],['use-claude',claude]]){$(id).setAttribute('aria-pressed',String(selected));$(id).disabled=connectionBusy;}
  $('login').hidden||=api;$('login').disabled=connectionBusy;$('logout').disabled=connectionBusy;
  $('api-key-form').hidden=!api||connected&&!editingAPIKey;
  $('api-key').disabled=connectionBusy;$('connect-api').disabled=connectionBusy;
- $('connect-api').textContent=t(connectionBusy?'apiConnecting':'connectAPI');
+ $('connect-api').textContent=t(connectionBusy?'apiConnecting':claude?'connectClaude':'connectAPI');
  $('replace-api-key').hidden=!api||!connected||editingAPIKey;$('replace-api-key').disabled=connectionBusy;
- $('connection-note').textContent=t(api?'apiBillingNote':'subscriptionConnectionNote');
- $('usage-link').href=api?'https://platform.openai.com/usage':'https://chatgpt.com/codex/settings/usage';
- if($('usage-note'))$('usage-note').textContent=t(api?'apiUsage':'subscriptionUse');
- if(api){$('account-title').textContent=t(connected?'apiConnected':'connectAPI');$('account-email').textContent=t(connected?'apiKeySaved':'apiKeyPrompt');}
+ $('connection-note').textContent=t(claude?'claudeBillingNote':api?'apiBillingNote':'subscriptionConnectionNote');
+ $('usage-link').href=claude?'https://platform.claude.com/usage':api?'https://platform.openai.com/usage':'https://chatgpt.com/codex/settings/usage';
+ if($('usage-note'))$('usage-note').textContent=t(claude?'claudeUsage':api?'apiUsage':'subscriptionUse');
+ $('api-key').placeholder=claude?'sk-ant-…':'sk-…';
+ if(api){$('account-title').textContent=t(claude?(connected?'claudeConnected':'connectClaude'):(connected?'apiConnected':'connectAPI'));$('account-email').textContent=t(connected?'apiKeySaved':'apiKeyPrompt');}
  $('refresh-models').disabled=!connected||(!isOptions&&sitePermission!=='granted');
 }
 async function loadModels(force=false){
@@ -125,7 +126,7 @@ async function connectionAction(type,data={}){
  }catch(e){feedback(e.message);}
  finally{connectionBusy=false;accountView();}
 }
-for(const [id,provider]of [['use-subscription','subscription'],['use-api','api']])action(id,async()=>{
+for(const [id,provider]of [['use-subscription','subscription'],['use-api','api'],['use-claude','claude']])action(id,async()=>{
  if(connectionBusy||(account?.provider||'subscription')===provider)return;
  $('api-key').value='';await connectionAction('auth.provider',{provider});
 });
@@ -133,7 +134,7 @@ action('replace-api-key',()=>{editingAPIKey=true;accountView();$('api-key').focu
 $('api-key-form').addEventListener('submit',event=>{
  event.preventDefault();if(connectionBusy)return;
  const apiKey=$('api-key').value.trim();$('api-key').value='';
- return connectionAction('auth.apiKey',{apiKey});
+ return connectionAction('auth.apiKey',{apiKey,provider:account?.provider});
 });
 action('open-options',()=>rpc('options.open'));
 let logsOpen=false,logsReady=false,logsBusy=false,logsRevision=0;
@@ -210,7 +211,7 @@ async function permissionsView(){
  const granted=await chrome.permissions.getAll();
  if(revision!==permissionRevision||account?.state!=='connected')return;
  $('site-list').replaceChildren();
- const optional=granted.origins.filter(x=>!['https://auth.openai.com/*','https://chatgpt.com/*','https://api.openai.com/*'].includes(x));
+ const optional=granted.origins.filter(x=>!['https://auth.openai.com/*','https://chatgpt.com/*','https://api.openai.com/*','https://api.anthropic.com/*'].includes(x));
  for(const origin of optional){const row=document.createElement('div');row.className='row';const name=document.createElement('span');name.textContent=origin;
   const remove=document.createElement('button');remove.className='text-button';remove.textContent=t('clear');remove.addEventListener('click',()=>chrome.permissions.remove({origins:[origin]}).then(permissionsView).catch(e=>feedback(e.message)));row.append(name,remove);$('site-list').append(row);}
  if(!optional.length){const p=document.createElement('small');p.textContent=t('noSitesAllowed');$('site-list').append(p);}

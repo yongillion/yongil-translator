@@ -2,7 +2,7 @@ import {AppError} from './protocol.mjs';
 
 export const API_BASE='https://api.openai.com/v1';
 export function validateAPIKey(value){
- if(typeof value!=='string'||!/^sk-[A-Za-z0-9_-]{16,1024}$/.test(value.trim()))throw new AppError('API_KEY','apiKeyInvalid');
+ if(typeof value!=='string'||!/^sk-(?!ant-)[A-Za-z0-9_-]{16,1024}$/.test(value.trim()))throw new AppError('API_KEY','apiKeyInvalid');
  return value.trim();
 }
 export function apiError(status,body){

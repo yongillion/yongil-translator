@@ -1,6 +1,6 @@
 # Yongil Translator
 
-A Chromium extension that translates webpages in place using a ChatGPT subscription account or your own OpenAI API key. Translate an entire page or selected blocks, then restore the original text at any time.
+A Chromium extension that translates webpages in place using a ChatGPT subscription account, your own OpenAI API key, or a Claude API key. Translate an entire page or selected blocks, then restore the original text at any time.
 
 **Current status:** The user has reported successful translation with GPT-6.1 Sol. Automated regression tests cover the implementation, including configurable parallel requests. The latest changes have not yet been verified through browser automation or timed against the live service. Edge/Brave compatibility remains unverified.
 
@@ -9,7 +9,7 @@ A Chromium extension that translates webpages in place using a ChatGPT subscript
 1. Download this repository. No separate build or npm installation is required.
 2. Open `chrome://extensions` in Chrome and enable Developer mode.
 3. Choose **Load unpacked** and select the repository's **extension** folder.
-4. Open the extension popup. Choose **ChatGPT subscription** and sign in, or choose **OpenAI API**, enter your API key, and click **Connect OpenAI API**.
+4. Open the extension popup. Choose **ChatGPT subscription** and sign in, or choose **OpenAI API** or **Claude API**, enter the corresponding API key, and connect.
 5. Open a webpage and choose **Allow only this site** or **Allow all sites** in the popup. Until access is granted, only the header, Settings button, and highlighted access card appear after sign-in. Granting access activates the current page and reveals translation controls.
 6. When no model is saved, the first model returned by your account is selected automatically. Choose the target language and run **Translate page**. Site access is required for all translation features and shortcuts.
 
@@ -60,13 +60,17 @@ Chrome internal pages, extension stores, the browser's PDF viewer, and text insi
 
 ## Authentication and data
 
-Select **ChatGPT subscription** or **OpenAI API** in the connection card, including before the first login. Both connections can be saved locally; changing the selected method preserves the other credential and remembers each method's model choice. Switching or replacing credentials stops current jobs. **Disconnect** removes only the selected method's credential. There is no automatic fallback between providers.
+Select **ChatGPT subscription**, **OpenAI API**, or **Claude API** in the connection card, including before the first login. All three connections can be saved locally; changing the selected method preserves the other credentials and remembers each method's model choice. Switching or replacing credentials stops current jobs. **Disconnect** removes only the selected method's credential. There is no automatic fallback between providers.
 
-API mode validates the key with `GET https://api.openai.com/v1/models` and sends translations to `POST https://api.openai.com/v1/responses`, using streaming, `store:false`, and a strict JSON output schema. The model picker shows returned text-model families and selects the first entry when no model was saved. The model-list endpoint has no capability flags, so specific endpoint, project, and model restrictions are reported when a request is made. API usage is billed separately from a ChatGPT subscription. The same site permissions, restoration, caching, shortcuts, retries, and concurrency controls apply. Use **Replace API key** to change keys; saved keys are never prefilled in the UI.
+OpenAI API mode validates the key with `GET https://api.openai.com/v1/models` and sends translations to `POST https://api.openai.com/v1/responses`, using streaming, `store:false`, and a strict JSON output schema. The model picker shows returned text-model families and selects the first entry when no model was saved. The model-list endpoint has no capability flags, so specific endpoint, project, and model restrictions are reported when a request is made. API usage is billed separately from a ChatGPT subscription. The same site permissions, restoration, caching, shortcuts, retries, and concurrency controls apply. Use **Replace API key** to change keys; saved keys are never prefilled in the UI.
 
 Official references: [Model discovery](https://developers.openai.com/api/reference/resources/models/methods/list), [Responses streaming](https://developers.openai.com/api/docs/guides/streaming-responses), [Structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses).
 
-The extension handles OAuth Authorization Code + PKCE internally. It observes the code when the dedicated sign-in tab navigates to the designated callback URL, so no local server or companion application is installed. It uses a flow compatible with the public Codex client and does not guarantee the same support as the official subscription integration for general third-party applications. Behavior with a real account requires separate verification.
+Claude API mode uses only a user-supplied Anthropic API key; Claude subscription login and OAuth tokens are not supported. It validates the key and retrieves the paginated model catalogue from GET https://api.anthropic.com/v1/models, then translates through POST /v1/messages. The first model is selected when no preference exists, retired models are excluded, and API display names are preserved. Models advertising structured-output support receive output_config.format with the translation JSON schema; other models use the same JSON instructions and strict local block/node validation. Streaming must finish with end_turn before results apply. Truncated output retries with a higher token limit when the model allows it, within the configured retry count; refusals stop immediately. Claude API usage is billed by Anthropic. Keys are sent only to the matching fixed API origin, never to another provider.
+
+Claude references: [Models](https://platform.claude.com/docs/en/api/models/list), [Messages streaming](https://platform.claude.com/docs/en/build-with-claude/streaming), [Structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs).
+
+For ChatGPT subscription connections, the extension handles OAuth Authorization Code + PKCE internally. It observes the code when the dedicated sign-in tab navigates to the designated callback URL, so no local server or companion application is installed. It uses a flow compatible with the public Codex client and does not guarantee the same support as the official subscription integration for general third-party applications. Behavior with a real account requires separate verification.
 
 Credentials and diagnostic history are not exposed to content scripts. Tokens and user-supplied API keys are held in extension local storage restricted to trusted contexts. This is not an OS-encrypted credential vault. Translation caches and restoration snapshots remain in the current page's memory; opt-in developer logs separately retain copies of requests and responses locally. Settings exports include only allowed fields and exclude credentials and logs. See the [Privacy Notice](PRIVACY.md) for details.
 

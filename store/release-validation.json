@@ -1,8 +1,8 @@
 {
-  "date": "2026-10-18",
+  "date": "2026-10-19",
   "version": "0.1.0",
   "automatedTests": {
-    "passed": 198,
+    "passed": 219,
     "failed": 0,
     "suites": [
       {
@@ -22,7 +22,7 @@
       },
       {
         "name": "ui-state",
-        "passed": 38,
+        "passed": 40,
         "failed": 0
       },
       {
@@ -54,18 +54,23 @@
         "name": "api-connection",
         "passed": 12,
         "failed": 0
+      },
+      {
+        "name": "claude-connection",
+        "passed": 19,
+        "failed": 0
       }
     ],
     "environment": "Local Node VM module runner; mocked browser APIs and provider transport"
   },
   "syntax": {
-    "syntaxFiles": 16
+    "syntaxFiles": 17
   },
   "package": {
     "file": "../dist/yongil-translator-0.1.0.zip",
-    "files": 32,
-    "bytes": 225900,
-    "sha256": "b10fdc4017fbdafd0693705c9f650277d5a69236e2d933e62f6fe8c611558db8",
+    "files": 33,
+    "bytes": 237582,
+    "sha256": "7918107cddad8ae3dff79575241454fe4440385b38c9931067a217f44d140ab9",
     "archiveContentsMatchSource": true,
     "containsStoreFixtures": false
   },
@@ -77,7 +82,7 @@
   "browser": {
     "actualScreenshots": false,
     "liveAccountVerification": false,
-    "reason": "The 2026-10-18 browser inventory returned no connected apps or browsers. Subscription/API connection UI, provider isolation, API credentials, model discovery, and translation are covered by mocked tests; live browser behavior remains unverified."
+    "reason": "The 2026-10-19 browser inventory returned no connected apps or browsers. Three-provider connection UI and behavior are covered by mocked tests; live Chrome behavior and screenshots remain unverified."
   },
   "publication": {
     "uploaded": false,
@@ -90,5 +95,10 @@
     "liveAuthenticationVerified": false,
     "liveTranslationVerified": false,
     "reason": "A model-discovery request was attempted with a user-supplied key held only in memory. The execution environment denied outbound network access with EACCES. No live key, email, or account data is included in source, test fixtures, diagnostics, or release files."
+  },
+  "claude": {
+    "liveAuthenticationVerified": false,
+    "liveTranslationVerified": false,
+    "reason": "GET /v1/models was attempted against api.anthropic.com with the supplied key held only in process memory. Outbound access was denied with EACCES before any HTTP response. The key was cleared from memory; source, fixtures, diagnostics, and release files contain no supplied credential or account email."
   }
 }

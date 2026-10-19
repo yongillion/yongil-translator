@@ -1,10 +1,10 @@
 # Chrome Web Store privacy fields
 
-Prepared from the current source on 2026-10-18. Copy the field text below into the dashboard after reviewing the release package. This document does not itself submit or certify dashboard declarations.
+Prepared from the current source on 2026-10-19. Copy the field text below into the dashboard after reviewing the release package. This document does not itself submit or certify dashboard declarations.
 
 ## Single purpose
 
-Translate user-selected webpage text, blocks, or pages into the user's preferred language through their selected ChatGPT subscription or OpenAI API key, and let the user restore the original page text.
+Translate user-selected webpage text, blocks, or pages into the user's preferred language through their selected ChatGPT subscription, OpenAI API key, or Claude API key, and let the user restore the original page text.
 
 ## Permission justifications
 
@@ -38,7 +38,11 @@ Authenticates the user's ChatGPT account, exchanges and refreshes OAuth tokens, 
 
 ### https://api.openai.com/*
 
-Validates the user-supplied API key, retrieves API models, and submits translations to the public Responses API when the user selects API mode. Keys are sent only in the Authorization header to this fixed origin, with cookies omitted and redirects rejected. The key is never sent to a developer proxy or subscription backend. API usage is billed separately; no automatic provider fallback occurs.
+Validates the user-supplied API key, retrieves API models, and submits translations to the public Responses API when the user selects OpenAI API mode. Keys are sent only in the Authorization header to this fixed origin, with cookies omitted and redirects rejected. The key is never sent to a developer proxy or subscription backend. API usage is billed separately; no automatic provider fallback occurs.
+
+### https://api.anthropic.com/*
+
+Validates a user-supplied Claude API key, retrieves the paginated model catalogue, and sends translation requests to the Messages API when Claude API is selected. The key is sent in x-api-key only to this fixed origin, with cookies omitted and redirects rejected. Claude subscription/OAuth access is not implemented. Anthropic bills API usage separately. No key or request is forwarded to another provider after failure.
 
 ### https://chatgpt.com/*
 
@@ -61,8 +65,8 @@ Do not declare that no user data is handled. Google requires disclosure even for
 | Category | Handling in this extension |
 |---|---|
 | Personally identifiable information | Account email and account identifiers are obtained through authentication and retained locally. Selected webpage text may also include identifying information. |
-| Authentication information | OAuth authorization codes, access/refresh/identity tokens, and user-supplied OpenAI API keys are processed. Passwords and browser cookies are not read by the extension. |
-| Website content | Text deliberately chosen for page, block, or selection translation is sent to OpenAI, including configured retries. Originals and results are held in document memory. Opt-in developer diagnostics separately retain copies of request and response text in local extension storage until cleared or evicted. |
+| Authentication information | OAuth authorization codes, access/refresh/identity tokens, and user-supplied OpenAI and Claude API keys are processed. Passwords and browser cookies are not read by the extension. |
+| Website content | Text deliberately chosen for page, block, or selection translation is sent to the selected provider (OpenAI or Anthropic), including configured retries. Originals and results are held in document memory. Opt-in developer diagnostics separately retain copies of request and response text in local extension storage until cleared or evicted. |
 | Web history / browsing activity | Current tab/frame URLs and navigation events are inspected locally for access, document lifetime, and sign-in. No stored browser-history API or browsing log is used. |
 | User activity | Pointer, click, selection, and shortcut events are handled locally to operate translation. No interaction telemetry is sent to a developer server. |
 | Personal communications | Visible messages or correspondence can be processed if the user chooses to translate a page or selection containing them. There is no separate mailbox collection. |

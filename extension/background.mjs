@@ -44,7 +44,7 @@ async function saveSettings(patch){
 }
 async function registerScripts(){
  const {origins=[]}=await chrome.permissions.getAll();
- const matches=origins.filter(x=>/^https?:\/\//.test(x)&&!['https://auth.openai.com/*','https://chatgpt.com/*','https://api.openai.com/*'].includes(x));
+ const matches=origins.filter(x=>/^https?:\/\//.test(x)&&!['https://auth.openai.com/*','https://chatgpt.com/*','https://api.openai.com/*','https://api.anthropic.com/*'].includes(x));
  await chrome.scripting.unregisterContentScripts({ids:['translator']}).catch(()=>{});
  if(matches.length)await chrome.scripting.registerContentScripts([{id:'translator',matches,js:contentFiles,runAt:'document_idle',allFrames:true,persistAcrossSessions:true}]);
 }
@@ -148,7 +148,7 @@ async function route(message,sender){
   case 'auth.cancel':return changeConnection(async()=>{await cancelLogin();return authStatus();});
   case 'auth.signOut':return changeConnection(async()=>{await signOut();return {};});
   case 'auth.provider':return changeConnection(()=>selectProvider(message.provider));
-  case 'auth.apiKey':return changeConnection(()=>connectAPI(message.apiKey));
+  case 'auth.apiKey':return changeConnection(()=>connectAPI(message.apiKey,message.provider));
   case 'models.list':await connectionChanges.catch(()=>{});return models(!!message.force);
   case 'options.open':await chrome.runtime.openOptionsPage();return {};
   case 'cache.clear':await broadcast('cache.clear');return {};

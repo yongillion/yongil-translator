@@ -16,14 +16,16 @@ async function harness(){
  const chrome={storage:{local,session},i18n:mockI18n('en'),runtime:{id:'test',getURL:p=>root+p,onMessage:event(),onInstalled:event(),onStartup:event()},
   sidePanel:{setOptions:async()=>{}},alarms:{clear:async()=>{},create:async()=>{},onAlarm:event()},
   tabs:{onUpdated:event(),onRemoved:event(),query:async()=>[{id:1,url:'https://example.test/'}],get:async id=>({id,url:'https://example.test/'}),remove:async()=>{},sendMessage:async(id,message)=>{messages.push(message);return {};},create:async()=>({id:2}),update:async()=>{}},
-  permissions:{contains:async()=>true,getAll:async()=>({origins:['https://api.openai.com/*','https://chatgpt.com/*','https://auth.openai.com/*','https://example.test/*']}),onAdded:event(),onRemoved:event()},
+  permissions:{contains:async()=>true,getAll:async()=>({origins:['https://api.openai.com/*','https://api.anthropic.com/*','https://chatgpt.com/*','https://auth.openai.com/*','https://example.test/*']}),onAdded:event(),onRemoved:event()},
   scripting:{unregisterContentScripts:async()=>{},registerContentScripts:async rows=>registrations.push(...rows)},
   webNavigation:{onCommitted:event(),onBeforeNavigate:event(),getAllFrames:async()=>[{frameId:0,url:'https://example.test/'}]}};
  const fetcher=async(url,init={})=>{
   if(url.startsWith(root))return localeFetch(url);
   requests.push({url,init});
   if(network.gate)await network.gate;
+  if(network.handle){const response=await network.handle(url,init);if(response)return response;}
   if(network.status!==200)return {ok:false,status:network.status,text:async()=>network.body};
+  if(url.startsWith('https://api.anthropic.com/')&&url.includes('/models'))return {ok:true,status:200,json:async()=>({data:[{id:'claude-test-small',display_name:'Claude Test',max_tokens:16384,capabilities:{structured_outputs:{supported:true}}}],has_more:false})};
   if(url.includes('/models'))return {ok:true,status:200,json:async()=>url.startsWith('https://api.openai.com/')?{data:[{id:'gpt-test-small'},{id:'text-embedding-test'},{id:'gpt-test-large'}]}:{models:[{id:'subscription-model'}]}};
   if(url.endsWith('/responses')){
    if(network.translationGate)await network.translationGate(init.signal);
@@ -40,7 +42,7 @@ async function harness(){
  const send=(message,sender=ui)=>new Promise(resolve=>chrome.runtime.onMessage.listeners[0](message,sender,resolve));
  await send({type:'settings.get'});
  return {local,session,chrome,network,requests,messages,registrations,send,ui,content,
-  async connect(){await send({type:'auth.provider',provider:'api'});return send({type:'auth.apiKey',apiKey:testKey});},
+  async connect(provider='api'){await send({type:'auth.provider',provider});return send({type:'auth.apiKey',provider,apiKey:provider==='claude'?'sk-ant-api03-TEST_ONLY_NOT_A_REAL_CREDENTIAL':testKey});},
   async job(){await send({type:'settings.update',patch:{modelId:'gpt-test-small',maxRetries:0}});return (await send({type:'job.begin'},content)).data;}};
 }
 const blocks=[{id:'b1',nodes:[{id:'n0',text:'Hello world'}]}];
@@ -129,3 +131,5 @@ export async function apiConnectionTests(){
  });
  return {passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 }
+
+export {harness as connectionHarness,blocks};

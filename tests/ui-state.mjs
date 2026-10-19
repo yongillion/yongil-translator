@@ -39,7 +39,7 @@ async function harness({options=false,connected=false,provider='subscription',pe
   if(message.type==='settings.update'){Object.assign(savedSettings,message.patch);data={...savedSettings};}
   if(message.type==='auth.status')data={...status.current};
   if(message.type==='auth.provider'){status.current={state:'signed_out',provider:message.provider};savedSettings.modelId='';}
-  if(message.type==='auth.apiKey'){api.submissions++;if(api.pending)await api.pending;if(api.error)return {ok:false,error:{message:api.error}};status.current={state:'connected',provider:'api',connectionId:'api-test'};}
+  if(message.type==='auth.apiKey'){api.submissions++;if(api.pending)await api.pending;if(api.error)return {ok:false,error:{message:api.error}};status.current={state:'connected',provider:message.provider||'api',connectionId:(message.provider||'api')+'-test'};}
   if(message.type==='auth.start')status.current={state:'signing_in'};
   if(message.type==='auth.cancel'||message.type==='auth.signOut')status.current={state:'disconnected',provider:status.current.provider};
   if(message.type==='models.list')data={items};
@@ -64,6 +64,24 @@ async function harness({options=false,connected=false,provider='subscription',pe
 }
 export async function uiStateTests(){
  const results=[];async function test(name,fn){try{await fn();results.push({name,passed:true});}catch(e){results.push({name,passed:false,error:e.stack||e.message});}}
+ await test('Claude is available before login in both screens with masked key entry and localized API billing',async()=>{
+  for(const options of [false,true])for(const uiLanguage of ['en','ko']){
+   const h=await harness({options,uiLanguage,permission:true});await h.click('use-claude');
+   assert.equal(h.nodes.get('use-claude').getAttribute('aria-pressed'),'true');assert.equal(h.nodes.get('use-api').getAttribute('aria-pressed'),'false');assert.equal(h.nodes.get('use-subscription').getAttribute('aria-pressed'),'false');
+   assert.equal(h.nodes.get('login').hidden,true);assert.equal(h.nodes.get('api-key-form').hidden,false);assert.equal(h.nodes.get('api-key').getAttribute('type'),'password');
+   assert.equal(h.nodes.get('connect-api').textContent,catalogs[uiLanguage].connectClaude.message);
+   h.nodes.get('api-key').value='sk-ant-api03-TEST_ONLY_CREDENTIAL';await h.nodes.get('api-key-form').emit('submit',{preventDefault(){}});
+   assert.equal(h.status.current.provider,'claude');assert.equal(h.nodes.get('api-key').value,'');assert.equal(h.nodes.get('api-key-form').hidden,true);
+   assert.equal(h.nodes.get('account-title').textContent,catalogs[uiLanguage].claudeConnected.message);assert.equal(h.nodes.get('connection-note').textContent,catalogs[uiLanguage].claudeBillingNote.message);
+   assert.equal(h.nodes.get('usage-link').href,'https://platform.claude.com/usage');
+  }
+ });
+ await test('Claude respects the site permission gate and switching methods clears an unsaved key',async()=>{
+  const h=await harness({provider:'claude',connected:true});assert.equal(h.nodes.get('account-card').hidden,true);assert.ok(h.gates.every(el=>el.hidden));
+  await h.click('allow-site');await tick();assert.equal(h.nodes.get('translate').disabled,false);
+  await h.click('replace-api-key');assert.equal(h.nodes.get('api-key').value,'');h.nodes.get('api-key').value='sk-ant-api03-TEST_ONLY_CREDENTIAL';
+  await h.click('use-api');assert.equal(h.nodes.get('api-key').value,'');assert.equal(h.nodes.get('connect-api').textContent,catalogs.ko.connectAPI.message);assert.equal(h.nodes.get('use-claude').getAttribute('aria-pressed'),'false');
+ });
  await test('Signed-out popup and options hide connected-only controls',async()=>{
   for(const options of [false,true]){const h=await harness({options});assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('login').hidden,false);assert.equal(h.body.dataset.connected,'false');assert.ok(!h.calls.includes('models.list'));if(!options)assert.equal(h.nodes.get('permission-card').hidden,true);}
  });

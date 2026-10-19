@@ -3,7 +3,7 @@
     "message": "en"
   },
   "extensionDescription": {
-    "message": "Translate webpages with ChatGPT or an OpenAI API key. Restore original text anytime."
+    "message": "Translate webpages with ChatGPT, OpenAI API, or Claude API. Restore original text anytime."
   },
   "settings": {
     "message": "Settings"
@@ -180,7 +180,7 @@
     "message": "Translation connection"
   },
   "privacyNote": {
-    "message": "Text selected for translation and your instructions are sent to OpenAI using the selected connection. You can still restore original text after disconnecting."
+    "message": "Text selected for translation and your instructions are sent to your selected provider: OpenAI or Anthropic. Subscription or API usage applies to that connection. You can restore the original text after disconnecting."
   },
   "manageSubscriptionUsage": {
     "message": "Manage subscription usage ↗"
@@ -582,7 +582,7 @@
     "message": "This request must come from a webpage."
   },
   "connectAccountFirst": {
-    "message": "Connect ChatGPT or an OpenAI API key first."
+    "message": "Connect a subscription or API key in the extension first."
   },
   "selectModelPopup": {
     "message": "Select a model in the popup."
@@ -849,6 +849,42 @@
     "message": "Could not connect to the OpenAI API. Check your network and try again."
   },
   "connectionProviderInvalid": {
-    "message": "Choose ChatGPT subscription or OpenAI API."
+    "message": "Choose ChatGPT subscription, OpenAI API, or Claude API."
+  },
+  "claudeMethod": {
+    "message": "Claude API"
+  },
+  "connectClaude": {
+    "message": "Connect Claude API"
+  },
+  "claudeConnected": {
+    "message": "Claude API connected"
+  },
+  "claudeBillingNote": {
+    "message": "API usage is billed separately by Anthropic. Claude subscriptions cannot be used here."
+  },
+  "claudeUsage": {
+    "message": "Uses your Claude API balance"
+  },
+  "claudeKeyInvalid": {
+    "message": "Enter a Claude API key starting with sk-ant-api or sk-ant-usr. OAuth tokens are not supported."
+  },
+  "claudeKeyRequired": {
+    "message": "Connect a Claude API key first."
+  },
+  "claudeConnectionFailed": {
+    "message": "Could not connect to the Claude API. Check your network and try again."
+  },
+  "claudeBillingError": {
+    "message": "Check your Claude API credit balance and spending limits."
+  },
+  "claudeRequestInvalid": {
+    "message": "Claude rejected the request. Check your API credits, model access, and request limits."
+  },
+  "claudeOutputLimit": {
+    "message": "Claude reached the output limit before finishing. Try translating a smaller block."
+  },
+  "claudeRefusal": {
+    "message": "Claude declined this translation request. The original text has been kept."
   }
 }

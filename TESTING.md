@@ -1,26 +1,30 @@
 # Verification Record
 
-Review date: 2026-10-18
+Review date: 2026-10-19
 
 ## Completed checks
 
 - Unit and regression tests: **46 passed**
 - Mock service-worker integration tests: **26 passed**
 - Page-job and block-interaction regression tests: **31 passed**
-- UI state tests with mock DOM and browser APIs: **38 passed**
+- UI state tests with mock DOM and browser APIs: **40 passed**
 - Localization catalog and preference tests: **8 passed**
 - Selected-text popup regression tests: **6 passed**
 - Page-toolbar progress and action tests: **4 passed**
 - Retry and diagnostic-storage tests: **20 passed**
 - Log side-panel UI tests: **7 passed**
 - API connection and provider-isolation tests: **12 passed**
-- Extension JavaScript syntax checks: **16 files passed**
+- Claude API connection, streaming, and isolation tests: **19 passed**
+- Extension JavaScript syntax checks: **17 files passed**
 - Brand PNG icon visual inspection: 128px output reviewed
 - ZIP packaging: verified the installation file list and included manifest and icons
 
 Tests ran in a local JavaScript execution environment. They do not replace actual extension E2E tests using a browser DOM or tests with a real provider account. Provider transport, browser APIs, accounts, and tokens are mocked. Response fixtures include a replay of the user-reported public-text translation failure, with account identifiers and provider metadata excluded.
 
 Key coverage:
+
+- Claude API selection in both screens and UI languages; paginated model discovery, capability-gated JSON output, Messages streaming across byte/Unicode boundaries, truncation with bounded token-limit retries, refusal handling, and cancellation
+- Three-provider credential/model isolation, rejection of mismatched API keys and Claude OAuth tokens, safe errors and log redaction, stale model-refresh rejection, and no cross-provider fallback
 
 - Subscription/API selection before connection, masked key submission and immediate field clearing, failed verification, key replacement/disconnection, separate model preferences, first-model selection, unchanged site-permission gates, and English/Korean billing/status/error labels
 - Fixed public API origin, cookie-free requests with redirects rejected, strict JSON schema and streamed Responses output, no subscription headers in API requests, separate connection/cache identities, cancellation on provider changes, serialized connection changes, and rejection of stale model writes
@@ -127,7 +131,7 @@ The raw execution results are stored in [test-results.json](test-results.json).
 
 ## Store preparation checks
 
-All 198 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
+All 219 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
 
 ## Page toolbar progress
 
@@ -140,3 +144,9 @@ The toggle uses [runtime.getContexts](https://developer.chrome.com/docs/extensio
 ## API verification procedure
 
 After reloading the unpacked extension, choose OpenAI API in the connection card and enter a test key privately. Confirm verification clears the field, selects the first model when no API preference exists, and still requires website access. Translate public fixture text, restore it, and check the document cache. Switch between subscription and API during an active request; old results must not apply and model choices must remain separate. Check key replacement, rejected/restricted keys, insufficient quota, API rate limits, and Disconnect. Verify request headers and credentials never appear in the developer log or exported settings. API usage is separately billed; use a short public fixture and a small request count. Keep all screenshots in English and omit credentials/account identifiers.
+
+## Claude API verification status
+
+On 2026-10-19, the supplied Claude key was used only in process memory for a GET /v1/models smoke check against api.anthropic.com. Outbound access was rejected with EACCES before an HTTP response. The key was cleared from memory without writing it or the account email to project files. Live authentication, available quota/models, and translation remain unverified. The browser inventory again returned no apps or browsers; no new browser screenshots were captured.
+
+For manual verification, reload the unpacked extension, choose Claude API, enter the key privately, and connect. Confirm the first returned model is selected, its API display name appears, and site access is still required. Translate a short public page, a block, and a selection, then restore and repeat from cache. Switch among all three connection methods during translation and confirm cancellation plus separate model preferences. Check replacement, disconnect, model refresh, and developer log redaction. Claude offers no subscription or OAuth login. Keep screenshots in English and exclude keys and account identifiers.
