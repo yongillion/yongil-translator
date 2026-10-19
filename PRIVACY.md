@@ -6,7 +6,7 @@ Yongil Translator is an independent, open-source browser extension maintained th
 
 Yongil Translator does not collect page content or account information on developer-operated servers.
 
-When a translation requires a new result, the extension sends the selected page or block text, target language, selected model, and enabled custom instructions directly to the selected provider: the OpenAI subscription service, OpenAI API, or Anthropic Claude API. Input forms, passwords, content being edited, and hidden elements are excluded from collection. The source URL's query string and fragment are not attached to translation requests.
+In a cloud connection, when a translation requires a new result, the extension sends the selected page or block text, target language, selected model, and enabled custom instructions directly to the selected provider: the OpenAI subscription service, OpenAI API, or Anthropic Claude API. Input forms, passwords, content being edited, and hidden elements are excluded from collection. The source URL's query string and fragment are not attached to translation requests.
 
 OAuth sign-in uses OpenAI's sign-in page. The extension does not read or store your password. It receives an authorization code from the dedicated sign-in tab, exchanges it using PKCE, and validates the ID token's signature, issuer, audience, expiration, and nonce. It does not collect sign-in codes from other tabs or browsing history.
 
@@ -15,6 +15,14 @@ OAuth tokens and user-supplied API keys needed to maintain the selected connecti
 User settings, including the UI language preference, are kept in the browser's local storage. Selecting text alone does not send it to a provider; selected-text translation starts only after clicking its translation button. The result popup and its selected text remain in the current document's memory. The translation cache and original-text snapshots used for restoration are kept only in the document's memory. Restored blocks reuse matching successful translations from this memory cache without sending the text again. The cache is scoped to the current document and is never persisted to disk. Refreshing the page, changing its URL, or closing it discards these cached translations. Clearing the temporary translation cache preserves the original-text snapshots needed to restore the current document.
 
 Restoring original text does not send a new translation request. Automatic retries can send the same original text and instructions again after a failed response, up to the configured retry limit (4 retries by default). Retries can consume additional subscription usage or API charges. Stopping or restoring text does not mean usage from requests already sent to a provider is canceled or refunded. OpenAI requests use store=false; Claude requests do not send this OpenAI-specific field. Neither connection overrides the provider's data processing and retention policies.
+
+## Browser-provided AI
+
+On-Device AI is an optional mode using a compatible browser's built-in Prompt API. It requires no API key from this extension. Selected source text, target language, and enabled instructions are passed to the browser-provided model from a bundled extension tab. The extension does not send these requests through its OpenAI or Anthropic API connections and does not automatically fall back to them.
+
+API availability indicates whether a model can be used, not where it runs. A browser can implement the Prompt API with an on-device model or a browser-managed cloud service. Processing location, any browser-managed transfers, and model downloads are governed by the browser's implementation, settings, and privacy policy. The extension cannot certify local-only processing through this API. Browsers with local implementations can process text on the device after setup.
+
+Discovery calls availability only. Model creation/download begins when the user clicks Prepare local model. Closing or stopping the model tab cancels active work. The browser manages model files; disconnecting this mode does not delete those files. Original-text restoration, page-cache lifetime, and optional developer-log retention apply as described below. The existing tabs permission also opens and locates this bundled model tab.
 
 ## Optional developer diagnostics
 
@@ -26,7 +34,7 @@ Diagnostic copies of source text and responses can contain personal or sensitive
 
 - storage: settings, authentication state, temporary sign-in state, and opt-in local developer diagnostics
 - scripting: inject translation functionality only on websites with granted host access
-- tabs: identify the dedicated sign-in tab and the current target tab
+- tabs: identify the dedicated sign-in tab, the current target tab, and the bundled local-model execution tab
 - alarms: check sign-in timeouts and missed callbacks
 - webNavigation: enumerate accessible frames, invalidate requests when documents navigate, and detect the designated sign-in callback
 - sidePanel: show retained and live developer diagnostics alongside the current webpage when developer mode is enabled

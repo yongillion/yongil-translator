@@ -15,7 +15,7 @@ function element(tag='div',attributes=''){
   append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;},
   getAttribute(name){return attrs[name];},setAttribute(name,value){attrs[name]=value;},removeAttribute(name){delete attrs[name];},scrollIntoView(){},focus(){},click(){}};
 }
-async function harness({options=false,connected=false,provider='subscription',permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',developerMode=false,panelWindows=[],nativePanelClose=true,panelEvents=true,items=[{id:'test-model',name:'Test model'}]}={}){
+async function harness({navigator,LanguageModel,options=false,connected=false,provider='subscription',permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',developerMode=false,panelWindows=[],nativePanelClose=true,panelEvents=true,items=[{id:'test-model',name:'Test model'}]}={}){
  const html=await readFile(new URL('../extension/'+(options?'options':'popup')+'.html',import.meta.url),'utf8');
  const nodes=new Map(),gates=[],all=[];
  for(const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*)>/gi)){
@@ -50,7 +50,7 @@ async function harness({options=false,connected=false,provider='subscription',pe
    request:async options=>{grants.requests.push(JSON.parse(JSON.stringify(options)));const result=grants.requestPending?await grants.requestPending:grants.result;if(result)grants.allowed=true;return result;},remove:async()=>{grants.allowed=false;return true;}}};
  if(!nativePanelClose)delete chrome.sidePanel.close;
  if(!panelEvents){delete chrome.sidePanel.onOpened;delete chrome.sidePanel.onClosed;}
- const context=vm.createContext({document,chrome,fetch:localeFetch,URL,Blob,Option:class{constructor(text,value){Object.assign(this,element('option'),{textContent:text,value});}},window:{close(){}},setInterval:fn=>{poll=fn;return 0;},setTimeout,clearTimeout,confirm:()=>true});
+ const context=vm.createContext({document,chrome,navigator,LanguageModel,fetch:localeFetch,URL,Blob,Option:class{constructor(text,value){Object.assign(this,element('option'),{textContent:text,value});}},window:{close(){}},setInterval:fn=>{poll=fn;return 0;},setTimeout,clearTimeout,confirm:()=>true});
  const entry=new vm.SourceTextModule(source,{context,identifier:'ui.mjs'});
  const modules=new Map();
  const icons=new vm.SyntheticModule(['paintIcons'],function(){this.setExport('paintIcons',()=>{});},{context});
@@ -372,3 +372,5 @@ export async function uiStateTests(){
  });
  return {passed:results.filter(r=>r.passed).length,failed:results.filter(r=>!r.passed).length,results};
 }
+
+export {harness as uiHarness};

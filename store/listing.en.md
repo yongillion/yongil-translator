@@ -66,3 +66,11 @@ Source and support: https://github.com/yongillion/yongil-translator
 - Extension price: Free; disclose the external subscription or API usage requirement above.
 
 The URLs must be accessible without signing in after the release files are pushed. They are intended destinations, not a claim that this local revision has been published.
+
+## Optional On-Device AI
+
+A compatible browser-provided Prompt API can be used without an extension API key. The option is shown based on runtime API availability and language support, with no Chrome-only brand restriction. Unsupported browsers/devices and policy-blocked APIs keep it hidden. Samsung, Edge, and other compatible implementations are eligible, but actual model execution in those browsers has not been verified.
+
+Click Open local model tab, then Prepare local model. Discovery does not download a model; preparation requires a user click. Keep the model tab open. Target languages are queried from the browser, including Korean when supported. Requests run one block at a time and use the existing retries, restoration, cache, and optional developer logs. No new host or offscreen permission is added.
+
+The extension does not route these prompts through OpenAI or Anthropic or automatically switch to those connections. Prompt API availability does not guarantee on-device processing: the browser controls execution location and any model downloads or browser-managed transfers. Review the browser's privacy practices. Real device/browser tests remain required before claiming compatibility.

@@ -198,7 +198,7 @@
       // Reorder only unsent work after scrolling, resizing, or translated text changes layout.
       if(orderVersion!==viewportVersion){prioritizePending(tickets,offset,order);orderVersion=viewportVersion;}
       const batch=[];let size=0;
-      while(offset<tickets.length&&batch.length<8){
+      while(offset<tickets.length&&batch.length<(jobInfo.maxBatchBlocks||8)){
        const t=tickets[offset],length=t.nodes.reduce((n,x)=>n+x.text.length,0);
        if(batch.length&&size+length>16000)break;
        offset++;if(store.blocks.get(t.id)?.generation!==t.generation)continue;
@@ -220,7 +220,7 @@
       }catch(e){
        if(!active())break;
        for(const t of batch)store.fail(t,e.message);
-       if(['AUTH_REQUIRED','ACCOUNT_CHANGED','USAGE_LIMIT','MODEL','MODEL_REQUIRED','ACCESS','INTERRUPTED','EXCLUDED'].includes(e.code)){
+       if(['AUTH_REQUIRED','ACCOUNT_CHANGED','USAGE_LIMIT','MODEL','MODEL_REQUIRED','ACCESS','INTERRUPTED','EXCLUDED','LOCAL_NOT_READY','LOCAL_UNAVAILABLE'].includes(e.code)){
         fatal=true;errorMessage=e.messageKey?{key:e.messageKey,values:e.substitutions||[]}:null;lastError=e.message;
         for(const t of tickets){const b=store.blocks.get(t.id);if(b&&['queued','translating'].includes(b.state))store.fail(t,e.message);}
         await send('job.cancel',{jobId:id}).catch(()=>{});

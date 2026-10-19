@@ -886,5 +886,68 @@
   },
   "claudeRefusal": {
     "message": "Claude declined this translation request. The original text has been kept."
+  },
+  "chromeAIMethod": {
+    "message": "On-Device AI"
+  },
+  "chromeAITitle": {
+    "message": "On-Device AI"
+  },
+  "chromeAIConnected": {
+    "message": "Browser AI ready"
+  },
+  "chromeAIBadge": {
+    "message": "ON-DEVICE · EXPERIMENTAL"
+  },
+  "chromeAINote": {
+    "message": "Use the browser’s built-in model without an API key. Keep the model tab open while translating. Setup may download a model. The browser determines where processing takes place."
+  },
+  "chromeAILanguages": {
+    "message": "Language support depends on your browser’s model. Choose a supported target language; unsupported source languages cannot be translated."
+  },
+  "chromeAIContext": {
+    "message": "This block exceeds the local model’s context limit. Select a shorter passage."
+  },
+  "chromeAISetupRequired": {
+    "message": "Open the model tab and prepare the browser model to translate."
+  },
+  "chromeAIUnavailable": {
+    "message": "A compatible built-in Prompt API is not available in this browser or on this device."
+  },
+  "chromeAIFailed": {
+    "message": "The local model could not complete this translation. Check the local model tab."
+  },
+  "chromeAIReady": {
+    "message": "Ready. Keep this tab open and translate from your webpage."
+  },
+  "chromeAITranslating": {
+    "message": "Translating with the browser model…"
+  },
+  "chromeAIPreparing": {
+    "message": "Preparing the local model… The first download may take several minutes."
+  },
+  "chromeAIDownload": {
+    "message": "Model download progress"
+  },
+  "chromeAIDownloadPercent": {
+    "message": "Downloading model… $1%"
+  },
+  "chromeAIOpen": {
+    "message": "Open local model tab"
+  },
+  "chromeAIPrepare": {
+    "message": "Prepare local model"
+  },
+  "chromeAIStop": {
+    "message": "Stop local model"
+  },
+  "chromeAIUsage": {
+    "message": "Uses the browser’s built-in model"
+  },
+  "chromeAIExecutionNote": {
+    "message": "Processes one block at a time. Closing this tab stops translation. This extension does not send these prompts to its cloud API providers; the browser controls model execution."
+  },
+  "chromeAIModel": {
+    "message": "Browser-provided model"
   }
 }

@@ -2,7 +2,7 @@
   "date": "2026-10-19",
   "version": "0.1.0",
   "automatedTests": {
-    "passed": 219,
+    "passed": 243,
     "failed": 0,
     "suites": [
       {
@@ -59,18 +59,23 @@
         "name": "claude-connection",
         "passed": 19,
         "failed": 0
+      },
+      {
+        "name": "chrome-ai",
+        "passed": 24,
+        "failed": 0
       }
     ],
     "environment": "Local Node VM module runner; mocked browser APIs and provider transport"
   },
   "syntax": {
-    "syntaxFiles": 17
+    "syntaxFiles": 20
   },
   "package": {
     "file": "../dist/yongil-translator-0.1.0.zip",
-    "files": 33,
-    "bytes": 237582,
-    "sha256": "7918107cddad8ae3dff79575241454fe4440385b38c9931067a217f44d140ab9",
+    "files": 38,
+    "bytes": 262867,
+    "sha256": "c718738bf50423277223f396d97a3c70ad1128cf3520603e1f0cf569375ac124",
     "archiveContentsMatchSource": true,
     "containsStoreFixtures": false
   },
@@ -82,7 +87,8 @@
   "browser": {
     "actualScreenshots": false,
     "liveAccountVerification": false,
-    "reason": "The 2026-10-19 browser inventory returned no connected apps or browsers. Three-provider connection UI and behavior are covered by mocked tests; live Chrome behavior and screenshots remain unverified."
+    "englishUIPreviewReviewed": true,
+    "reason": "English popup and setup layouts were reviewed in the in-app browser with mocked browser/LanguageModel APIs. Compatible Edge profiles show the option; unavailable Chrome profiles hide it. No real extension installation or browser model was verified."
   },
   "publication": {
     "uploaded": false,
@@ -100,5 +106,21 @@
     "liveAuthenticationVerified": false,
     "liveTranslationVerified": false,
     "reason": "GET /v1/models was attempted against api.anthropic.com with the supplied key held only in process memory. Outbound access was denied with EACCES before any HTTP response. The key was cleared from memory; source, fixtures, diagnostics, and release files contain no supplied credential or account email."
+  },
+  "credentialScan": {
+    "files": 64,
+    "findings": 0,
+    "scope": "Project source, tests, Markdown, store documents, and generated privacy HTML"
+  },
+  "onDeviceAI": {
+    "liveModelDownloadVerified": false,
+    "liveInferenceVerified": false,
+    "uiPreviewUsesMocks": true,
+    "automatedCases": 24,
+    "availabilityDetection": "LanguageModel.availability, independent of browser identity",
+    "supportedLanguages": "Queried per target language at runtime",
+    "processingLocation": "Determined by the browser; availability does not guarantee on-device execution",
+    "noNewPermissions": true,
+    "manualChecks": "Follow TESTING.md on each intended browser/device; actual Samsung compatibility is unverified."
   }
 }

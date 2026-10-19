@@ -15,7 +15,8 @@ Review date: 2026-10-19
 - Log side-panel UI tests: **7 passed**
 - API connection and provider-isolation tests: **12 passed**
 - Claude API connection, streaming, and isolation tests: **19 passed**
-- Extension JavaScript syntax checks: **17 files passed**
+- On-Device AI capability detection, language support, bridge, and lifecycle tests: **24 passed**
+- Extension JavaScript syntax checks: **20 files passed**
 - Brand PNG icon visual inspection: 128px output reviewed
 - ZIP packaging: verified the installation file list and included manifest and icons
 
@@ -131,13 +132,13 @@ The raw execution results are stored in [test-results.json](test-results.json).
 
 ## Store preparation checks
 
-All 219 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
+All 243 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
 
 ## Page toolbar progress
 
 The real toolbar rendering and job functions are exercised with mock DOM/browser APIs. Checks cover 16/120 completed blocks with queued batches, cached results, unchanged successful output, failed requests, edited/detached text, restoration, accessible progress values, indeterminate preparation, English/Korean labels, and page translation dispatch. Actual Chrome visual review remains pending. In a browser, verify the four-pixel top-edge bar at narrow widths and in light/dark themes, and confirm that the counter remains visible with an error message.
 
-The latest computer-use inventory still has no connected browser. LOG toggling has been verified with mock browser APIs, including the older-Chromium close fallback, but requires live browser verification. Native side-panel behavior and the updated circular toolbar close button remain pending actual Chrome visual verification.
+The earlier computer-use inventory had no connected browser. LOG toggling has been verified with mock browser APIs, including the older-Chromium close fallback, but requires live browser verification. Native side-panel behavior and the updated circular toolbar close button remain pending actual Chrome visual verification.
 
 The toggle uses [runtime.getContexts](https://developer.chrome.com/docs/extensions/reference/api/runtime#method-getContexts) to discover log side-panel documents without a window filter. [Chromium's runtime regression test](https://chromium.googlesource.com/chromium/src/+/cc748d4034cf809a90bead06f9f9dcabd0dbbaf5/chrome/browser/extensions/api/runtime/runtime_apitest.cc) records `windowId: -1` for these contexts. A trusted status message asks the panel to identify its owning window and visibility; regular tabs displaying the log page do not answer. State is resolved before the LOG button is enabled so opening remains within the click gesture. Closing uses [sidePanel.close](https://developer.chrome.com/docs/extensions/reference/api/sidePanel#method-close) when available (Chrome 141+) and a trusted, window-scoped message to the panel otherwise. Lifecycle events are optional; polling also detects manual closure or hidden panels.
 
@@ -150,3 +151,11 @@ After reloading the unpacked extension, choose OpenAI API in the connection card
 On 2026-10-19, the supplied Claude key was used only in process memory for a GET /v1/models smoke check against api.anthropic.com. Outbound access was rejected with EACCES before an HTTP response. The key was cleared from memory without writing it or the account email to project files. Live authentication, available quota/models, and translation remain unverified. The browser inventory again returned no apps or browsers; no new browser screenshots were captured.
 
 For manual verification, reload the unpacked extension, choose Claude API, enter the key privately, and connect. Confirm the first returned model is selected, its API display name appears, and site access is still required. Translate a short public page, a block, and a selection, then restore and repeat from cache. Switch among all three connection methods during translation and confirm cancellation plus separate model preferences. Check replacement, disconnect, model refresh, and developer log redaction. Claude offers no subscription or OAuth login. Keep screenshots in English and exclude keys and account identifiers.
+
+## On-Device AI verification status
+
+On 2026-10-19, 24 tests covered capability-based detection without browser branding, all recognized availability states, absent/partial APIs, policy errors, timeouts, hidden controls on unsupported devices, and compatible Samsung/Edge/unbranded test profiles. Language tests cover browser-reported Korean support, regional targets, unsupported configurations, exact source/target options, and additional downloads requiring another user click. Bridge tests retain exact sender checks, single-request/single-block scheduling, cancellation, tab closure, connection isolation, bounded JSON retries, diagnostics, context errors, and session destruction. A saved local-mode preference on an unsupported browser stays disconnected until the user explicitly chooses another connection.
+
+The English popup and model setup page were visually reviewed in the in-app browser against an isolated localhost preview with mocked browser and LanguageModel APIs. The preview shows On-Device AI under an Edge profile with a compatible API and hides it under a Chrome profile reporting unavailable. Updated labels and setup-page layout were inspected. This is a UI test double, not an installed extension or real browser model. Setup activation and readiness are also exercised in the automated document harness.
+
+Manual release checks still required: install the unpacked extension in each intended browser; confirm actual Prompt API exposure, availability, language support, and processing location; prepare the model with a direct user click; verify download progress/cancellation; translate short public text; restore/retranslate from cache; stop or close the model tab during inference; test unsupported source/target languages and context errors; switch providers; restart the worker/browser. Confirm API-unavailable devices hide the option regardless of brand. The extension must not issue OpenAI/Anthropic translation requests in this mode. Browser-managed processing and transfers require separate verification. Keep release screenshots in English and distinguish mocked previews from real extension captures.

@@ -4,6 +4,8 @@ import {AppError,readResponseStream,parseTranslation,validateBlocks} from './pro
 import {developerLog} from './logger.mjs';
 import {API_BASE,apiError,apiModels,translationFormat} from './api.mjs';
 import {CLAUDE_BASE,claudeHeaders,claudeError,listClaudeModels,claudePayload,readClaudeStream} from './claude.mjs';
+import {requestChromeAI} from './chrome-ai-bridge.mjs';
+import {CHROME_AI_MODEL,chromeAILanguage} from './chrome-ai.mjs';
 const BASE='https://chatgpt.com/backend-api/codex';
 function headers(auth){return {...(auth.provider==='claude'?claudeHeaders(auth.apiKey):{'Authorization':'Bearer '+(auth.provider==='api'?auth.apiKey:auth.accessToken),...(auth.provider==='api'?{}:{'ChatGPT-Account-Id':auth.accountId,'originator':'codex_cli_rs'})}),'Content-Type':'application/json','Accept':'text/event-stream'};}
 async function request(path,options={},signal,trace={},connectionId){
@@ -33,7 +35,9 @@ async function request(path,options={},signal,trace={},connectionId){
  return r;
 }
 export async function models(force=false){
- const auth=await getAuth();const {modelCache}=await chrome.storage.local.get('modelCache');
+ const auth=await getAuth();
+ if(auth.provider==='chrome')return {items:[{id:CHROME_AI_MODEL,name:'Browser-provided model'}],connectionId:auth.connectionId,stale:false};
+ const {modelCache}=await chrome.storage.local.get('modelCache');
  if(!force&&modelCache?.connectionId===auth.connectionId&&modelCache.time>Date.now()-3600000)return {...modelCache,stale:false};
  try{
   const signal=AbortSignal.timeout(25000),trace={provider:auth.provider||'subscription'};let items;
@@ -56,6 +60,7 @@ export async function translate(blocks,settings,connectionId,signal){
  validateBlocks(blocks);
  const auth=await getAuth();if(auth.connectionId!==connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');
  if(!settings.modelId)throw new AppError('MODEL_REQUIRED','modelRequired');
+ if(auth.provider==='chrome'){chromeAILanguage(settings.targetLanguage);if(settings.modelId!==CHROME_AI_MODEL)throw new AppError('MODEL','modelRequest');}
  let claudeModel,outputLimit;
  if(auth.provider==='claude'){
   claudeModel=(await models()).items.find(item=>item.id===settings.modelId);
@@ -83,6 +88,14 @@ export async function translate(blocks,settings,connectionId,signal){
   const events=[];let responseLog=null,text;
   try{
    const prompt=instructions+(previousError?.code==='RESULT'?'\nYour previous response did not pass JSON validation. Return one complete JSON object in the exact required schema, with no commentary. Keep every requested block and node exactly once. Do not append any characters after the root object closes.':'');
+   if(auth.provider==='chrome'){
+    developerLog.add('local.request',{...trace,instructions:prompt,blocks,targetLanguage:settings.targetLanguage});
+    responseLog=developerLog.add('translation.response',{...trace,state:'streaming',text:''});
+    let streamed='';
+    text=await requestChromeAI({instructions:prompt,blocks,targetLanguage:settings.targetLanguage},connectionId,controller.signal,chunk=>{
+     if(!developerLog.enabled)return;streamed+=chunk;developerLog.update(responseLog,{...trace,state:'streaming',text:streamed});
+    });
+   }else{
    const payload=claudeModel?claudePayload(claudeModel,prompt,blocks,outputLimit):{model:settings.modelId,instructions:prompt,input:[{role:'user',content:[{type:'input_text',text:JSON.stringify({blocks})}]}],store:false,stream:true};
    if(claudeModel)outputLimit=payload.max_tokens;
    if(auth.provider==='api')payload.text={format:translationFormat};
@@ -92,6 +105,7 @@ export async function translate(blocks,settings,connectionId,signal){
     if(!developerLog.enabled)return;
     events.push(event);developerLog.update(responseLog,{...trace,state:'streaming',events});
    });}catch(e){if(e instanceof AppError||e.name==='AbortError')throw e;throw new AppError('NETWORK','translationNetwork');}
+   }
    developerLog.update(responseLog,{...trace,state:'received',text,events});
    if(signal?.aborted)throw new DOMException('Aborted','AbortError');
    if((await getAuth()).connectionId!==connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');

@@ -59,3 +59,5 @@ a.icon-button:hover{background:var(--accent-soft);color:var(--accent);text-decor
 .developer-setting{margin-top:24px;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--accent-soft)}.developer-setting .small-print{margin-bottom:0}
 
 .connection-method{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:16px}.connection-method button{border:0;min-width:0;font-size:11px;padding:9px 6px;background:transparent;color:var(--muted)}.connection-method button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:700}.api-key-form{margin-top:16px}.api-key-form input{width:100%;font-family:ui-monospace,monospace}.api-key-form small{display:block;line-height:1.6;margin-top:7px}.account-card .small-print{margin-bottom:4px}.options .connection-method{max-width:520px}
+
+.connection-method:has(#use-chrome:not([hidden])){grid-template-columns:repeat(2,minmax(0,1fr))}

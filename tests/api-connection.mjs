@@ -10,10 +10,10 @@ import {sanitizeSettings} from '../extension/lib/settings.mjs';
 const testKey='sk-TEST_ONLY_NOT_A_REAL_API_CREDENTIAL',replacementKey='sk-TEST_ONLY_REPLACEMENT_CREDENTIAL';
 const event=()=>({listeners:[],addListener(fn){this.listeners.push(fn);}});
 function storage(data={}){return {data,async get(keys){return Object.fromEntries((typeof keys==='string'?[keys]:keys||Object.keys(data)).map(key=>[key,data[key]]));},async set(next){Object.assign(data,next);},async remove(keys){for(const key of Array.isArray(keys)?keys:[keys])delete data[key];},async setAccessLevel({accessLevel}){this.accessLevel=accessLevel;}};}
-async function harness(){
+async function harness({navigator}={}){
  const local=storage({authEpoch:'subscription-connection',auth:{accessToken:'TEST_ONLY_SUBSCRIPTION_TOKEN',refreshToken:'TEST_ONLY_REFRESH',accountId:'TEST_ONLY_ACCOUNT',connectionId:'subscription-connection',expiresAt:Date.now()+3600000},settings:{modelId:'subscription-model'}}),session=storage();
  const requests=[],messages=[],registrations=[],network={status:200,body:'',gate:null,translationGate:null},root='chrome-extension://test/';
- const chrome={storage:{local,session},i18n:mockI18n('en'),runtime:{id:'test',getURL:p=>root+p,onMessage:event(),onInstalled:event(),onStartup:event()},
+ const chrome={storage:{local,session},i18n:mockI18n('en'),runtime:{id:'test',getURL:p=>root+p,onConnect:event(),onMessage:event(),onInstalled:event(),onStartup:event()},
   sidePanel:{setOptions:async()=>{}},alarms:{clear:async()=>{},create:async()=>{},onAlarm:event()},
   tabs:{onUpdated:event(),onRemoved:event(),query:async()=>[{id:1,url:'https://example.test/'}],get:async id=>({id,url:'https://example.test/'}),remove:async()=>{},sendMessage:async(id,message)=>{messages.push(message);return {};},create:async()=>({id:2}),update:async()=>{}},
   permissions:{contains:async()=>true,getAll:async()=>({origins:['https://api.openai.com/*','https://api.anthropic.com/*','https://chatgpt.com/*','https://auth.openai.com/*','https://example.test/*']}),onAdded:event(),onRemoved:event()},
@@ -35,7 +35,7 @@ async function harness(){
   }
   throw Error('Unexpected endpoint');
  };
- const context=vm.createContext({chrome,fetch:fetcher,crypto,URL,URLSearchParams,TextEncoder,TextDecoder,AbortController,AbortSignal,DOMException,atob,btoa,setTimeout,clearTimeout,setInterval:()=>0,console});
+ const context=vm.createContext({chrome,navigator,fetch:fetcher,crypto,URL,URLSearchParams,TextEncoder,TextDecoder,AbortController,AbortSignal,DOMException,atob,btoa,setTimeout,clearTimeout,setInterval:()=>0,console});
  const modules=new Map();async function load(url){if(!modules.has(url.href))modules.set(url.href,readFile(url,'utf8').then(code=>new vm.SourceTextModule(code,{context,identifier:url.href})));return modules.get(url.href);}
  const worker=await load(new URL('../extension/background.mjs',import.meta.url));await worker.link((specifier,parent)=>load(new URL(specifier,parent.identifier)));await worker.evaluate();
  const ui={id:'test',url:root+'popup.html'},content={id:'test',url:'https://example.test/',tab:{id:1,url:'https://example.test/'},frameId:0,documentId:'document'};
