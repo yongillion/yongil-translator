@@ -1,16 +1,16 @@
 # Chrome Web Store privacy fields
 
-Prepared from the current source on 2026-10-16. Copy the field text below into the dashboard after reviewing the release package. This document does not itself submit or certify dashboard declarations.
+Prepared from the current source on 2026-10-18. Copy the field text below into the dashboard after reviewing the release package. This document does not itself submit or certify dashboard declarations.
 
 ## Single purpose
 
-Translate user-selected webpage text, blocks, or pages into the user's preferred language through their connected ChatGPT subscription, and let the user restore the original page text.
+Translate user-selected webpage text, blocks, or pages into the user's preferred language through their selected ChatGPT subscription or OpenAI API key, and let the user restore the original page text.
 
 ## Permission justifications
 
 ### storage
 
-Stores user preferences, the connected account's OAuth session, and its model list locally. Temporary sign-in state uses session storage. Developer mode, off by default, additionally retains translation request/response text and diagnostic events locally (default 4,000 entries, configurable from 1 to 1,000,000, within the remaining default local storage quota shared with preferences and credentials). 64 KiB is reserved for settings and token updates; no unlimitedStorage permission is requested. Credential and diagnostic storage is restricted to trusted extension contexts. Settings exports exclude credentials and logs. Clear logs deletes diagnostic history; disabling recording or clearing the document translation cache does not delete it.
+Stores user preferences, the connected account's OAuth session, user-supplied API key, selected connection method, and model preferences locally. Temporary sign-in state uses session storage. Developer mode, off by default, additionally retains translation request/response text and diagnostic events locally (default 4,000 entries, configurable from 1 to 1,000,000, within the remaining default local storage quota shared with preferences and credentials). 64 KiB is reserved for settings and token updates; no unlimitedStorage permission is requested. Credential and diagnostic storage is restricted to trusted extension contexts. Settings exports exclude credentials and logs. Clear logs deletes diagnostic history; disabling recording or clearing the document translation cache does not delete it.
 
 ### scripting
 
@@ -36,6 +36,10 @@ Displays opt-in developer diagnostics beside the webpage. The LOG button opens t
 
 Authenticates the user's ChatGPT account, exchanges and refreshes OAuth tokens, and retrieves the public signing keys used to verify identity tokens. The user's password is entered on OpenAI's sign-in page and is not read by the extension.
 
+### https://api.openai.com/*
+
+Validates the user-supplied API key, retrieves API models, and submits translations to the public Responses API when the user selects API mode. Keys are sent only in the Authorization header to this fixed origin, with cookies omitted and redirects rejected. The key is never sent to a developer proxy or subscription backend. API usage is billed separately; no automatic provider fallback occurs.
+
 ### https://chatgpt.com/*
 
 Requests the connected account's available model list and submits translation requests directly to the subscription service. Requests contain text chosen for translation, the selected model and target language, and enabled custom instructions. Returned text is treated as data, not executable code.
@@ -57,7 +61,7 @@ Do not declare that no user data is handled. Google requires disclosure even for
 | Category | Handling in this extension |
 |---|---|
 | Personally identifiable information | Account email and account identifiers are obtained through authentication and retained locally. Selected webpage text may also include identifying information. |
-| Authentication information | OAuth authorization codes and access/refresh/identity tokens are processed. Passwords and browser cookies are not read by the extension. |
+| Authentication information | OAuth authorization codes, access/refresh/identity tokens, and user-supplied OpenAI API keys are processed. Passwords and browser cookies are not read by the extension. |
 | Website content | Text deliberately chosen for page, block, or selection translation is sent to OpenAI, including configured retries. Originals and results are held in document memory. Opt-in developer diagnostics separately retain copies of request and response text in local extension storage until cleared or evicted. |
 | Web history / browsing activity | Current tab/frame URLs and navigation events are inspected locally for access, document lifetime, and sign-in. No stored browser-history API or browsing log is used. |
 | User activity | Pointer, click, selection, and shortcut events are handled locally to operate translation. No interaction telemetry is sent to a developer server. |

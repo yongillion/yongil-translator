@@ -1,8 +1,8 @@
 {
-  "date": "2026-10-17",
+  "date": "2026-10-18",
   "version": "0.1.0",
   "automatedTests": {
-    "passed": 182,
+    "passed": 198,
     "failed": 0,
     "suites": [
       {
@@ -22,7 +22,7 @@
       },
       {
         "name": "ui-state",
-        "passed": 34,
+        "passed": 38,
         "failed": 0
       },
       {
@@ -49,18 +49,23 @@
         "name": "logs-ui",
         "passed": 7,
         "failed": 0
+      },
+      {
+        "name": "api-connection",
+        "passed": 12,
+        "failed": 0
       }
     ],
     "environment": "Local Node VM module runner; mocked browser APIs and provider transport"
   },
   "syntax": {
-    "syntaxFiles": 15
+    "syntaxFiles": 16
   },
   "package": {
     "file": "../dist/yongil-translator-0.1.0.zip",
-    "files": 31,
-    "bytes": 209426,
-    "sha256": "dfc1126523d73914ba972e9a63959b225230d776fb5c28b4c2fd332ea3359c4a",
+    "files": 32,
+    "bytes": 225900,
+    "sha256": "b10fdc4017fbdafd0693705c9f650277d5a69236e2d933e62f6fe8c611558db8",
     "archiveContentsMatchSource": true,
     "containsStoreFixtures": false
   },
@@ -72,7 +77,7 @@
   "browser": {
     "actualScreenshots": false,
     "liveAccountVerification": false,
-    "reason": "The 2026-10-17 browser inventory returned no connected apps or browsers. LOG toggling now handles Chromium side-panel contexts with windowId -1; the regression fails with the previous code and passes with the fix. Native side-panel behavior, quota handling, and the toolbar close control still require actual browser verification. Automated checks use mock browser APIs and provider transport; Luna JSON recovery also uses offline replay of the supplied response."
+    "reason": "The 2026-10-18 browser inventory returned no connected apps or browsers. Subscription/API connection UI, provider isolation, API credentials, model discovery, and translation are covered by mocked tests; live browser behavior remains unverified."
   },
   "publication": {
     "uploaded": false,
@@ -80,5 +85,10 @@
     "privacyHosted": false,
     "providerRouteSupportConfirmed": false
   },
-  "diffWhitespaceCheck": "passed"
+  "diffWhitespaceCheck": "passed",
+  "api": {
+    "liveAuthenticationVerified": false,
+    "liveTranslationVerified": false,
+    "reason": "A model-discovery request was attempted with a user-supplied key held only in memory. The execution environment denied outbound network access with EACCES. No live key, email, or account data is included in source, test fixtures, diagnostics, or release files."
+  }
 }

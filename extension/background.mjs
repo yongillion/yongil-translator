@@ -1,12 +1,24 @@
 import {t,configureLanguage,localeData} from './lib/i18n.mjs';
 import {defaults,sanitizeSettings,migrateSettings,fingerprint} from './lib/settings.mjs';
 import {AppError,RequestQueue,validateBlocks} from './lib/protocol.mjs';
-import {storageReady,authStatus,startLogin,cancelLogin,signOut,observeLogin,watchLogin} from './lib/auth.mjs';
+import {storageReady,authStatus,startLogin,cancelLogin,signOut,observeLogin,watchLogin,selectedProvider,selectProvider,connectAPI} from './lib/auth.mjs';
 import {models,translate} from './lib/provider.mjs';
 import {developerLog} from './lib/logger.mjs';
 
 const queue=new RequestQueue(defaults().maxConcurrentBatches),jobs=new Map();
 const contentFiles=['document-core.js','selection-ui.js','content.js'];
+let connectionChanges=Promise.resolve();
+function changeConnection(fn){
+ const change=connectionChanges.catch(()=>{}).then(async()=>{
+  queue.cancel('');jobs.clear();await broadcast('job.stop');
+  const previous=await selectedProvider(),s=await settings(),{providerModels={}}=await chrome.storage.local.get('providerModels');
+  const saved={...providerModels,[previous]:s.modelId};
+  const result=await fn(),provider=await selectedProvider();
+  await chrome.storage.local.set({providerModels:saved});
+  if(previous!==provider)await saveSettings({modelId:saved[provider]||''});
+  return result;
+ });connectionChanges=change;return change;
+}
 const settingsReady=storageReady.then(async()=>{
  const {settings:stored}=await chrome.storage.local.get('settings');
  if(stored&&stored.blockShortcutDefaultVersion!==3)await chrome.storage.local.set({settings:migrateSettings(stored,defaults(chrome.i18n.getUILanguage()))});
@@ -32,7 +44,7 @@ async function saveSettings(patch){
 }
 async function registerScripts(){
  const {origins=[]}=await chrome.permissions.getAll();
- const matches=origins.filter(x=>/^https?:\/\//.test(x)&&!['https://auth.openai.com/*','https://chatgpt.com/*'].includes(x));
+ const matches=origins.filter(x=>/^https?:\/\//.test(x)&&!['https://auth.openai.com/*','https://chatgpt.com/*','https://api.openai.com/*'].includes(x));
  await chrome.scripting.unregisterContentScripts({ids:['translator']}).catch(()=>{});
  if(matches.length)await chrome.scripting.registerContentScripts([{id:'translator',matches,js:contentFiles,runAt:'document_idle',allFrames:true,persistAcrossSessions:true}]);
 }
@@ -83,7 +95,7 @@ async function route(message,sender){
  if(logUI&&!['settings.get','logs.get','logs.clear'].includes(message.type))throw new AppError('SENDER','requestDenied');
  if(!['settings.get','auth.status','page.status','job.ping','content.init','logs.get','log.event'].includes(message.type))developerLog.add('action',{type:message.type,tabId:sender.tab?.id,frameId:sender.frameId});
  switch(message.type){
-  case 'settings.get':return settings();
+  case 'settings.get':await connectionChanges.catch(()=>{});return settings();
   case 'logs.get':if(!ui&&!logUI)throw new AppError('SENDER','extensionOnly');return developerLog.snapshot();
   case 'logs.clear':if(!ui&&!logUI)throw new AppError('SENDER','extensionOnly');await developerLog.clear();return {};
   case 'log.event':{
@@ -94,6 +106,7 @@ async function route(message,sender){
   case 'content.init':if(!content)throw new AppError('SENDER','notDocument');return {settings:await settings(),locale:localeData()};
   case 'job.begin':{
    if(!content)throw new AppError('SENDER','notDocument');
+   await connectionChanges.catch(()=>{});
    const s=await contentAllowed(sender),auth=await authStatus();
    if(auth.state!=='connected')throw new AppError('AUTH_REQUIRED','connectAccountFirst');
    if(!s.modelId)throw new AppError('MODEL_REQUIRED','selectModelPopup');
@@ -126,13 +139,17 @@ async function route(message,sender){
  }
  if(!ui)throw new AppError('SENDER','extensionOnly');
  switch(message.type){
-  case 'settings.update':return saveSettings(message.patch);
+  case 'settings.update':
+   if(message.patch?.modelId!==undefined&&message.connectionId&&(await authStatus()).connectionId!==message.connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');
+   return saveSettings(message.patch);
   case 'settings.reset':return saveSettings(defaults(chrome.i18n.getUILanguage()));
-  case 'auth.status':return authStatus();
-  case 'auth.start':queue.cancel('');jobs.clear();return startLogin();
-  case 'auth.cancel':await cancelLogin();return authStatus();
-  case 'auth.signOut':queue.cancel('');jobs.clear();await signOut();await broadcast('job.stop');return {};
-  case 'models.list':return models(!!message.force);
+  case 'auth.status':await connectionChanges.catch(()=>{});return authStatus();
+  case 'auth.start':return changeConnection(()=>startLogin());
+  case 'auth.cancel':return changeConnection(async()=>{await cancelLogin();return authStatus();});
+  case 'auth.signOut':return changeConnection(async()=>{await signOut();return {};});
+  case 'auth.provider':return changeConnection(()=>selectProvider(message.provider));
+  case 'auth.apiKey':return changeConnection(()=>connectAPI(message.apiKey));
+  case 'models.list':await connectionChanges.catch(()=>{});return models(!!message.force);
   case 'options.open':await chrome.runtime.openOptionsPage();return {};
   case 'cache.clear':await broadcast('cache.clear');return {};
   case 'page.activate':case 'page.translate':case 'page.restore':case 'page.select':case 'page.stop':case 'page.retry':case 'page.status':

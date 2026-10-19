@@ -6,13 +6,13 @@ Yongil Translator
 
 ## Short description
 
-Translate webpages, blocks, and selected text with your ChatGPT subscription. Restore originals whenever you need.
+Translate webpages with a ChatGPT subscription or OpenAI API key. Restore original text anytime.
 
 ## Detailed description
 
-Read webpages in your preferred language with Yongil Translator. Translate an entire page, individual blocks, or selected text using your connected ChatGPT subscription account.
+Read webpages in your preferred language with Yongil Translator. Translate an entire page, individual blocks, or selected text using your connected ChatGPT subscription account or your own OpenAI API key.
 
-A compatible ChatGPT subscription account and available model access are required. Translation consumes the connected account's usage allowance and is subject to its limits. The extension is free and open source; it does not include a ChatGPT subscription. No API key or companion application is required by this version.
+Choose a compatible ChatGPT subscription account or an OpenAI API key with model access and available quota. Subscription mode consumes the account's usage allowance; API mode is billed separately by OpenAI. The extension is free and open source and does not include a subscription or API credits. No companion application is required. Switch methods in the connection card; there is no automatic fallback between billing methods.
 
 TRANSLATE YOUR WAY
 
@@ -46,7 +46,7 @@ CONTROL AND PRIVACY
 
 Choose access for the current site only or all HTTP/HTTPS sites. Translation requires site access and an explicit translation action. Selecting text alone does not send it for translation.
 
-The extension sends text chosen for translation and enabled custom instructions directly to OpenAI, including configured retries that can consume additional usage. Authentication credentials and settings are stored locally in extension storage. Translation results and originals are cached in the current document's memory; reloading the page clears that cache. Optional developer mode also retains copies of request/response text locally (default 4,000 entries, configurable from 1 to 1,000,000, within the remaining default local storage quota); Clear logs deletes that history. Authentication tokens are excluded from logs. The extension has no developer-operated proxy, advertising, or analytics.
+The extension sends text chosen for translation and enabled custom instructions directly to OpenAI, including configured retries that can consume additional usage. Authentication credentials and settings are stored locally in extension storage. Translation results and originals are cached in the current document's memory; reloading the page clears that cache. Optional developer mode also retains copies of request/response text locally (default 4,000 entries, configurable from 1 to 1,000,000, within the remaining default local storage quota); Clear logs deletes that history. Authentication tokens and API keys are excluded from logs. The extension has no developer-operated proxy, advertising, or analytics.
 
 LIMITATIONS
 
@@ -63,6 +63,6 @@ Source and support: https://github.com/yongillion/yongil-translator
 - Website: https://github.com/yongillion/yongil-translator
 - Support: https://github.com/yongillion/yongil-translator/issues
 - Privacy: https://github.com/yongillion/yongil-translator/blob/main/PRIVACY.md
-- Extension price: Free; disclose the external ChatGPT subscription requirement above.
+- Extension price: Free; disclose the external subscription or API usage requirement above.
 
 The URLs must be accessible without signing in after the release files are pushed. They are intended destinations, not a claim that this local revision has been published.

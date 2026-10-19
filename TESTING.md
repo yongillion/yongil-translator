@@ -1,25 +1,30 @@
 # Verification Record
 
-Review date: 2026-10-17
+Review date: 2026-10-18
 
 ## Completed checks
 
 - Unit and regression tests: **46 passed**
 - Mock service-worker integration tests: **26 passed**
 - Page-job and block-interaction regression tests: **31 passed**
-- UI state tests with mock DOM and browser APIs: **34 passed**
+- UI state tests with mock DOM and browser APIs: **38 passed**
 - Localization catalog and preference tests: **8 passed**
 - Selected-text popup regression tests: **6 passed**
 - Page-toolbar progress and action tests: **4 passed**
 - Retry and diagnostic-storage tests: **20 passed**
 - Log side-panel UI tests: **7 passed**
-- Extension JavaScript syntax checks: **15 files passed**
+- API connection and provider-isolation tests: **12 passed**
+- Extension JavaScript syntax checks: **16 files passed**
 - Brand PNG icon visual inspection: 128px output reviewed
 - ZIP packaging: verified the installation file list and included manifest and icons
 
 Tests ran in a local JavaScript execution environment. They do not replace actual extension E2E tests using a browser DOM or tests with a real provider account. Provider transport, browser APIs, accounts, and tokens are mocked. Response fixtures include a replay of the user-reported public-text translation failure, with account identifiers and provider metadata excluded.
 
 Key coverage:
+
+- Subscription/API selection before connection, masked key submission and immediate field clearing, failed verification, key replacement/disconnection, separate model preferences, first-model selection, unchanged site-permission gates, and English/Korean billing/status/error labels
+- Fixed public API origin, cookie-free requests with redirects rejected, strict JSON schema and streamed Responses output, no subscription headers in API requests, separate connection/cache identities, cancellation on provider changes, serialized connection changes, and rejection of stale model writes
+- Trusted-context-only API credential storage, no keys in status/settings/model results or exports, rejected content/log-panel credential actions, no OAuth refresh for API 401 errors, quota/rate/access errors, and redaction/omission of provider errors that echo keys
 
 - Standard PKCE test vector, exact callback address and state, signature, issuer, audience, expiration, and nonce
 - Rejection of malformed translation structures, missing or duplicate IDs, and incomplete or failed streams
@@ -63,6 +68,8 @@ The regression fixture in `tests/fixtures/luna-extra-closers.json` replays that 
 On 2026-10-17, the user reported that clicking LOG again did not close an open panel. The previous implementation filtered runtime contexts by the browser window ID, but Chromium reports `windowId: -1` for side-panel contexts. The previous mock incorrectly supplied a real window ID. A regression using Chromium's return shape fails with the previous code and passes with the corrected discovery logic. This reproduces the faulty state detection offline; live browser verification remains pending.
 
 ## Checks not yet completed
+
+On 2026-10-18, a live API model-discovery check was attempted with a user-supplied key held only in process memory. The execution environment rejected network access with `EACCES`; the key was not written to source, tests, logs, or packages. The browser inventory returned no connected apps or browsers. Live API authentication, billing/quota availability, model access, translation, and browser rendering are therefore unverified. The API regression suite uses synthetic credentials and a mocked transport, not the supplied key.
 
 | Item | Status and reason |
 |---|---|
@@ -120,7 +127,7 @@ The raw execution results are stored in [test-results.json](test-results.json).
 
 ## Store preparation checks
 
-All 182 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
+All 198 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
 
 ## Page toolbar progress
 
@@ -129,3 +136,7 @@ The real toolbar rendering and job functions are exercised with mock DOM/browser
 The latest computer-use inventory still has no connected browser. LOG toggling has been verified with mock browser APIs, including the older-Chromium close fallback, but requires live browser verification. Native side-panel behavior and the updated circular toolbar close button remain pending actual Chrome visual verification.
 
 The toggle uses [runtime.getContexts](https://developer.chrome.com/docs/extensions/reference/api/runtime#method-getContexts) to discover log side-panel documents without a window filter. [Chromium's runtime regression test](https://chromium.googlesource.com/chromium/src/+/cc748d4034cf809a90bead06f9f9dcabd0dbbaf5/chrome/browser/extensions/api/runtime/runtime_apitest.cc) records `windowId: -1` for these contexts. A trusted status message asks the panel to identify its owning window and visibility; regular tabs displaying the log page do not answer. State is resolved before the LOG button is enabled so opening remains within the click gesture. Closing uses [sidePanel.close](https://developer.chrome.com/docs/extensions/reference/api/sidePanel#method-close) when available (Chrome 141+) and a trusted, window-scoped message to the panel otherwise. Lifecycle events are optional; polling also detects manual closure or hidden panels.
+
+## API verification procedure
+
+After reloading the unpacked extension, choose OpenAI API in the connection card and enter a test key privately. Confirm verification clears the field, selects the first model when no API preference exists, and still requires website access. Translate public fixture text, restore it, and check the document cache. Switch between subscription and API during an active request; old results must not apply and model choices must remain separate. Check key replacement, rejected/restricted keys, insufficient quota, API rate limits, and Disconnect. Verify request headers and credentials never appear in the developer log or exported settings. API usage is separately billed; use a short public fixture and a small request count. Keep all screenshots in English and omit credentials/account identifiers.

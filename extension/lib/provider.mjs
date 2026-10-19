@@ -2,19 +2,25 @@ import {t} from './i18n.mjs';
 import {getAuth} from './auth.mjs';
 import {AppError,readResponseStream,parseTranslation,validateBlocks} from './protocol.mjs';
 import {developerLog} from './logger.mjs';
+import {API_BASE,apiError,apiModels,translationFormat} from './api.mjs';
 const BASE='https://chatgpt.com/backend-api/codex';
-function headers(auth){return {'Authorization':'Bearer '+auth.accessToken,'ChatGPT-Account-Id':auth.accountId,'originator':'codex_cli_rs','Content-Type':'application/json','Accept':'text/event-stream'};}
-async function request(path,options={},signal,trace={}){
+function headers(auth){return {'Authorization':'Bearer '+(auth.provider==='api'?auth.apiKey:auth.accessToken),...(auth.provider==='api'?{}:{'ChatGPT-Account-Id':auth.accountId,'originator':'codex_cli_rs'}),'Content-Type':'application/json','Accept':'text/event-stream'};}
+async function request(path,options={},signal,trace={},connectionId){
  let auth=await getAuth();let r;
+ const api=auth.provider==='api';let errorBody;
  for(let attempt=0;attempt<2;attempt++){
+  if(connectionId&&auth.connectionId!==connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');
+  if((auth.provider==='api')!==api)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');
   developerLog.add('http.request',{...trace,path,method:options.method||'GET',authRetry:attempt,payload:options.body?JSON.parse(options.body):undefined});
-  try{r=await fetch(BASE+path,{...options,headers:{...headers(auth),...options.headers},credentials:'omit',signal});}
+  try{r=await fetch((api?API_BASE:BASE)+path,{...options,headers:{...headers(auth),...options.headers},credentials:'omit',redirect:'error',signal});}
   catch(e){developerLog.add('http.error',{...trace,path,reason:signal?.aborted?'aborted':'network'},'error');if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw new AppError('NETWORK','translationNetwork');}
-  developerLog.add('http.response',{...trace,path,status:r.status,...(!r.ok?{body:await r.text?.().catch(()=>undefined)}:{})},r.ok?'info':'warn');
-  if(r.status!==401||attempt===1)break;
+  errorBody=!r.ok?await r.text?.().catch(()=>undefined):undefined;
+  developerLog.add('http.response',{...trace,path,status:r.status,...(!r.ok?{body:api?'[Provider error body omitted to protect API credentials]':errorBody}:{})},r.ok?'info':'warn');
+  if(api||r.status!==401||attempt===1)break;
   auth=await getAuth(true);
  }
  if(!r.ok){
+  if(api)throw apiError(r.status,errorBody);
   if(r.status===429)throw new AppError('USAGE_LIMIT','usageLimit');
   if(r.status===408)throw new AppError('TIMEOUT','translationTimeout');
   if(r.status===401)throw new AppError('AUTH_REQUIRED','authReconnect');
@@ -28,14 +34,15 @@ export async function models(force=false){
  const auth=await getAuth();const {modelCache}=await chrome.storage.local.get('modelCache');
  if(!force&&modelCache?.connectionId===auth.connectionId&&modelCache.time>Date.now()-3600000)return {...modelCache,stale:false};
  try{
-  const r=await request('/models?client_version=1.0.0',{headers:{Accept:'application/json'}},AbortSignal.timeout(25000));
+  const r=await request(auth.provider==='api'?'/models':'/models?client_version=1.0.0',{headers:{Accept:'application/json'}},AbortSignal.timeout(25000),{provider:auth.provider||'subscription'},auth.connectionId);
   const data=await r.json();const rows=Array.isArray(data)?data:data.models||data.data;
   developerLog.add('models.response',{data});await developerLog.flush();
   if(!Array.isArray(rows))throw new AppError('MODELS','modelListFormat');
-  const items=rows.filter(x=>x&&x.visibility!=='hidden'&&x.show_in_picker!==false).map(x=>({id:String(x.slug||x.id||''),name:String(x.display_name||x.name||x.slug||x.id||'')})).filter(x=>x.id&&x.id.length<=160);
+  const items=auth.provider==='api'?apiModels(data):rows.filter(x=>x&&x.visibility!=='hidden'&&x.show_in_picker!==false).map(x=>({id:String(x.slug||x.id||''),name:String(x.display_name||x.name||x.slug||x.id||'')})).filter(x=>x.id&&x.id.length<=160);
   if(!items.length)throw new AppError('MODELS','modelListEmpty');
+  if((await getAuth()).connectionId!==auth.connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');
   const cache={items,connectionId:auth.connectionId,time:Date.now()};await chrome.storage.local.set({modelCache:cache});return {...cache,stale:false};
- }catch(e){if(modelCache?.connectionId===auth.connectionId)return {...modelCache,stale:true,warning:e.message};throw e;}
+ }catch(e){if(modelCache?.connectionId===auth.connectionId&&!['AUTH_REQUIRED','ACCESS','ACCOUNT_CHANGED'].includes(e.code))return {...modelCache,stale:true,warning:e.message};throw e;}
 }
 export async function translate(blocks,settings,connectionId,signal){
  validateBlocks(blocks);
@@ -56,14 +63,15 @@ export async function translate(blocks,settings,connectionId,signal){
  for(let attempt=0;attempt<=maxRetries;attempt++){
   if(signal?.aborted)throw new DOMException('Aborted','AbortError');
   const current=await getAuth();if(current.connectionId!==connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');
-  const trace={requestId,model:settings.modelId,attempt:attempt+1,maxAttempts:maxRetries+1};
+  const trace={requestId,provider:auth.provider||'subscription',model:settings.modelId,attempt:attempt+1,maxAttempts:maxRetries+1};
   const controller=new AbortController(),abort=()=>controller.abort();let timedOut=false;
   signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
   const timer=setTimeout(()=>{timedOut=true;controller.abort();},120000);
   const events=[];let responseLog=null,text;
   try{
    const payload={model:settings.modelId,instructions:instructions+(previousError?.code==='RESULT'?'\nYour previous response did not pass JSON validation. Return one complete JSON object in the exact required schema, with no commentary. Keep every requested block and node exactly once. Do not append any characters after the root object closes.':''),input:[{role:'user',content:[{type:'input_text',text:JSON.stringify({blocks})}]}],store:false,stream:true};
-   const response=await request('/responses',{method:'POST',body:JSON.stringify(payload)},controller.signal,trace);
+   if(auth.provider==='api')payload.text={format:translationFormat};
+   const response=await request('/responses',{method:'POST',body:JSON.stringify(payload)},controller.signal,trace,connectionId);
    responseLog=developerLog.add('translation.response',{...trace,state:'streaming',events});
    try{text=await readResponseStream(response.body,controller.signal,event=>{
     if(!developerLog.enabled)return;
@@ -71,6 +79,7 @@ export async function translate(blocks,settings,connectionId,signal){
    });}catch(e){if(e instanceof AppError||e.name==='AbortError')throw e;throw new AppError('NETWORK','translationNetwork');}
    developerLog.update(responseLog,{...trace,state:'received',text,events});
    if(signal?.aborted)throw new DOMException('Aborted','AbortError');
+   if((await getAuth()).connectionId!==connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');
    let recovery;const result=parseTranslation(text,blocks,detail=>{recovery=detail;});
    if(recovery)developerLog.add('translation.recovered',{...trace,...recovery},'warn');
    developerLog.update(responseLog,{...trace,state:'validated',text,events,...(recovery?{recovery}:{})});

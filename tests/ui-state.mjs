@@ -15,7 +15,7 @@ function element(tag='div',attributes=''){
   append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;},
   getAttribute(name){return attrs[name];},setAttribute(name,value){attrs[name]=value;},removeAttribute(name){delete attrs[name];},scrollIntoView(){},focus(){},click(){}};
 }
-async function harness({options=false,connected=false,permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',developerMode=false,panelWindows=[],nativePanelClose=true,panelEvents=true,items=[{id:'test-model',name:'Test model'}]}={}){
+async function harness({options=false,connected=false,provider='subscription',permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',developerMode=false,panelWindows=[],nativePanelClose=true,panelEvents=true,items=[{id:'test-model',name:'Test model'}]}={}){
  const html=await readFile(new URL('../extension/'+(options?'options':'popup')+'.html',import.meta.url),'utf8');
  const nodes=new Map(),gates=[],all=[];
  for(const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*)>/gi)){
@@ -23,7 +23,7 @@ async function harness({options=false,connected=false,permission=false,url='http
   if(/\bdata-connected-only\b/.test(match[2]))gates.push(el);
  }
  assert.ok(gates.length>0&&gates.every(el=>el.hidden),'Protected UI must start hidden in HTML');
- const status={current:connected?{state:'connected',connectionId:'test-account',email:'user@example.invalid'}:{state:'disconnected'}};
+ const status={current:connected?{state:'connected',provider,connectionId:'test-account',email:'user@example.invalid'}:{state:'disconnected',provider}},api={pending:null,error:null,submissions:0};
  const grants={allowed:permission,result:true,pending:null,requestPending:null,requests:[]};const calls=[];let poll;
  const savedSettings={schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,maxRetries:4,developerMode,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyT'},restoreShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyR'},blockShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:''},cancelShortcut:null};
  const event=()=>({listeners:[],addListener(fn){this.listeners.push(fn);},emit(...args){for(const fn of this.listeners)fn(...args);}});
@@ -38,8 +38,10 @@ async function harness({options=false,connected=false,permission=false,url='http
   if(message.type==='settings.get')data={...savedSettings};
   if(message.type==='settings.update'){Object.assign(savedSettings,message.patch);data={...savedSettings};}
   if(message.type==='auth.status')data={...status.current};
+  if(message.type==='auth.provider'){status.current={state:'signed_out',provider:message.provider};savedSettings.modelId='';}
+  if(message.type==='auth.apiKey'){api.submissions++;if(api.pending)await api.pending;if(api.error)return {ok:false,error:{message:api.error}};status.current={state:'connected',provider:'api',connectionId:'api-test'};}
   if(message.type==='auth.start')status.current={state:'signing_in'};
-  if(message.type==='auth.cancel'||message.type==='auth.signOut')status.current={state:'disconnected'};
+  if(message.type==='auth.cancel'||message.type==='auth.signOut')status.current={state:'disconnected',provider:status.current.provider};
   if(message.type==='models.list')data={items};
   if(message.type==='page.status')data={total:0,running:false,frames:[]};
   return {ok:true,data};}},tabs:{query:async()=>[{id:1,url}],create:async()=>{}},
@@ -58,12 +60,39 @@ async function harness({options=false,connected=false,permission=false,url='http
   if(!modules.has(name))modules.set(name,readFile(new URL('../extension/lib/'+name,import.meta.url),'utf8').then(source=>new vm.SourceTextModule(source,{context,identifier:name})));
   return modules.get(name);
  });await entry.evaluate();
- return {nodes,gates,status,grants,calls,body,chrome,savedSettings,document,all,panels,poll:()=>poll(),click:id=>nodes.get(id).emit('click')};
+ return {nodes,gates,status,grants,calls,body,chrome,savedSettings,document,all,panels,api,poll:()=>poll(),click:id=>nodes.get(id).emit('click')};
 }
 export async function uiStateTests(){
  const results=[];async function test(name,fn){try{await fn();results.push({name,passed:true});}catch(e){results.push({name,passed:false,error:e.stack||e.message});}}
  await test('Signed-out popup and options hide connected-only controls',async()=>{
   for(const options of [false,true]){const h=await harness({options});assert.ok(h.gates.every(el=>el.hidden));assert.equal(h.nodes.get('login').hidden,false);assert.equal(h.body.dataset.connected,'false');assert.ok(!h.calls.includes('models.list'));if(!options)assert.equal(h.nodes.get('permission-card').hidden,true);}
+ });
+ await test('Signed-out users can choose API, submit a masked key, and select the first returned model',async()=>{
+  for(const options of [false,true]){
+   const h=await harness({options,permission:true,modelId:'subscription-model',uiLanguage:'en'});
+   await h.click('use-api');assert.equal(h.nodes.get('login').hidden,true);assert.equal(h.nodes.get('api-key-form').hidden,false);assert.equal(h.nodes.get('use-api').getAttribute('aria-pressed'),'true');
+   assert.ok(h.gates.every(el=>el.hidden));const input=h.nodes.get('api-key');assert.equal(input.getAttribute('type'),'password');assert.equal(input.getAttribute('autocomplete'),'off');
+   input.value='sk-TEST_ONLY_NOT_REAL';await h.nodes.get('api-key-form').emit('submit',{preventDefault(){}});
+   assert.equal(input.value,'');assert.equal(h.api.submissions,1);assert.equal(h.savedSettings.modelId,'test-model');assert.equal(h.body.dataset.connected,'true');
+   assert.equal(h.nodes.get('api-key-form').hidden,true);assert.equal(h.nodes.get('account-title').textContent,catalogs.en.apiConnected.message);assert.equal(h.nodes.get('usage-link').href,'https://platform.openai.com/usage');
+   assert.ok(!JSON.stringify(h.savedSettings).includes('sk-TEST_ONLY'));assert.equal(h.nodes.get('connection-note').textContent,catalogs.en.apiBillingNote.message);
+  }
+ });
+ await test('API connection still requires site access before popup translation controls appear',async()=>{
+  const h=await harness({provider:'api',connected:true,permission:false});assert.equal(h.nodes.get('account-card').hidden,true);assert.equal(h.nodes.get('permission-card').hidden,false);assert.ok(h.gates.every(el=>el.hidden));
+  await h.click('allow-site');await tick();assert.equal(h.nodes.get('account-card').hidden,false);assert.equal(h.nodes.get('translate').disabled,false);assert.equal(h.nodes.get('account-title').textContent,catalogs.ko.apiConnected.message);
+ });
+ await test('Key verification prevents duplicate submissions and failures leave the empty form usable',async()=>{
+  const h=await harness({provider:'api'});let release;h.api.pending=new Promise(resolve=>{release=resolve;});h.api.error='Key rejected';
+  h.nodes.get('api-key').value='sk-TEST_ONLY_NOT_REAL';const pending=h.nodes.get('api-key-form').emit('submit',{preventDefault(){}});await tick();
+  assert.equal(h.nodes.get('connect-api').disabled,true);assert.equal(h.nodes.get('use-subscription').disabled,true);assert.equal(h.nodes.get('api-key').value,'');
+  await h.nodes.get('api-key-form').emit('submit',{preventDefault(){}});assert.equal(h.api.submissions,1);release();await pending;
+  assert.equal(h.nodes.get('connect-api').disabled,false);assert.equal(h.nodes.get('api-key-form').hidden,false);assert.equal(h.nodes.get('feedback').textContent,'Key rejected');
+ });
+ await test('Connected API users can replace the key or switch to subscription without prefilling credentials',async()=>{
+  const h=await harness({options:true,connected:true,provider:'api'});await h.click('replace-api-key');assert.equal(h.nodes.get('api-key-form').hidden,false);assert.equal(h.nodes.get('api-key').value,'');
+  h.nodes.get('api-key').value='sk-TEST_ONLY_NOT_REAL';await h.click('use-subscription');assert.equal(h.nodes.get('api-key').value,'');assert.equal(h.nodes.get('api-key-form').hidden,true);assert.equal(h.nodes.get('login').hidden,false);
+  assert.equal(h.nodes.get('usage-link').href,'https://chatgpt.com/codex/settings/usage');assert.ok(h.gates.every(el=>el.hidden));
  });
  await test('Developer mode shows a log icon and opens the native side panel directly on click',async()=>{
   const normal=await harness();assert.equal(normal.nodes.get('open-logs').hidden,true);await normal.click('open-logs');assert.equal(normal.chrome.sidePanel.opens.length,0);

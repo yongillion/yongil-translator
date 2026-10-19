@@ -1,9 +1,26 @@
 import {t} from './i18n.mjs';
 import {AppError} from './protocol.mjs';
+import {verifyAPIKey} from './api.mjs';
 import {AUTH_ORIGIN,CLIENT_ID,REDIRECT,randomToken,pkceChallenge,authorizeURL,callbackCode,verifyIdentity} from './oauth.mjs';
 let exchange=null,refreshing=null;
 const local=chrome.storage.local,session=chrome.storage.session;
 export const storageReady=Promise.all([local.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'}),session.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'})]);
+export async function selectedProvider(){await storageReady;return (await local.get('connectionProvider')).connectionProvider==='api'?'api':'subscription';}
+export async function selectProvider(provider){
+ if(!['subscription','api'].includes(provider))throw new AppError('INPUT','connectionProviderInvalid');
+ await storageReady;await cancelLogin();
+ // Invalidate a pending OAuth exchange while preserving an existing subscription.
+ const {auth}=await local.get('auth');await local.set({authEpoch:auth?.connectionId||randomToken(),connectionProvider:provider});
+ await local.remove('modelCache');
+ return authStatus();
+}
+export async function connectAPI(value){
+ await storageReady;
+ if(await selectedProvider()!=='api')throw new AppError('INPUT','connectionProviderInvalid');
+ const {apiKey,items}=await verifyAPIKey(value),connectionId='api:'+randomToken();
+ await local.set({apiAuth:{apiKey,connectionId},modelCache:{items,connectionId,time:Date.now()}});
+ return authStatus();
+}
 async function tokenRequest(fields){
  let r;try{r=await fetch(AUTH_ORIGIN+'/oauth/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:CLIENT_ID,...fields}),credentials:'omit',signal:AbortSignal.timeout(25000)});}
  catch{throw new AppError('AUTH_NETWORK','authNetwork');}
@@ -13,13 +30,18 @@ async function tokenRequest(fields){
 }
 export async function authStatus(){
  await storageReady;
+ if(await selectedProvider()==='api'){
+  const {apiAuth}=await local.get('apiAuth');
+  return {state:apiAuth?'connected':'signed_out',provider:'api',...(apiAuth?{connectionId:apiAuth.connectionId}:{})};
+ }
  const [{auth,authError},{loginAttempt}]=await Promise.all([local.get(['auth','authError']),session.get('loginAttempt')]);
- if(loginAttempt&&loginAttempt.expiresAt>Date.now())return {state:'signing_in'};
- if(!auth)return {state:authError?'reauth_required':'signed_out',message:authError?t(authError.messageKey||'authReconnect',authError.substitutions||[]):''};
- return {state:'connected',email:auth.email||'',accountId:auth.accountId,connectionId:auth.connectionId};
+ if(loginAttempt&&loginAttempt.expiresAt>Date.now())return {state:'signing_in',provider:'subscription'};
+ if(!auth)return {state:authError?'reauth_required':'signed_out',provider:'subscription',message:authError?t(authError.messageKey||'authReconnect',authError.substitutions||[]):''};
+ return {state:'connected',provider:'subscription',email:auth.email||'',accountId:auth.accountId,connectionId:auth.connectionId};
 }
 export async function startLogin(){
  await storageReady;await cancelLogin();
+ if(await selectedProvider()!=='subscription')throw new AppError('INPUT','connectionProviderInvalid');
  const verifier=randomToken(),epoch=randomToken();
  const attempt={verifier,state:randomToken(),nonce:randomToken(),challenge:await pkceChallenge(verifier),expiresAt:Date.now()+300000,epoch,tabId:null,claimed:false};
  await local.set({authEpoch:epoch});await local.remove('authError');
@@ -37,6 +59,7 @@ export async function cancelLogin(expectedState){
  if(loginAttempt?.tabId)await chrome.tabs.remove(loginAttempt.tabId).catch(()=>{});
 }
 export async function signOut(){
+ if(await selectedProvider()==='api'){await local.remove(['apiAuth','modelCache']);return;}
  await storageReady;await local.set({authEpoch:randomToken()});
  await local.remove(['auth','authError','modelCache']);await cancelLogin();
 }
@@ -71,6 +94,10 @@ export async function watchLogin(){
  try{const tab=await chrome.tabs.get(a.tabId);await observeLogin(a.tabId,tab.pendingUrl||tab.url||'');}catch{await cancelLogin();}
 }
 export async function getAuth(force=false){
+ if(await selectedProvider()==='api'){
+  const {apiAuth}=await local.get('apiAuth');if(!apiAuth)throw new AppError('AUTH_REQUIRED','apiKeyRequired');
+  return {...apiAuth,provider:'api'};
+ }
  await storageReady;const {auth}=await local.get('auth');
  if(!auth)throw new AppError('AUTH_REQUIRED','authRequired');
  if(!force&&auth.expiresAt>Date.now()+90000)return auth;

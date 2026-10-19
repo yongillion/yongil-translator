@@ -14,7 +14,8 @@
   ],
   "host_permissions": [
     "https://auth.openai.com/*",
-    "https://chatgpt.com/*"
+    "https://chatgpt.com/*",
+    "https://api.openai.com/*"
   ],
   "optional_host_permissions": [
     "http://*/*",

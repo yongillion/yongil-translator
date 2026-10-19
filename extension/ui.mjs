@@ -5,13 +5,14 @@ import {paintIcons} from './icons.mjs';
 paintIcons();
 const $=id=>document.getElementById(id),isOptions=document.body.classList.contains('options');
 let state,account,tab,windowId,modelResult,recording=null,polling=false,sitePermission=null,permissionRevision=0,requestingAccess=false;
+let connectionBusy=false,editingAPIKey=false;
 const rpc=async(type,data={})=>{const r=await chrome.runtime.sendMessage({type,...data});if(!r?.ok)throw new Error(r?.error?.message||t('connectionCheck'));return r.data;};
 function feedback(message,success=false){
  const target=!isOptions&&account?.state==='connected'&&sitePermission!=='granted'?'permission-feedback':'feedback';
  for(const id of ['feedback','permission-feedback']){const el=$(id);if(!el)continue;el.hidden=!message||id!==target;el.textContent=id===target?message:'';el.classList.toggle('success',success);}
 }
 const action=(id,fn)=>{if($(id))$(id).addEventListener('click',()=>Promise.resolve().then(fn).catch(e=>feedback(e.message)));};
-async function save(patch){state=await rpc('settings.update',{patch});document.documentElement.dataset.theme=state.theme;return state;}
+async function save(patch){state=await rpc('settings.update',{patch,connectionId:account?.connectionId});document.documentElement.dataset.theme=state.theme;return state;}
 function permissionCardView(){
  if(isOptions)return;
  const connected=account?.state==='connected',ready=connected&&sitePermission==='granted';
@@ -31,7 +32,7 @@ function permissionCardView(){
  else $('permission-feedback').hidden=true;
 }
 function setAccount(next){
- const changed=next.state!==account?.state||next.connectionId!==account?.connectionId;
+ const changed=next.state!==account?.state||next.connectionId!==account?.connectionId||next.provider!==account?.provider;
  account=next;
  if(changed){sitePermission=null;permissionRevision++;feedback('');}
  accountView();return changed;
@@ -46,6 +47,17 @@ function accountView(){
  $('account-email').textContent=connected?(account.email||t('connectedSubscription')):busy?t('finishSignIn'):account?.message||t('subscriptionPrompt');
  $('account-dot').classList.toggle('connected',connected);
  $('login').hidden=connected||busy;$('cancel-login').hidden=!busy;$('logout').hidden=!connected;
+ const api=account?.provider==='api';
+ for(const [id,selected]of [['use-subscription',!api],['use-api',api]]){$(id).setAttribute('aria-pressed',String(selected));$(id).disabled=connectionBusy;}
+ $('login').hidden||=api;$('login').disabled=connectionBusy;$('logout').disabled=connectionBusy;
+ $('api-key-form').hidden=!api||connected&&!editingAPIKey;
+ $('api-key').disabled=connectionBusy;$('connect-api').disabled=connectionBusy;
+ $('connect-api').textContent=t(connectionBusy?'apiConnecting':'connectAPI');
+ $('replace-api-key').hidden=!api||!connected||editingAPIKey;$('replace-api-key').disabled=connectionBusy;
+ $('connection-note').textContent=t(api?'apiBillingNote':'subscriptionConnectionNote');
+ $('usage-link').href=api?'https://platform.openai.com/usage':'https://chatgpt.com/codex/settings/usage';
+ if($('usage-note'))$('usage-note').textContent=t(api?'apiUsage':'subscriptionUse');
+ if(api){$('account-title').textContent=t(connected?'apiConnected':'connectAPI');$('account-email').textContent=t(connected?'apiKeySaved':'apiKeyPrompt');}
  $('refresh-models').disabled=!connected||(!isOptions&&sitePermission!=='granted');
 }
 async function loadModels(force=false){
@@ -104,6 +116,25 @@ action('refresh-models',()=>loadModels(true));
 action('login',async()=>{await rpc('auth.start');setAccount(await rpc('auth.status'));await connectedView();});
 action('cancel-login',async()=>{await rpc('auth.cancel');setAccount(await rpc('auth.status'));});
 action('logout',async()=>{await rpc('auth.signOut');setAccount(await rpc('auth.status'));$('model').replaceChildren(new Option(t('connectFirst'),''));feedback(t('disconnectedMessage'),true);});
+async function connectionAction(type,data={}){
+ if(connectionBusy)return;
+ connectionBusy=true;feedback('');accountView();
+ try{
+  await rpc(type,data);editingAPIKey=false;
+  state=await rpc('settings.get');setAccount(await rpc('auth.status'));settingsView();await connectedView();
+ }catch(e){feedback(e.message);}
+ finally{connectionBusy=false;accountView();}
+}
+for(const [id,provider]of [['use-subscription','subscription'],['use-api','api']])action(id,async()=>{
+ if(connectionBusy||(account?.provider||'subscription')===provider)return;
+ $('api-key').value='';await connectionAction('auth.provider',{provider});
+});
+action('replace-api-key',()=>{editingAPIKey=true;accountView();$('api-key').focus();});
+$('api-key-form').addEventListener('submit',event=>{
+ event.preventDefault();if(connectionBusy)return;
+ const apiKey=$('api-key').value.trim();$('api-key').value='';
+ return connectionAction('auth.apiKey',{apiKey});
+});
 action('open-options',()=>rpc('options.open'));
 let logsOpen=false,logsReady=false,logsBusy=false,logsRevision=0;
 function logsButtonView(){
@@ -179,7 +210,7 @@ async function permissionsView(){
  const granted=await chrome.permissions.getAll();
  if(revision!==permissionRevision||account?.state!=='connected')return;
  $('site-list').replaceChildren();
- const optional=granted.origins.filter(x=>!['https://auth.openai.com/*','https://chatgpt.com/*'].includes(x));
+ const optional=granted.origins.filter(x=>!['https://auth.openai.com/*','https://chatgpt.com/*','https://api.openai.com/*'].includes(x));
  for(const origin of optional){const row=document.createElement('div');row.className='row';const name=document.createElement('span');name.textContent=origin;
   const remove=document.createElement('button');remove.className='text-button';remove.textContent=t('clear');remove.addEventListener('click',()=>chrome.permissions.remove({origins:[origin]}).then(permissionsView).catch(e=>feedback(e.message)));row.append(name,remove);$('site-list').append(row);}
  if(!optional.length){const p=document.createElement('small');p.textContent=t('noSitesAllowed');$('site-list').append(p);}
@@ -328,6 +359,6 @@ setInterval(async()=>{
  try{
   await refreshLogsPanel();
   const changed=setAccount(await rpc('auth.status'));
-  if(changed)await connectedView();else await refreshProgress();
+  if(changed){state=await rpc('settings.get');settingsView();await connectedView();}else await refreshProgress();
  }catch{}finally{polling=false;}
 },1500);

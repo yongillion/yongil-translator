@@ -1,6 +1,6 @@
 # Chrome Web Store submission kit
 
-Prepared for Yongil Translator 0.1.0 on 2026-10-16. All screenshot UI and artwork copy are English. Store descriptions are supplied in English and Korean.
+Prepared for Yongil Translator 0.1.0 on 2026-10-18. All screenshot UI and artwork copy are English. Store descriptions are supplied in English and Korean.
 
 A convenience bundle is available at [../dist/chrome-web-store-kit-0.1.0.zip](../dist/chrome-web-store-kit-0.1.0.zip). It includes these materials, the privacy page, and the installable extension ZIP. Upload only the nested extension ZIP to the Package field, not this documentation bundle.
 
@@ -24,7 +24,7 @@ A convenience bundle is available at [../dist/chrome-web-store-kit-0.1.0.zip](..
 
 ## Prepared locally
 
-- English and Korean store text, including subscription and data-transfer disclosure.
+- English and Korean store text, including subscription/API billing and data-transfer disclosure.
 - Permission justifications matched to the current manifest; no activeTab, cookies, history or nativeMessaging permission.
 - Updated privacy notice with retention, recipients, local processing and Limited Use statement; a generated HTML version for hosting.
 - English reviewer instructions covering Alt+T, Alt+R, Alt+click, restoration, caching, site access and configurable concurrency (1–64, default 16).

@@ -3,7 +3,7 @@
     "message": "en"
   },
   "extensionDescription": {
-    "message": "Translate pages and blocks with your ChatGPT subscription, and restore the original text."
+    "message": "Translate webpages with ChatGPT or an OpenAI API key. Restore original text anytime."
   },
   "settings": {
     "message": "Settings"
@@ -45,7 +45,7 @@
     "message": "Refresh"
   },
   "connectFirst": {
-    "message": "Connect your account"
+    "message": "Connect to translate"
   },
   "customInstructions": {
     "message": "Custom instructions"
@@ -177,10 +177,10 @@
     "message": "Save exclusions"
   },
   "accountConnection": {
-    "message": "Account connection"
+    "message": "Translation connection"
   },
   "privacyNote": {
-    "message": "Text selected for translation and your instructions are sent to OpenAI. Translations count toward the connected account’s subscription usage. You can still restore the original text on the current page after disconnecting."
+    "message": "Text selected for translation and your instructions are sent to OpenAI using the selected connection. You can still restore original text after disconnecting."
   },
   "manageSubscriptionUsage": {
     "message": "Manage subscription usage ↗"
@@ -582,7 +582,7 @@
     "message": "This request must come from a webpage."
   },
   "connectAccountFirst": {
-    "message": "Connect your ChatGPT account first."
+    "message": "Connect ChatGPT or an OpenAI API key first."
   },
   "selectModelPopup": {
     "message": "Select a model in the popup."
@@ -705,7 +705,7 @@
     "message": "Developer mode saved."
   },
   "developerModeNote": {
-    "message": "Records translation inputs, instructions, responses, and errors locally. May contain private page text. Authentication tokens are excluded. Keeps recent entries up to your entry limit and the remaining default local storage quota; older entries are removed. Turning this off stops recording; Clear logs deletes the history."
+    "message": "Records translation inputs, instructions, responses, and errors locally. May contain private page text. Authentication tokens and API keys are excluded. Keeps recent entries up to your entry limit and the remaining default local storage quota; older entries are removed. Turning this off stops recording; Clear logs deletes the history."
   },
   "openLogs": {
     "message": "Open developer logs"
@@ -778,5 +778,77 @@
   },
   "maxLogEntriesSaved": {
     "message": "Maximum log entries saved."
+  },
+  "connectionMethod": {
+    "message": "Connection method"
+  },
+  "subscriptionMethod": {
+    "message": "ChatGPT subscription"
+  },
+  "apiMethod": {
+    "message": "OpenAI API"
+  },
+  "connectAPI": {
+    "message": "Connect OpenAI API"
+  },
+  "apiConnected": {
+    "message": "OpenAI API connected"
+  },
+  "apiKeyLabel": {
+    "message": "API key"
+  },
+  "apiKeyPrompt": {
+    "message": "Translate with your own API key"
+  },
+  "apiKeySaved": {
+    "message": "API key saved on this device"
+  },
+  "apiKeyStorageNote": {
+    "message": "Saved only in this browser. Excluded from settings exports and developer logs."
+  },
+  "apiBillingNote": {
+    "message": "API usage is billed separately by OpenAI. ChatGPT subscription usage is not used."
+  },
+  "subscriptionConnectionNote": {
+    "message": "Translations use your connected ChatGPT subscription allowance."
+  },
+  "apiUsage": {
+    "message": "Uses your OpenAI API balance"
+  },
+  "replaceAPIKey": {
+    "message": "Replace API key"
+  },
+  "apiConnecting": {
+    "message": "Checking API key…"
+  },
+  "apiKeyInvalid": {
+    "message": "Enter a valid OpenAI API key starting with sk-."
+  },
+  "apiKeyRequired": {
+    "message": "Connect an OpenAI API key first."
+  },
+  "apiKeyRejected": {
+    "message": "The API key was rejected. Check or replace it in connection settings."
+  },
+  "apiAccessDenied": {
+    "message": "This API key does not have the required permission. Check its project and key permissions."
+  },
+  "apiQuotaExceeded": {
+    "message": "Your API project has insufficient quota. Check OpenAI API billing and spending limits."
+  },
+  "apiRateLimited": {
+    "message": "The API request limit was reached. Wait a moment or lower concurrent requests."
+  },
+  "apiModelRequest": {
+    "message": "This model or request is unavailable for your API project. Refresh the list and choose another model."
+  },
+  "apiModelsEmpty": {
+    "message": "No supported text models were returned. Check your API project access."
+  },
+  "apiConnectionFailed": {
+    "message": "Could not connect to the OpenAI API. Check your network and try again."
+  },
+  "connectionProviderInvalid": {
+    "message": "Choose ChatGPT subscription or OpenAI API."
   }
 }
