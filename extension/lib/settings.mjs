@@ -3,6 +3,7 @@ import {languageLabel} from './languages.mjs';
 export {LANGUAGES,languageLabel} from './languages.mjs';
 export function defaults(locale='en') {
  return {schemaVersion:1,targetLanguage:languageLabel(locale),modelId:'',
+ experimentalFeatures:false,onDeviceAIEnabled:false,
  instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,maxRetries:4,developerMode:false,maxLogEntries:4000,uiLanguage:'auto',
  pageShortcut:{alt:true,shift:false,ctrl:false,meta:false,code:'KeyT'},
  restoreShortcut:{alt:true,shift:false,ctrl:false,meta:false,code:'KeyR'},
@@ -42,6 +43,7 @@ export function sanitizeSettings(input,base=defaults()) {
    case 'maxLogEntries':
      if(!Number.isInteger(value)||value<1||value>1000000)throw new Error(t('maxLogEntriesInvalid'));
      result[key]=value;break;
+   case 'experimentalFeatures':case 'onDeviceAIEnabled':if(typeof value!=='boolean')throw new Error(t('experimentalSettingInvalid'));result[key]=value;break;
    case 'developerMode':if(typeof value!=='boolean')throw new Error(t('developerModeInvalid'));result[key]=value;break;
     case 'instructionsEnabled':if(typeof value!=='boolean')throw new Error(t('instructionsInvalid'));result[key]=value;break;
    case 'blockShortcutDefaultVersion':if(![1,2,3].includes(value))throw new Error(t('settingsVersion'));result[key]=value;break;
@@ -76,3 +78,4 @@ export function shortcutLabel(s) {
  return [...(s.ctrl?['Ctrl']:[]),...(s.alt?['Alt']:[]),...(s.shift?['Shift']:[]),...(s.meta?['⌘']:[]),s.code.replace(/^Key|^Digit/,'')].filter(Boolean).join(' + ');
 }
 export const fingerprint=s=>JSON.stringify([s.sourceLanguage||'',s.targetLanguage,s.modelId,s.instructionsEnabled?s.instructions:'',1]);
+export const experimentalAIEnabled=s=>s?.experimentalFeatures===true&&s?.onDeviceAIEnabled===true;

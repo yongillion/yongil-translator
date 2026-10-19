@@ -17,11 +17,14 @@ Chrome internal pages, extension stores, the browser's PDF viewer, and text insi
 
 ## On-Device AI (experimental)
 
-This option uses the browser-provided Prompt API without an account or API key. Browser names and user-agent brands do not control eligibility. The option starts hidden and appears only when the extension document exposes LanguageModel.availability() and LanguageModel.create(), availability reports available, downloadable, or downloading, and at least one listed target language is supported. Missing APIs, unavailable models, rejected probes, unknown states, and timeouts leave it hidden, including in Google Chrome. Samsung, Edge, and other browsers qualify if their extension contexts expose a compatible API; their actual implementations have not been verified.
+This option uses the browser-provided Prompt API without an account or API key. Browser names and user-agent brands do not control eligibility. The option is hidden until both experimental switches are enabled, then appears only when the extension document exposes LanguageModel.availability() and LanguageModel.create(), availability reports available, downloadable, or downloading, and at least one listed target language is supported. Missing APIs, unavailable models, rejected probes, unknown states, and timeouts leave it hidden, including in Google Chrome. Samsung, Edge, and other browsers qualify if their extension contexts expose a compatible API; their actual implementations have not been verified.
 
-1. Choose **On-Device AI**, then **Open local model tab**.
-2. Click **Prepare local model** in that tab. The browser manages model downloads and device eligibility. Discovery never creates a session or starts a download.
-3. Wait for **You can close this tab**, then close it, grant site access, and select a supported target language. If another language requires a download, return to the model tab and prepare it with another click.
+1. At the bottom of **Settings**, enable **Experimental features**, then **Enable On-Device AI**. Both are off by default and can be configured before connecting an account.
+2. Choose **On-Device AI**, then **Open local model tab**.
+3. Click **Prepare local model** in that tab. The browser manages model downloads and device eligibility. Discovery never creates a session or starts a download.
+4. Wait for **You can close this tab**, then close it, grant site access, and select a supported target language. If another language requires a download, return to the model tab and prepare it with another click.
+
+**Depending on your PC specifications, On-Device AI may be very slow and unstable.** Browser and device reliability varies. Disabling either switch hides the connection method and stops active local translation. Translator API does not require experimental opt-in.
 
 Target languages are checked with the API, including Korean when the browser supports it. Existing saved targets are preserved. Before each request, availability is checked using the same source/target options as session creation, including English instructions and reliably detected source languages. Model rejection of unsupported languages remains authoritative. The UI supports English and Korean independently of model language support.
 
@@ -35,7 +38,7 @@ A visible setup tab provides the user gesture needed for downloads. The `offscre
 
 Translator API is a separate browser translation engine, independent of the Prompt API option. It needs no account or API key. The option starts hidden and appears only when the extension document exposes Translator.availability() and Translator.create() and a probe finds a supported listed language pair. Browser branding is not checked. Probes never create translators or download language packs.
 
-1. Choose **Translator API** and **Open browser translator**.
+1. Choose **Translator API** and **Prepare language packs**.
 2. Select **Source language** and **Target language**, check pair support, and click **Prepare language pack**. These selectors choose the pack to prepare; the translation target remains the one in Settings. Wait for **You can close this tab**, then close it.
 3. Grant site access and choose a supported target language in the popup. Page, block, and selected-text translation use the existing controls and shortcuts.
 4. If a source/target pair needs preparation, its setup tab opens automatically with that pair selected. Click Prepare, then retry translation or the failed blocks. The extension does not download every language pack in advance.

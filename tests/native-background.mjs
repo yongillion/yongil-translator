@@ -26,6 +26,7 @@ async function backgroundHarness(){
  h.chrome.runtime.getContexts=async()=>ports.some(p=>!p.disconnected)?[{documentUrl:'chrome-extension://test/browser-ai.html'}]:[];
  h.chrome.offscreen={createDocument:async args=>{assert.deepEqual(Array.from(args.reasons),['IFRAME_SCRIPTING']);state.hostCreations++;connectHost();}};
  async function prepare(provider){
+  if(provider==='chrome')await h.send({type:'settings.update',patch:{experimentalFeatures:true,onDeviceAIEnabled:true}});
   await h.send({type:'auth.provider',provider});await h.send({type:'settings.update',patch:{modelId:provider==='translator'?'browser-translator':'chrome-gemini-nano',targetLanguage:'한국어',maxRetries:0}});
   const page=portFor(h,provider==='translator'?'translator-runner':'chrome-ai-runner',provider==='translator'?'translator.html':'chrome-ai.html',true);
   page.onMessage.emit({type:'ready',options:provider==='translator'?pair:options});await until(()=>page.sent.some(x=>x.type==='accepted'));
@@ -35,6 +36,15 @@ async function backgroundHarness(){
 }
 export async function nativeBackgroundTests(){
  const results=[];async function test(name,fn){try{await fn();results.push({name,passed:true});}catch(error){results.push({name,passed:false,error:error.stack||error.message});}}
+ await test('Disabling experimental AI cancels hidden inference and clears native readiness',async()=>{
+  for(const key of ['experimentalFeatures','onDeviceAIEnabled']){
+   const h=await backgroundHarness(),page=await h.prepare('chrome');page.disconnect();const job=await h.job();h.state.hold=true;
+   const pending=h.send({type:'job.batch',jobId:job.id,blocks},h.content);await until(()=>h.state.resolve);
+   assert.equal((await h.send({type:'settings.update',patch:{[key]:false}})).ok,true);h.state.resolve();assert.equal((await pending).ok,false);
+   assert.equal((await h.send({type:'auth.status'})).data.state,'signed_out');
+   await h.send({type:'settings.update',patch:{[key]:true}});assert.equal((await h.send({type:'auth.status'})).data.state,'signed_out');assert.equal(h.requests.length,0);
+  }
+ });
  await test('Both native providers continue translating after their preparation tabs close',async()=>{
   for(const provider of ['translator','chrome']){
    const h=await backgroundHarness(),page=await h.prepare(provider);assert.equal(page.sent.find(x=>x.type==='accepted').background,true);

@@ -2,7 +2,7 @@
   "date": "2026-10-19",
   "version": "0.1.0",
   "automatedTests": {
-    "passed": 298,
+    "passed": 308,
     "failed": 0,
     "suites": [
       {
@@ -62,7 +62,7 @@
       },
       {
         "name": "chrome-ai",
-        "passed": 24,
+        "passed": 33,
         "failed": 0
       },
       {
@@ -72,7 +72,7 @@
       },
       {
         "name": "native-background",
-        "passed": 16,
+        "passed": 17,
         "failed": 0
       },
       {
@@ -89,8 +89,8 @@
   "package": {
     "file": "../dist/yongil-translator-0.1.0.zip",
     "files": 50,
-    "bytes": 331069,
-    "sha256": "0acba1fc78e8c7339cb35eba06b21b8c862175aa0c048a0d8b62c0a7cdb09629",
+    "bytes": 338226,
+    "sha256": "504f5149fb4cd5a8ecf67b26f233135231ab39cc1fa8c199201601392bc45e21",
     "archiveContentsMatchSource": true,
     "containsStoreFixtures": false
   },
@@ -103,7 +103,7 @@
     "actualScreenshots": false,
     "liveAccountVerification": false,
     "englishUIPreviewReviewed": true,
-    "reason": "English popup source detection, editable cloud language input, closed native language selects, and prepared-pair status/list removal were reviewed in an isolated in-app browser preview using mocked APIs. Real extension/model execution remains unverified."
+    "reason": "English experimental settings at the end of the signed-out options page, parent/child switches, performance warning and conditional connection-method visibility were visually verified in a localhost preview using mocked APIs. Real browser model performance and inference remain unverified."
   },
   "publication": {
     "uploaded": false,
@@ -131,12 +131,14 @@
     "liveModelDownloadVerified": false,
     "liveInferenceVerified": false,
     "uiPreviewUsesMocks": true,
-    "automatedCases": 24,
+    "automatedCases": 33,
     "availabilityDetection": "LanguageModel.availability, independent of browser identity",
     "supportedLanguages": "Runtime availability probes for output targets and source/target configurations, including English instructions",
     "processingLocation": "Determined by the browser; availability does not guarantee on-device execution",
     "noNewPermissions": false,
-    "manualChecks": "Follow TESTING.md on each intended browser/device; actual Samsung compatibility is unverified."
+    "manualChecks": "Follow TESTING.md on each intended browser/device; actual Samsung compatibility is unverified.",
+    "experimentalOptIn": "Settings > Experimental features > Enable On-Device AI; both default off, including legacy settings. Capability probes, connection selection, setup and inference are gated. Disabling either switch stops active native work without switching providers.",
+    "performanceNotice": "May be very slow and unstable depending on PC specifications; localized in English and Korean."
   },
   "translatorAPI": {
     "automatedCases": 26,
@@ -151,7 +153,7 @@
     "packManagement": "Tracks pairs prepared by this extension and queries availability; the browser API has no complete installed-pack inventory or uninstall operation. Remove from list deletes only the saved pair record."
   },
   "nativeBackground": {
-    "automatedCases": 16,
+    "automatedCases": 17,
     "permission": "offscreen",
     "reason": "IFRAME_SCRIPTING",
     "execution": "Packaged same-origin iframe controlled by an offscreen runtime-messaging host",

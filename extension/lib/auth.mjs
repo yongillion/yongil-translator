@@ -3,7 +3,7 @@ import {AppError} from './protocol.mjs';
 import {verifyAPIKey} from './api.mjs';
 import {verifyClaudeKey} from './claude.mjs';
 import {translatorStatus,stopTranslator} from './translator-bridge.mjs';
-import {chromeAIStatus,stopChromeAI} from './chrome-ai-bridge.mjs';
+import {chromeAIStatus,stopChromeAI,chromeAIEnabled} from './chrome-ai-bridge.mjs';
 import {AUTH_ORIGIN,CLIENT_ID,REDIRECT,randomToken,pkceChallenge,authorizeURL,callbackCode,verifyIdentity} from './oauth.mjs';
 let exchange=null,refreshing=null;
 const local=chrome.storage.local,session=chrome.storage.session;
@@ -11,7 +11,7 @@ export const storageReady=Promise.all([local.setAccessLevel({accessLevel:'TRUSTE
 export async function selectedProvider(){await storageReady;const {connectionProvider}=await local.get('connectionProvider');return ['chrome','translator'].includes(connectionProvider)?connectionProvider:['api','claude'].includes(connectionProvider)?connectionProvider:'subscription';}
 export async function selectProvider(provider){
  if(!['subscription','api','claude','chrome','translator'].includes(provider))throw new AppError('INPUT','connectionProviderInvalid');
- await storageReady;await cancelLogin();
+ await storageReady;if(provider==='chrome'&&!await chromeAIEnabled())throw new AppError('LOCAL_DISABLED','chromeAIExperimentalRequired');await cancelLogin();
  // Invalidate a pending OAuth exchange while preserving an existing subscription.
  const {auth}=await local.get('auth');await local.set({authEpoch:auth?.connectionId||randomToken(),connectionProvider:provider});
  await local.remove('modelCache');

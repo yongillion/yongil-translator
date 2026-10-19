@@ -1,5 +1,5 @@
 import {t,configureLanguage,localizeDocument} from './lib/i18n.mjs';
-import {LANGUAGES,languageLabel,shortcutLabel,sanitizeSettings,defaults} from './lib/settings.mjs';
+import {LANGUAGES,languageLabel,shortcutLabel,sanitizeSettings,defaults,experimentalAIEnabled} from './lib/settings.mjs';
 import {displayLanguage as languageDisplay,targetLanguageValue} from './lib/languages.mjs';
 import {paintIcons} from './icons.mjs';
 import {discoverChromeAI,chromeAILanguage} from './lib/chrome-ai.mjs';
@@ -14,7 +14,26 @@ function supportedTranslatorLanguage(value){try{return translatorLanguages.has(t
 function nativeProvider(){return ['chrome','translator'].includes(account?.provider);}
 function supportedTarget(value){return account?.provider==='translator'?supportedTranslatorLanguage(value):supportedLocalLanguage(value);}
 let chromeAIAvailable=false,localLanguages=new Set();
-const localDiscovery=discoverChromeAI();
+let localDiscoveryKey,localDiscoveryRevision=0,localDiscovery=Promise.resolve();
+function refreshChromeAI(){
+ const enabled=experimentalAIEnabled(state);if(localDiscoveryKey===enabled)return localDiscovery;
+ localDiscoveryKey=enabled;const revision=++localDiscoveryRevision;chromeAIAvailable=false;localLanguages=new Set();languageControlsKey='';
+ localDiscovery=(async()=>{
+  if(!enabled)return;
+  const capability=await discoverChromeAI();if(revision!==localDiscoveryRevision)return;
+  chromeAIAvailable=capability.state!=='unavailable';localLanguages=new Set(capability.languages);languageControlsKey='';
+ })();return localDiscovery;
+}
+function experimentsView(){
+ if(!isOptions)return;
+ $('experimental-features').checked=!!state?.experimentalFeatures;
+ $('on-device-ai-enabled').checked=!!state?.onDeviceAIEnabled;
+ $('experimental-options').hidden=!state?.experimentalFeatures;
+}
+async function refreshExperiments(){
+ experimentsView();const pending=refreshChromeAI();accountView();await pending;
+ setAccount(await rpc('auth.status'));await connectedView();
+}
 function supportedLocalLanguage(value){try{return localLanguages.has(chromeAILanguage(value));}catch{return false;}}
 paintIcons();
 const $=id=>document.getElementById(id),isOptions=document.body.classList.contains('options');
@@ -146,7 +165,7 @@ async function refreshLanguageControls(){
  selectOptions('target-language-select',targets,target);
  if(!$('source-language-select'))return;
  $('source-language-select').disabled=true;
- const sources=await nativeSourceLanguages(account.provider,state.targetLanguage);
+ const sources=account.provider==='chrome'&&!experimentalAIEnabled(state)?[]:await nativeSourceLanguages(account.provider,state.targetLanguage);
  if(revision!==languageControlsRevision)return;
  if(account.provider==='translator'&&supportedTarget(state.targetLanguage)&&!sources.includes(target))sources.unshift(target);
  availableSources=sources;
@@ -431,6 +450,7 @@ action('clear-cancel',async()=>{await save({cancelShortcut:null});shortcutsView(
 $('shortcut-test')?.addEventListener('keydown',e=>{e.preventDefault();$('shortcut-test').value=shortcutLabel(shortcutFromEvent(e));});
 function localizedSettingsView(){
  shortcutsView();
+ experimentsView();
  logsButtonView();
  if(!isOptions){$('instruction-status').textContent=state.instructionsEnabled?t('instructionsActive'):t('configureInstructions');return;}
  $('developer-options').hidden=!state.developerMode;
@@ -463,6 +483,11 @@ $('developer-mode')?.addEventListener('change',async()=>{
  try{await save({developerMode:$('developer-mode').checked});localizedSettingsView();feedback(t('developerModeSaved'),true);}
  catch(e){$('developer-mode').checked=!!state.developerMode;feedback(e.message);}
 });
+for(const [id,key]of [['experimental-features','experimentalFeatures'],['on-device-ai-enabled','onDeviceAIEnabled']])$(id)?.addEventListener('change',async()=>{
+ const input=$(id);input.disabled=true;
+ try{await save({[key]:input.checked});await refreshExperiments();feedback(t('experimentalSettingsSaved'),true);}
+ catch(e){experimentsView();feedback(e.message);}finally{input.disabled=false;}
+});
 $('max-log-entries')?.addEventListener('change',async()=>{
  const input=$('max-log-entries');
  try{await save({maxLogEntries:input.valueAsNumber});feedback(t('maxLogEntriesSaved'),true);}
@@ -476,11 +501,11 @@ action('export-settings',()=>{
 });
 $('import-settings')?.addEventListener('change',async()=>{
  try{const file=$('import-settings').files[0];if(!file)return;if(file.size>50000)throw new Error(t('settingsTooLarge'));
-  const clean=sanitizeSettings(JSON.parse(await file.text()),defaults(state.defaultLocale));await save(clean);await configureLanguage(state.uiLanguage);localizeDocument();settingsView();await loadModels();feedback(t('settingsImported'),true);
+  const clean=sanitizeSettings(JSON.parse(await file.text()),defaults(state.defaultLocale));await save(clean);await configureLanguage(state.uiLanguage);localizeDocument();settingsView();await refreshExperiments();feedback(t('settingsImported'),true);
  }catch(e){feedback(e.message);}finally{$('import-settings').value='';}
 });
 action('reset-settings',async()=>{if(!confirm(t('resetConfirm')))return;
- state=await rpc('settings.reset');await configureLanguage(state.uiLanguage);localizeDocument();settingsView();await loadModels();feedback(t('settingsReset'),true);});
+ state=await rpc('settings.reset');await configureLanguage(state.uiLanguage);localizeDocument();settingsView();await refreshExperiments();feedback(t('settingsReset'),true);});
 async function connectedView(){
  await refreshLanguageControls();
  if(account?.state!=='connected')return;
@@ -497,7 +522,7 @@ async function init(){
  await refreshLogsPanel();
  if(!isOptions)[tab]=await chrome.tabs.query({active:true,currentWindow:true});
  settingsView();setAccount(status);await connectedView();
- const [capability,translatorSupport]=await Promise.all([localDiscovery,translatorDiscovery]);chromeAIAvailable=capability.state!=='unavailable';localLanguages=new Set(capability.languages);
+ const [,translatorSupport]=await Promise.all([refreshChromeAI(),translatorDiscovery]);
  translatorAvailable=translatorSupport.state!=='unavailable';translatorLanguages=new Set(translatorSupport.pairs.map(pair=>pair.targetLanguage));capabilitiesReady=true;
  if(nativeProvider()){setAccount(await rpc('auth.status'));await connectedView();}else{accountView();await initializePageLanguage();await refreshPacks();}
 }
@@ -512,6 +537,9 @@ chrome.storage?.onChanged.addListener((changes,area)=>{
  if(area==='local'&&changes.translatorPreparedPairs)void refreshPacks().catch(e=>feedback(e.message));
  const next=changes.settings?.newValue;
  if(area==='local'&&state&&next){
+  const experimentsChanged=state.experimentalFeatures!==next.experimentalFeatures||state.onDeviceAIEnabled!==next.onDeviceAIEnabled;
+  state.experimentalFeatures=!!next.experimentalFeatures;state.onDeviceAIEnabled=!!next.onDeviceAIEnabled;
+  if(experimentsChanged)void refreshExperiments().catch(e=>feedback(e.message));
   state.developerMode=!!next.developerMode;
   if($('developer-mode'))$('developer-mode').checked=state.developerMode;
   logsButtonView();void refreshLogsPanel();

@@ -3,7 +3,9 @@ import vm from 'node:vm';
 import {mockI18n,localeFetch} from './locale-fixtures.mjs';
 import {readFile} from 'node:fs/promises';
 import {connectionHarness,blocks} from './api-connection.mjs';
-import {uiHarness} from './ui-state.mjs';
+import {uiHarness as baseUIHarness} from './ui-state.mjs';
+import {defaults,sanitizeSettings,migrateSettings,experimentalAIEnabled} from '../extension/lib/settings.mjs';
+const uiHarness=options=>baseUIHarness({experimentalFeatures:true,onDeviceAIEnabled:true,...options});
 import {chromeAIAvailability,discoverChromeAI,hasChromeAI,chromeAILanguage,chromeAIOptions,promptChromeAI,CHROME_AI_MODEL} from '../extension/lib/chrome-ai.mjs';
 
 const chromeNavigator={userAgent:'Mozilla/5.0 Chrome/150.0.0.0 Safari/537.36',userAgentData:{brands:[{brand:'Not/A)Brand',version:'99'},{brand:'Chromium',version:'150'},{brand:'Google Chrome',version:'150'}]}};
@@ -13,7 +15,7 @@ const forks=[undefined,{userAgent:'Chrome/150.0.0.0'}, {...chromeNavigator,userA
  {...chromeNavigator,userAgentData:{brands:[{brand:'Chromium'},{brand:'Microsoft Edge'}]}},
  {...chromeNavigator,userAgent:chromeNavigator.userAgent+' OPR/125.0'}, {...chromeNavigator,userAgent:chromeNavigator.userAgent+' Vivaldi/7.0'},
  {...chromeNavigator,userAgent:chromeNavigator.userAgent+' Whale/4.0'}, {...chromeNavigator,userAgent:chromeNavigator.userAgent+' SamsungBrowser/29.0'}];
-const event=()=>({listeners:[],addListener(fn){this.listeners.push(fn);},emit(value){for(const fn of this.listeners)fn(value);}});
+const event=()=>({listeners:[],addListener(fn){this.listeners.push(fn);},emit(...args){for(const fn of this.listeners)fn(...args);}});
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 function runner(h,sender={id:'test',url:'chrome-extension://test/chrome-ai.html',tab:{id:2}}){
  const port={name:'chrome-ai-runner',sender,onMessage:event(),onDisconnect:event(),sent:[],disconnected:false,
@@ -23,6 +25,7 @@ function runner(h,sender={id:'test',url:'chrome-extension://test/chrome-ai.html'
 }
 async function setup(){
  const h=await connectionHarness({navigator:chromeNavigator});
+ await h.send({type:'settings.update',patch:{experimentalFeatures:true,onDeviceAIEnabled:true}});
  await h.send({type:'auth.provider',provider:'chrome'});
  const port=runner(h);port.onMessage.emit({type:'ready'});
  await h.send({type:'settings.update',patch:{modelId:CHROME_AI_MODEL,targetLanguage:'日本語',maxRetries:0}});
@@ -31,18 +34,80 @@ async function setup(){
 }
 const translated=JSON.stringify({blocks:[{id:'b1',nodes:[{id:'n0',text:'こんにちは'}]}]});
 function respond(port,output=translated){port.handle=message=>{if(message.type==='translate'){port.onMessage.emit({type:'chunk',id:message.id,text:output});port.onMessage.emit({type:'result',id:message.id,text:output});}};}
-async function pageHarness(model,{targetLanguage='한국어',detectLanguage}={}){
+async function pageHarness(model,{targetLanguage='한국어',detectLanguage,experimentalFeatures=true,onDeviceAIEnabled=true}={}){
  const nodes=new Map(['prepare-local','cancel-local','local-status','download-progress'].map(id=>[id,{hidden:true,disabled:true,textContent:'',listeners:{},addEventListener(type,fn){this.listeners[type]=fn;}}]));
  const port={onMessage:event(),onDisconnect:event(),sent:[],postMessage(message){this.sent.push(message);},disconnect(){this.onDisconnect.emit();}};let connections=0;
- const chrome={i18n:{...mockI18n('en'),detectLanguage},storage:{local:{get:async()=>({settings:{uiLanguage:'en',targetLanguage}})},onChanged:event()},runtime:{getURL:p=>'chrome-extension://test/'+p,connect(){connections++;return port;}}};
+ const chrome={i18n:{...mockI18n('en'),detectLanguage},storage:{local:{get:async()=>({settings:{uiLanguage:'en',targetLanguage,experimentalFeatures,onDeviceAIEnabled}})},onChanged:event()},runtime:{getURL:p=>'chrome-extension://test/'+p,connect(){connections++;return port;}}};
  const document={getElementById:id=>nodes.get(id),documentElement:{dataset:{}},querySelectorAll:()=>[]};
  const context=vm.createContext({chrome,document,LanguageModel:model,fetch:localeFetch,AbortController,DOMException,URL,setTimeout,clearTimeout,setInterval(){},window:{addEventListener(){}}});
  const entry=new vm.SourceTextModule(await readFile(new URL('../extension/chrome-ai.mjs',import.meta.url),'utf8'),{context});const modules=new Map();
  await entry.link(async specifier=>{const name=specifier.split('/').pop();if(!modules.has(name))modules.set(name,readFile(new URL('../extension/lib/'+name,import.meta.url),'utf8').then(source=>new vm.SourceTextModule(source,{context})));return modules.get(name);});await entry.evaluate();
- return {nodes,port,connections,click:id=>nodes.get(id).listeners.click()};
+ return {nodes,port,connections,chrome,click:id=>nodes.get(id).listeners.click()};
 }
 export async function chromeAITests(){
  const results=[];async function test(name,fn){try{await fn();results.push({name,passed:true});}catch(e){results.push({name,passed:false,error:e.stack||e.message});}}
+ await test('Experimental flags default off, reject non-booleans and keep old imports disabled',()=>{
+  assert.equal(experimentalAIEnabled(defaults()),false);
+  for(const key of ['experimentalFeatures','onDeviceAIEnabled'])assert.throws(()=>sanitizeSettings({[key]:'true'}));
+  assert.equal(experimentalAIEnabled(migrateSettings({modelId:CHROME_AI_MODEL})),false);
+  assert.equal(experimentalAIEnabled(sanitizeSettings({experimentalFeatures:true,onDeviceAIEnabled:true})),true);
+ });
+ await test('Both experimental switches are required before UI probes or exposes On-Device AI',async()=>{
+  for(const options of [false,true])for(const experimentalFeatures of [false,true])for(const onDeviceAIEnabled of [false,true]){
+   let probes=0;const LanguageModel={...feature,availability:async()=>{probes++;return 'available';}};
+   const h=await baseUIHarness({options,experimentalFeatures,onDeviceAIEnabled,LanguageModel});
+   assert.equal(h.nodes.get('use-chrome').hidden,!(experimentalFeatures&&onDeviceAIEnabled));
+   assert.equal(probes>0,experimentalFeatures&&onDeviceAIEnabled);
+   if(options){assert.equal(h.nodes.get('experimental-options').hidden,!experimentalFeatures);assert.equal(h.nodes.get('experiments').hidden,false);}
+  }
+ });
+ await test('Signed-out Settings enable both switches, show localized risk text, and hide the mode when disabled',async()=>{
+  for(const uiLanguage of ['en','ko']){
+   const h=await baseUIHarness({options:true,uiLanguage,LanguageModel:feature});
+   h.nodes.get('experimental-features').checked=true;await h.nodes.get('experimental-features').emit('change');assert.equal(h.nodes.get('use-chrome').hidden,true);
+   h.nodes.get('on-device-ai-enabled').checked=true;await h.nodes.get('on-device-ai-enabled').emit('change');assert.equal(h.nodes.get('use-chrome').hidden,false);
+   assert.match(h.nodes.get('on-device-ai-note').textContent,uiLanguage==='en'?/very slow and unstable/:/매우 느리고 동작이 불안정/);
+   h.nodes.get('experimental-features').checked=false;await h.nodes.get('experimental-features').emit('change');assert.equal(h.nodes.get('experimental-options').hidden,true);assert.equal(h.nodes.get('use-chrome').hidden,true);
+   assert.equal(h.savedSettings.onDeviceAIEnabled,true);assert.equal(h.status.current.provider,'subscription');
+  }
+ });
+ await test('Experimental opt-in does not expose unsupported models or gate Translator API',async()=>{
+  const h=await uiHarness({LanguageModel:{...feature,availability:async()=> 'unavailable'}});assert.equal(h.nodes.get('use-chrome').hidden,true);
+  const translator=await baseUIHarness({Translator:{availability:async()=> 'available',create(){}}});assert.equal(translator.nodes.get('use-translator').hidden,false);
+ });
+ await test('Re-enabling a saved native provider refreshes its previously empty language choices',async()=>{
+  const h=await baseUIHarness({options:true,connected:true,provider:'chrome',LanguageModel:{...feature,availability:async()=> 'available'}});
+  assert.equal(h.nodes.get('target-language-select').children.length,1);
+  h.nodes.get('experimental-features').checked=true;await h.nodes.get('experimental-features').emit('change');
+  h.nodes.get('on-device-ai-enabled').checked=true;await h.nodes.get('on-device-ai-enabled').emit('change');
+  assert.ok(h.nodes.get('target-language-select').children.length>1);assert.equal(h.nodes.get('target-language-select').value,'ko');
+ });
+ await test('An open popup follows experimental setting changes from another settings page',async()=>{
+  const h=await uiHarness({LanguageModel:feature});assert.equal(h.nodes.get('use-chrome').hidden,false);
+  h.chrome.storage.onChanged.emit({settings:{newValue:{...h.savedSettings,onDeviceAIEnabled:false}}},'local');await tick();assert.equal(h.nodes.get('use-chrome').hidden,true);
+  h.chrome.storage.onChanged.emit({settings:{newValue:{...h.savedSettings,onDeviceAIEnabled:true}}},'local');await tick();assert.equal(h.nodes.get('use-chrome').hidden,false);
+ });
+ await test('Disabled experiments block provider selection, setup and stale runner readiness',async()=>{
+  const h=await connectionHarness();assert.equal((await h.send({type:'auth.provider',provider:'chrome'})).error.code,'LOCAL_DISABLED');
+  h.local.data.connectionProvider='chrome';const port=runner(h);port.onMessage.emit({type:'ready'});await tick();
+  assert.equal((await h.send({type:'auth.status'})).data.state,'signed_out');assert.ok(port.sent.some(x=>x.type==='stop'));
+  assert.equal((await h.send({type:'chromeAI.open'})).error.code,'LOCAL_DISABLED');assert.equal((await h.send({type:'job.begin'},h.content)).ok,false);
+ });
+ await test('Turning off either switch cancels native translation and requires preparation after re-enabling',async()=>{
+  for(const key of ['experimentalFeatures','onDeviceAIEnabled']){
+   const h=await setup(),job=await h.job();const pending=h.send({type:'job.batch',jobId:job.id,blocks},h.content);await tick();
+   assert.equal((await h.send({type:'settings.update',patch:{[key]:false}})).ok,true);assert.equal((await pending).ok,false);
+   assert.ok(h.port.sent.some(x=>x.type==='stop'));assert.equal((await h.send({type:'auth.status'})).data.state,'signed_out');
+   await h.send({type:'settings.update',patch:{[key]:true}});assert.equal((await h.send({type:'auth.status'})).data.state,'signed_out');assert.equal(h.local.data.connectionProvider,'chrome');
+  }
+ });
+ await test('Direct model setup stays inactive until both switches are enabled and stops on revocation',async()=>{
+  let probes=0,creates=0;const model={availability:async()=>{probes++;return 'available';},create:async()=>{creates++;return {promptStreaming(){},destroy(){}};}};
+  const off=await pageHarness(model,{experimentalFeatures:false});assert.equal(off.connections,0);assert.equal(probes,0);await off.click('prepare-local');assert.equal(creates,0);
+  assert.match(off.nodes.get('local-status').textContent,/Experimental features/);
+  const on=await pageHarness(model);on.port.onMessage.emit({type:'connected'});on.chrome.storage.onChanged.emit({settings:{newValue:{experimentalFeatures:true,onDeviceAIEnabled:false,uiLanguage:'en'}}},'local');await tick();
+  assert.equal(on.nodes.get('prepare-local').hidden,true);await on.click('prepare-local');assert.equal(creates,0);assert.ok(on.port.sent.some(x=>x.type==='stopped'&&x.explicit));
+ });
  await test('Discovery uses API availability without browser branding or model downloads',async()=>{
   assert.equal(hasChromeAI(feature),true);assert.equal(hasChromeAI({}),false);let created=0;
   for(const state of ['available','downloadable','downloading']){
@@ -93,7 +158,7 @@ export async function chromeAITests(){
   const cloud=await uiHarness({provider:'api',connected:true,permission:true,uiLanguage:'en'});await cloud.click('language-toggle');assert.ok(cloud.nodes.get('language-list').children.some(row=>row.children[0].textContent.includes('Korean')));
  });
  await test('Worker requires a ready extension runner without inspecting browser identity',async()=>{
-  const h=await connectionHarness();h.local.data.connectionProvider='chrome';
+  const h=await connectionHarness();await h.send({type:'settings.update',patch:{experimentalFeatures:true,onDeviceAIEnabled:true}});h.local.data.connectionProvider='chrome';
   assert.equal((await h.send({type:'auth.status'})).data.provider,'chrome');
   assert.equal((await h.send({type:'auth.status'})).data.state,'signed_out');
   assert.equal((await h.send({type:'job.begin'},h.content)).ok,false);

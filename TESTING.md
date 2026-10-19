@@ -15,9 +15,9 @@ Review date: 2026-10-19
 - Log side-panel UI tests: **7 passed**
 - API connection and provider-isolation tests: **12 passed**
 - Claude API connection, streaming, and isolation tests: **19 passed**
-- On-Device AI capability detection, language support, bridge, and lifecycle tests: **24 passed**
+- On-Device AI capability detection, language support, bridge, and lifecycle tests: **33 passed**
 - Translator API capability, source detection, language-pack lifecycle, UI, isolation, and retry tests: **26 passed**
-- Hidden native-execution integration tests: **16 passed**
+- Hidden native-execution integration tests: **17 passed**
 - Source-language selection and prepared-pair management tests: **13 passed**
 - Extension JavaScript syntax checks: **29 files passed**
 - Brand PNG icon visual inspection: 128px output reviewed
@@ -135,7 +135,7 @@ The raw execution results are stored in [test-results.json](test-results.json).
 
 ## Store preparation checks
 
-All 298 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
+All 308 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
 
 ## Page toolbar progress
 
@@ -157,7 +157,7 @@ For manual verification, reload the unpacked extension, choose Claude API, enter
 
 ## On-Device AI verification status
 
-On 2026-10-19, 24 tests covered capability-based detection without browser branding, all recognized availability states, absent/partial APIs, policy errors, timeouts, hidden controls on unsupported devices, and compatible Samsung/Edge/unbranded test profiles. Language tests cover browser-reported Korean support, regional targets, unsupported configurations, exact source/target options, and additional downloads requiring another user click. Bridge tests retain exact sender checks, single-request/single-block scheduling, cancellation, tab closure, connection isolation, bounded JSON retries, diagnostics, context errors, and session destruction. A saved local-mode preference on an unsupported browser stays disconnected until the user explicitly chooses another connection.
+On 2026-10-19, 33 tests covered capability-based detection without browser branding, all recognized availability states, absent/partial APIs, policy errors, timeouts, hidden controls on unsupported devices, and compatible Samsung/Edge/unbranded test profiles. Language tests cover browser-reported Korean support, regional targets, unsupported configurations, exact source/target options, and additional downloads requiring another user click. Bridge tests retain exact sender checks, single-request/single-block scheduling, cancellation, tab closure, connection isolation, bounded JSON retries, diagnostics, context errors, and session destruction. A saved local-mode preference on an unsupported browser stays disconnected until the user explicitly chooses another connection.
 
 The English popup and model setup page were visually reviewed in the in-app browser against an isolated localhost preview with mocked browser and LanguageModel APIs. The preview shows On-Device AI under an Edge profile with a compatible API and hides it under a Chrome profile reporting unavailable. Updated labels and setup-page layout were inspected. This is a UI test double, not an installed extension or real browser model. Setup activation and readiness are also exercised in the automated document harness.
 
@@ -165,7 +165,7 @@ Manual release checks still required: install the unpacked extension in each int
 
 ## Translator API verification status
 
-26 dedicated Translator cases, 16 hidden-execution integration cases, and 13 source-language cases pass, bringing the full suite to 298 passes. They cover API-method and pair availability probes without downloads; browser-brand independence; unavailable/blocked/timed-out API behavior; regional/Chinese script mapping; source detection and page-language hints; plain-text node translation with whitespace and IDs retained; same-language bypass; prepared-session reuse; gesture-required new language packs; cancellation and cleanup; strict runner identity; provider switching; no cloud fallback; omitted custom instructions; bounded retries; diagnostics; and both UI languages. All 29 extension JavaScript files pass syntax checks.
+26 dedicated Translator cases, 17 hidden-execution integration cases, and 13 source-language cases pass, bringing the full suite to 308 passes. They cover API-method and pair availability probes without downloads; browser-brand independence; unavailable/blocked/timed-out API behavior; regional/Chinese script mapping; source detection and page-language hints; plain-text node translation with whitespace and IDs retained; same-language bypass; prepared-session reuse; gesture-required new language packs; cancellation and cleanup; strict runner identity; provider switching; no cloud fallback; omitted custom instructions; bounded retries; diagnostics; and both UI languages. All 29 extension JavaScript files pass syntax checks.
 
 English connected/unsupported popup states and the translator setup page were inspected in the in-app browser using mocked browser APIs. The setup button transitioned to Ready, and unsupported previews showed no native API choices. These were local UI previews, not real extension captures or live browser translation.
 
@@ -186,3 +186,9 @@ Thirteen dedicated cases cover supported-browser page detection, Auto fallback, 
 English popup and Settings previews were inspected with mocked APIs: detected English, native French selection, cloud Auto/custom input, and removing one prepared-pair record. No real download or browser-owned file deletion was performed. The Translator API exposes neither a complete installed-pack inventory nor an uninstall operation; Settings lists pairs prepared by this extension, and Remove from list only deletes that record.
 
 Manual checks: detect the active page language on a compatible browser; select another source or Auto; verify Alt+T, block, and selected-text translation use it; restore/retranslate with the new cache identity; reload or navigate and confirm fresh detection. Verify cloud custom language names and native supported choices in both UI languages. Request an unprepared pair, prepare it in the automatically opened tab, then retry. Confirm Settings adds that pair, refreshes browser-reported availability, and removes only the chosen record while leaving browser-managed files intact.
+
+## Experimental On-Device AI opt-in
+
+Both switches default off for new and existing settings. Nine added On-Device AI cases cover strict boolean validation and legacy imports, all four switch combinations without disabled capability probes, signed-out settings, English/Korean performance warnings, unsupported browsers and unaffected Translator API, restored native language lists after re-enabling, live cross-page settings updates, worker/setup/readiness guards, cancellation from either switch, and direct setup-page revocation. One additional hidden-execution case cancels in-flight inference and clears readiness for both switches.
+
+The English signed-out Settings page was visually reviewed with mocked APIs. The experimental section is last, enabling the parent reveals the individual switch and warning, and enabling On-Device AI then reveals its connection method. Real browser model performance has not been measured here. Manual checks: confirm both switches default off after upgrading an existing installation; enable each in sequence; prepare and translate using a real supported browser; turn either switch off during preparation and translation; verify cancellation and synchronized popup/setup views; confirm Translator API remains available independently.

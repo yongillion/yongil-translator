@@ -44,7 +44,7 @@ export async function sourceLanguageTests(){
  });
  await test('On-Device AI source choices respect expected input as well as output support',async()=>{
   const LanguageModel={...feature,availability:async options=>!options.expectedOutputs[0].languages||options.expectedOutputs[0].languages[0]==='ko'&&options.expectedInputs[0].languages.every(code=>['en','fr'].includes(code))?'available':'unavailable'};
-  const h=await uiHarness({LanguageModel,provider:'chrome',connected:true,permission:true,uiLanguage:'en',sourceLanguage:'日本語'});
+  const h=await uiHarness({experimentalFeatures:true,onDeviceAIEnabled:true,LanguageModel,provider:'chrome',connected:true,permission:true,uiLanguage:'en',sourceLanguage:'日本語'});
   assert.equal(h.nodes.get('source-combobox').hidden,true);assert.equal(h.nodes.get('target-combobox').hidden,true);assert.equal(h.language.sourceLanguage,'');
   assert.deepEqual(h.nodes.get('source-language-select').children.map(x=>x.value),['','en','fr']);
  });

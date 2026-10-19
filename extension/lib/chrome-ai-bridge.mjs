@@ -1,10 +1,14 @@
 import {attachNativeBackground,nativeStatus,enableNative,stopNative,requestNative} from './native-background.mjs';
 import {AppError} from './protocol.mjs';
+import {experimentalAIEnabled} from './settings.mjs';
+export async function chromeAIEnabled(){return experimentalAIEnabled((await chrome.storage.local.get('settings')).settings);}
+const disabled=()=>new AppError('LOCAL_DISABLED','chromeAIExperimentalRequired');
 
 let runner=null,opening=null;
 const pending=new Map();
 const notReady=()=>new AppError('LOCAL_NOT_READY','chromeAISetupRequired');
 export async function chromeAIStatus(){
+ if(!await chromeAIEnabled())return {provider:'chrome',state:'signed_out'};
  const hidden=await nativeStatus('chrome');if(hidden)return hidden;
  return {provider:'chrome',state:runner?.ready?'connected':'signed_out',...(runner?.ready?{connectionId:runner.connectionId}:{})};
 }
@@ -27,11 +31,15 @@ export function attachChromeAI(){
     const revision=++current.revision;
     if(!current.ready)current.connectionId='chrome:'+crypto.randomUUID();
     const accept=background=>{if(runner===current&&revision===current.revision){current.ready=true;port.postMessage({type:'accepted',background});}};
-    if(message.options)void enableNative('chrome',message.options,current.connectionId).then(accept).catch(async()=>{
+    void chromeAIEnabled().then(async enabled=>{
      if(runner!==current||revision!==current.revision)return;
-     await stopNative('chrome');accept(false);
-    });
-    else accept(false);
+     if(!enabled){current.ready=false;port.postMessage({type:'stop'});return;}
+     if(!message.options){accept(false);return;}
+     await enableNative('chrome',message.options,current.connectionId).then(accept).catch(async()=>{
+      if(runner!==current||revision!==current.revision)return;
+      await stopNative('chrome');accept(false);
+     });
+    }).catch(()=>{if(runner===current&&revision===current.revision){current.ready=false;port.postMessage({type:'stop'});}});
     return;
    }
    if(message?.type==='stopped'){current.revision++;current.ready=false;if(message.explicit)void stopNative('chrome');return;}
@@ -51,6 +59,7 @@ export function attachChromeAI(){
  });
 }
 export async function openChromeAI(){
+ if(!await chromeAIEnabled())throw disabled();
  if(opening)return opening;
  opening=(async()=>{
   const url=chrome.runtime.getURL('chrome-ai.html'),tabs=await chrome.tabs.query({url});
@@ -61,6 +70,7 @@ export async function openChromeAI(){
  })();try{return await opening;}finally{opening=null;}
 }
 export async function requestChromeAI(payload,connectionId,signal,onChunk){
+ if(!await chromeAIEnabled())throw disabled();
  if(await nativeStatus('chrome'))return requestNative('chrome',payload,connectionId,signal,onChunk);
  if(!runner?.ready)throw notReady();
  if(runner.connectionId!==connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');

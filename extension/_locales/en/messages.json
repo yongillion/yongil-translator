@@ -888,19 +888,19 @@
     "message": "Claude declined this translation request. The original text has been kept."
   },
   "chromeAIMethod": {
-    "message": "On-Device AI"
+    "message": "On-device AI"
   },
   "chromeAITitle": {
-    "message": "On-Device AI"
+    "message": "On-device AI"
   },
   "chromeAIConnected": {
     "message": "Browser AI ready"
   },
   "chromeAIBadge": {
-    "message": "ON-DEVICE · EXPERIMENTAL"
+    "message": "On-device AI · EXPERIMENTAL"
   },
   "chromeAINote": {
-    "message": "Use your browser’s on-device AI without an account or API key. Prepare the model here, then close this tab once background readiness is confirmed. The browser manages model downloads and where processing takes place."
+    "message": "Use your browser’s on-device AI without an account or API key. Prepare the model here, then close this tab once background readiness is confirmed. The browser manages model downloads and where processing takes place. Depending on your PC specifications, it may be very slow and unstable."
   },
   "chromeAILanguages": {
     "message": "Language support depends on your browser’s model. Choose a supported target language; unsupported source languages cannot be translated."
@@ -963,7 +963,7 @@
     "message": "Browser translation engine"
   },
   "translatorOpen": {
-    "message": "Open browser translator"
+    "message": "Prepare language packs"
   },
   "translatorNote": {
     "message": "Translate with your browser without an account or API key. Prepare the language packs here, then close this tab once background readiness is confirmed. The browser manages language packs and where processing takes place."
@@ -1072,5 +1072,29 @@
   },
   "removeLanguagePair": {
     "message": "Remove from list"
+  },
+  "experimentalFeatures": {
+    "message": "Experimental features"
+  },
+  "experimentalFeaturesNote": {
+    "message": "Optional features that are still being tested. Enable this section, then choose the features you want to use."
+  },
+  "enableExperimentalFeatures": {
+    "message": "Enable experimental features"
+  },
+  "enableOnDeviceAI": {
+    "message": "Enable On-device AI"
+  },
+  "onDeviceAIWarning": {
+    "message": "Depending on your PC specifications, On-device AI may be very slow and unstable. Availability and reliability vary by browser and device. This option appears as a connection method only when your browser supports it."
+  },
+  "experimentalSettingInvalid": {
+    "message": "Experimental feature settings must be on or off."
+  },
+  "experimentalSettingsSaved": {
+    "message": "Experimental feature settings saved."
+  },
+  "chromeAIExperimentalRequired": {
+    "message": "Enable Experimental features and On-device AI at the bottom of Settings to use this feature."
   }
 }

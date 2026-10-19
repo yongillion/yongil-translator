@@ -49,6 +49,8 @@ Developer log retention defaults to 4,000 entries and can be set from 1 to 1,000
 
 ## Optional On-Device AI
 
+Enable Experimental features and Enable On-Device AI at the bottom of Settings first. Both switches are off by default, including for existing installations, and are available before account connection. Depending on PC specifications, On-Device AI may be very slow and unstable. Turning either switch off hides it and stops active local translation. Translator API is unaffected.
+
 A compatible browser-provided Prompt API can be used without an extension API key. The option is shown based on runtime API availability and language support, with no Chrome-only brand restriction. Unsupported browsers/devices and policy-blocked APIs keep it hidden. Samsung, Edge, and other compatible implementations are eligible, but actual model execution in those browsers has not been verified.
 
 Click Open local model tab, then Prepare local model. Discovery does not download a model; preparation requires a user click. After background readiness is confirmed, the setup tab can be closed. If the browser cannot run the hidden context, the page explicitly asks to keep the tab open. Target languages are queried from the browser, including Korean when supported. Requests run one block at a time and use the existing retries, restoration, cache, and optional developer logs. The offscreen permission hosts and scripts a bundled same-origin iframe for window-only browser AI APIs; no new host access is added.

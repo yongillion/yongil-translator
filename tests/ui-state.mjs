@@ -15,7 +15,7 @@ function element(tag='div',attributes=''){
   append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;},
   getAttribute(name){return attrs[name];},setAttribute(name,value){attrs[name]=value;},removeAttribute(name){delete attrs[name];},scrollIntoView(){},focus(){},click(){}};
 }
-async function harness({navigator,LanguageModel,Translator,detectedLanguage='und',sourceLanguage,preparedPairs=[],options=false,connected=false,provider='subscription',permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',developerMode=false,panelWindows=[],nativePanelClose=true,panelEvents=true,items=[{id:'test-model',name:'Test model'}]}={}){
+async function harness({experimentalFeatures=false,onDeviceAIEnabled=false,navigator,LanguageModel,Translator,detectedLanguage='und',sourceLanguage,preparedPairs=[],options=false,connected=false,provider='subscription',permission=false,url='https://example.test/',browserLanguage='ko',uiLanguage='auto',modelId='test-model',developerMode=false,panelWindows=[],nativePanelClose=true,panelEvents=true,items=[{id:'test-model',name:'Test model'}]}={}){
  const html=await readFile(new URL('../extension/'+(options?'options':'popup')+'.html',import.meta.url),'utf8');
  const nodes=new Map(),gates=[],all=[];
  for(const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*)>/gi)){
@@ -26,7 +26,7 @@ async function harness({navigator,LanguageModel,Translator,detectedLanguage='und
  const status={current:connected?{state:'connected',provider,connectionId:'test-account',email:'user@example.invalid'}:{state:'disconnected',provider}},api={pending:null,error:null,submissions:0};
  const language={sourceLanguage,documentId:'page-document'},detection={calls:0},packData={pairs:preparedPairs};
  const grants={allowed:permission,result:true,pending:null,requestPending:null,requests:[]};const calls=[];let poll;
- const savedSettings={schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,maxRetries:4,developerMode,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyT'},restoreShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyR'},blockShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:''},cancelShortcut:null};
+ const savedSettings={experimentalFeatures,onDeviceAIEnabled,schemaVersion:1,uiLanguage,targetLanguage:'한국어',modelId,instructions:'',instructionsEnabled:false,maxConcurrentBatches:16,maxRetries:4,developerMode,excludedSites:[],theme:'system',defaultLocale:'ko',pageShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyT'},restoreShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:'KeyR'},blockShortcut:{alt:true,ctrl:false,shift:false,meta:false,code:''},cancelShortcut:null};
  const event=()=>({listeners:[],addListener(fn){this.listeners.push(fn);},emit(...args){for(const fn of this.listeners)fn(...args);}});
  const panels={windows:new Set(panelWindows),hidden:new Set(),queries:[],closeRequests:[]};
  const body=element('body','class="'+(options?'options':'popup')+'"');body.dataset.connected='false';

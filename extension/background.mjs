@@ -1,10 +1,10 @@
 import {t,configureLanguage,localeData} from './lib/i18n.mjs';
-import {defaults,sanitizeSettings,migrateSettings,fingerprint} from './lib/settings.mjs';
+import {defaults,sanitizeSettings,migrateSettings,fingerprint,experimentalAIEnabled} from './lib/settings.mjs';
 import {AppError,RequestQueue,validateBlocks} from './lib/protocol.mjs';
 import {storageReady,authStatus,startLogin,cancelLogin,signOut,observeLogin,watchLogin,selectedProvider,selectProvider,connectAPI} from './lib/auth.mjs';
 import {models,translate} from './lib/provider.mjs';
 import {developerLog} from './lib/logger.mjs';
-import {attachChromeAI,openChromeAI} from './lib/chrome-ai-bridge.mjs';
+import {attachChromeAI,openChromeAI,stopChromeAI} from './lib/chrome-ai-bridge.mjs';
 import {chromeAILanguage} from './lib/chrome-ai.mjs';
 import {attachTranslator,openTranslator,removeTranslatorPair} from './lib/translator-bridge.mjs';
 import {translatorLanguage} from './lib/translator.mjs';
@@ -44,7 +44,11 @@ async function broadcast(type,data={}){
  await Promise.allSettled(tabs.filter(t=>isWeb(t.url)).map(t=>chrome.tabs.sendMessage(t.id,{type,...data})));
 }
 async function saveSettings(patch){
- const next=sanitizeSettings(patch,await settings());await configureLanguage(next.uiLanguage);await chrome.storage.local.set({settings:next});
+ const previous=await settings(),next=sanitizeSettings(patch,previous);await configureLanguage(next.uiLanguage);await chrome.storage.local.set({settings:next});
+ if(!experimentalAIEnabled(next)&&(experimentalAIEnabled(previous)||await selectedProvider()==='chrome')){
+  if(await selectedProvider()==='chrome'){queue.cancel('');jobs.clear();await broadcast('job.stop');}
+  await stopChromeAI();
+ }
  await developerLog.configure(next.developerMode,next.maxLogEntries);developerLog.add('settings.updated',{keys:Object.keys(patch)});await developerLog.flush();
  await chrome.sidePanel?.setOptions({path:'logs.html',enabled:next.developerMode});
  await broadcast('settings.changed',{settings:next,locale:localeData()});return next;
