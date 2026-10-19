@@ -52,7 +52,7 @@
     const info=await send('job.begin');id=info.id;
     if(request!==generation){await send('job.cancel',{jobId:id}).catch(()=>{});return;}
     jobId=id;heartbeat=setInterval(()=>void send('job.ping').catch(()=>{}),20000);
-    const translated=await send('job.batch',{jobId:id,blocks:[{id:'selection',nodes:[{id:'text',text:source}]}]});
+    const translated=await send('job.batch',{jobId:id,blocks:[{id:'selection',sourceLanguage:(document.documentElement?.lang||'').slice(0,100),nodes:[{id:'text',text:source}]}]});
     if(request!==generation)return;
     if(typeof translated?.selection?.[0]!=='string')throw Object.assign(new Error(t('resultTextMissing')),{messageKey:'resultTextMissing'});
     result=translated.selection[0];state='complete';render();

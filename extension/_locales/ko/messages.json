@@ -180,7 +180,7 @@
     "message": "번역 연결"
   },
   "privacyNote": {
-    "message": "번역할 텍스트와 지침은 선택한 제공업체(OpenAI 또는 Anthropic)로 전송되며 해당 연결의 구독 또는 API 사용량에 반영됩니다. 연결을 해제한 뒤에도 원문을 복원할 수 있습니다."
+    "message": "번역할 텍스트는 선택한 OpenAI·Anthropic 연결 또는 브라우저 내장 API에 전달됩니다. 구독 및 API 연결에는 해당 사용량이 적용됩니다. 브라우저 방식의 처리 위치는 브라우저가 결정합니다. 연결 해제 후에도 원문 복원이 가능합니다."
   },
   "manageSubscriptionUsage": {
     "message": "구독 사용량 관리 ↗"
@@ -949,5 +949,65 @@
   },
   "chromeAIModel": {
     "message": "브라우저 제공 모델"
+  },
+  "translatorTitle": {
+    "message": "Translator API"
+  },
+  "translatorBadge": {
+    "message": "브라우저 번역"
+  },
+  "translatorConnected": {
+    "message": "브라우저 번역 연결됨"
+  },
+  "translatorModel": {
+    "message": "브라우저 번역 엔진"
+  },
+  "translatorOpen": {
+    "message": "브라우저 번역 탭 열기"
+  },
+  "translatorNote": {
+    "message": "계정이나 API 키 없이 브라우저로 번역합니다. 번역 탭을 열어 두세요. 언어 팩과 번역 처리 위치는 브라우저가 관리합니다."
+  },
+  "translatorLanguages": {
+    "message": "지원하는 언어 쌍은 브라우저에 따라 다릅니다. 원본 언어는 자동으로 인식합니다."
+  },
+  "translatorSetupRequired": {
+    "message": "브라우저 번역 탭에서 표시된 언어 팩을 준비한 뒤 번역을 다시 시도하세요. 새로운 언어 쌍은 추가 다운로드가 필요할 수 있습니다."
+  },
+  "translatorReady": {
+    "message": "준비되었습니다. 번역 중에는 브라우저 번역 탭을 열어 두세요."
+  },
+  "translatorPrepare": {
+    "message": "언어 팩 준비"
+  },
+  "translatorPreparing": {
+    "message": "언어 팩을 준비하고 있습니다…"
+  },
+  "translatorTranslating": {
+    "message": "브라우저로 번역하고 있습니다…"
+  },
+  "translatorDownload": {
+    "message": "언어 팩 다운로드 진행률"
+  },
+  "translatorDownloadPercent": {
+    "message": "언어 팩 다운로드 중… $1%"
+  },
+  "translatorStop": {
+    "message": "번역 엔진 중지"
+  },
+  "translatorUnavailable": {
+    "message": "이 브라우저 또는 현재 설정에서 Translator API를 사용할 수 없습니다."
+  },
+  "translatorFailed": {
+    "message": "브라우저 번역에 실패했습니다. 번역 탭에서 다시 준비하세요."
+  },
+  "translatorContext": {
+    "message": "텍스트가 브라우저 번역 엔진의 입력 한도를 초과했습니다."
+  },
+  "translatorSourceUnknown": {
+    "message": "이 텍스트의 원본 언어를 인식하지 못했습니다."
+  },
+  "translatorExecutionNote": {
+    "message": "한 번에 블록 하나씩 처리합니다. 사용자 지시문은 적용되지 않습니다. 이 탭을 닫으면 번역이 중지됩니다. 클라우드 제공자로 자동 전환하지 않습니다."
   }
 }

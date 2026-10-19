@@ -24,6 +24,12 @@ API availability indicates whether a model can be used, not where it runs. A bro
 
 Discovery calls availability only. Model creation/download begins when the user clicks Prepare local model. Closing or stopping the model tab cancels active work. The browser manages model files; disconnecting this mode does not delete those files. Original-text restoration, page-cache lifetime, and optional developer-log retention apply as described below. The existing tabs permission also opens and locates this bundled model tab.
 
+## Browser Translator API
+
+Translator API is an optional connection separate from the Prompt API. Source text, automatically detected source language or a declared page-language hint, and the selected target language are processed by the browser translation engine in a bundled extension tab. Custom instructions and cloud credentials are not sent to this engine. The browser controls language-pack downloads and processing location; API presence alone is not a local-only processing guarantee. The extension never automatically routes these requests to its OpenAI or Anthropic connections.
+
+Language packs are prepared after an explicit click when required. Translator sessions are held in the execution tab and destroyed when stopped or closed; browser-managed downloaded packs follow the browser’s retention controls. Page restoration, in-memory translation caching, and opt-in diagnostic copies follow the same retention rules described here. No new extension permissions are added.
+
 ## Optional developer diagnostics
 
 Developer mode is off by default. Enabling it records extension actions, translation request bodies (including original text, target language, model, and custom instructions), model-list responses, streamed translation responses, errors, retries, and local tab/frame identifiers. These diagnostics are stored only in trusted browser extension local storage and displayed in a native side panel. They are not sent to the developer or to another logging service. Authentication headers, cookies, API key verification payloads, and OAuth token exchange payloads are not recorded. Recognized credential fields and API key strings are redacted from diagnostic records. Raw API HTTP error bodies are omitted because they can echo credentials.

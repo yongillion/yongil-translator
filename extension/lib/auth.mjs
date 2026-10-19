@@ -2,14 +2,15 @@ import {t} from './i18n.mjs';
 import {AppError} from './protocol.mjs';
 import {verifyAPIKey} from './api.mjs';
 import {verifyClaudeKey} from './claude.mjs';
+import {translatorStatus,stopTranslator} from './translator-bridge.mjs';
 import {chromeAIStatus,stopChromeAI} from './chrome-ai-bridge.mjs';
 import {AUTH_ORIGIN,CLIENT_ID,REDIRECT,randomToken,pkceChallenge,authorizeURL,callbackCode,verifyIdentity} from './oauth.mjs';
 let exchange=null,refreshing=null;
 const local=chrome.storage.local,session=chrome.storage.session;
 export const storageReady=Promise.all([local.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'}),session.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'})]);
-export async function selectedProvider(){await storageReady;const {connectionProvider}=await local.get('connectionProvider');return connectionProvider==='chrome'?'chrome':['api','claude'].includes(connectionProvider)?connectionProvider:'subscription';}
+export async function selectedProvider(){await storageReady;const {connectionProvider}=await local.get('connectionProvider');return ['chrome','translator'].includes(connectionProvider)?connectionProvider:['api','claude'].includes(connectionProvider)?connectionProvider:'subscription';}
 export async function selectProvider(provider){
- if(!['subscription','api','claude','chrome'].includes(provider))throw new AppError('INPUT','connectionProviderInvalid');
+ if(!['subscription','api','claude','chrome','translator'].includes(provider))throw new AppError('INPUT','connectionProviderInvalid');
  await storageReady;await cancelLogin();
  // Invalidate a pending OAuth exchange while preserving an existing subscription.
  const {auth}=await local.get('auth');await local.set({authEpoch:auth?.connectionId||randomToken(),connectionProvider:provider});
@@ -34,6 +35,7 @@ async function tokenRequest(fields){
 export async function authStatus(){
  await storageReady;
  const provider=await selectedProvider();
+ if(provider==='translator')return translatorStatus();
  if(provider==='chrome')return chromeAIStatus();
  if(provider!=='subscription'){
   const key=provider==='claude'?'claudeAuth':'apiAuth',auth=(await local.get(key))[key];
@@ -65,6 +67,7 @@ export async function cancelLogin(expectedState){
 }
 export async function signOut(){
  const provider=await selectedProvider();
+ if(provider==='translator'){stopTranslator();await local.remove('modelCache');return;}
  if(provider==='chrome'){stopChromeAI();await local.remove('modelCache');return;}
  if(provider!=='subscription'){await local.remove([provider==='claude'?'claudeAuth':'apiAuth','modelCache']);return;}
  await storageReady;await local.set({authEpoch:randomToken()});
@@ -102,6 +105,7 @@ export async function watchLogin(){
 }
 export async function getAuth(force=false){
  const provider=await selectedProvider();
+ if(provider==='translator'){const status=translatorStatus();if(status.state!=='connected')throw new AppError('LOCAL_NOT_READY','translatorSetupRequired');return status;}
  if(provider==='chrome'){const status=chromeAIStatus();if(status.state!=='connected')throw new AppError('LOCAL_NOT_READY','chromeAISetupRequired');return status;}
  if(provider!=='subscription'){
   const key=provider==='claude'?'claudeAuth':'apiAuth',auth=(await local.get(key))[key];if(!auth)throw new AppError('AUTH_REQUIRED',provider==='claude'?'claudeKeyRequired':'apiKeyRequired');

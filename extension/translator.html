@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Translator API · Yongil Translator</title><link rel="stylesheet" href="ui.css"><link rel="stylesheet" href="chrome-ai.css"><script type="module" src="translator.mjs"></script></head>
+<body class="local-ai"><main class="local-card">
+<a class="brand" href="options.html"><img src="icons/brand.svg" width="42" height="42" alt=""><span>Yongil<span class="brand-sub">TRANSLATOR</span></span></a>
+<span class="local-badge" data-i18n="translatorBadge">BROWSER TRANSLATION</span>
+<h1 data-i18n="translatorTitle">Translator API</h1>
+<p class="local-intro" data-i18n="translatorNote">Translate with your browser without an account or API key. Keep this tab open. The browser manages language packs and where processing takes place.</p>
+<p class="local-language" data-i18n="translatorLanguages">Language pairs depend on your browser. The original language is detected automatically.</p>
+<div id="local-status" class="local-status" role="status" aria-live="polite"></div>
+<p id="language-pair" class="local-language"></p>
+<progress id="download-progress" max="1" value="0" hidden aria-label="Language pack download progress" data-i18n-aria-label="translatorDownload"></progress>
+<div class="local-actions"><button id="prepare-local" class="primary" data-i18n="translatorPrepare" disabled hidden>Prepare language pack</button><button id="cancel-local" data-i18n="translatorStop" hidden>Stop translator</button><a href="options.html" data-i18n="settings">Settings</a></div>
+<p class="small-print" data-i18n="translatorExecutionNote">Processes one block at a time. Custom instructions are not applied. Closing this tab stops translation. There is no automatic switch to a cloud provider.</p>
+</main></body></html>

@@ -16,7 +16,8 @@ Review date: 2026-10-19
 - API connection and provider-isolation tests: **12 passed**
 - Claude API connection, streaming, and isolation tests: **19 passed**
 - On-Device AI capability detection, language support, bridge, and lifecycle tests: **24 passed**
-- Extension JavaScript syntax checks: **20 files passed**
+- Translator API capability, source detection, language-pack lifecycle, UI, isolation, and retry tests: **20 passed**
+- Extension JavaScript syntax checks: **23 files passed**
 - Brand PNG icon visual inspection: 128px output reviewed
 - ZIP packaging: verified the installation file list and included manifest and icons
 
@@ -132,7 +133,7 @@ The raw execution results are stored in [test-results.json](test-results.json).
 
 ## Store preparation checks
 
-All 243 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
+All 263 automated checks pass, including redundant-JSON-suffix recovery, retries, diagnostic logs, immediate permission activation, viewport-first scheduling, toolbar progress, GitHub links, Alt defaults, and 1–64 concurrency. The maximum-concurrency regression starts 64 simultaneous batches and completes the remaining work. Both English and Korean popup shortcut labels are checked. The promotional PNGs are English artwork, not captured browser screenshots. Isolated Chrome and Edge screenshot attempts failed with GPU-process errors; actual English screenshots remain pending. See [store assets and capture status](store/README.md).
 
 ## Page toolbar progress
 
@@ -159,3 +160,11 @@ On 2026-10-19, 24 tests covered capability-based detection without browser brand
 The English popup and model setup page were visually reviewed in the in-app browser against an isolated localhost preview with mocked browser and LanguageModel APIs. The preview shows On-Device AI under an Edge profile with a compatible API and hides it under a Chrome profile reporting unavailable. Updated labels and setup-page layout were inspected. This is a UI test double, not an installed extension or real browser model. Setup activation and readiness are also exercised in the automated document harness.
 
 Manual release checks still required: install the unpacked extension in each intended browser; confirm actual Prompt API exposure, availability, language support, and processing location; prepare the model with a direct user click; verify download progress/cancellation; translate short public text; restore/retranslate from cache; stop or close the model tab during inference; test unsupported source/target languages and context errors; switch providers; restart the worker/browser. Confirm API-unavailable devices hide the option regardless of brand. The extension must not issue OpenAI/Anthropic translation requests in this mode. Browser-managed processing and transfers require separate verification. Keep release screenshots in English and distinguish mocked previews from real extension captures.
+
+## Translator API verification status
+
+20 dedicated automated cases pass, bringing the full suite to 263 passes. They cover API-method and pair availability probes without downloads; browser-brand independence; unavailable/blocked/timed-out API behavior; regional/Chinese script mapping; source detection and page-language hints; plain-text node translation with whitespace and IDs retained; same-language bypass; prepared-session reuse; gesture-required new language packs; cancellation and cleanup; strict runner identity; provider switching; no cloud fallback; omitted custom instructions; bounded retries; diagnostics; and both UI languages. All 23 extension JavaScript files pass syntax checks.
+
+English connected/unsupported popup states and the translator setup page were inspected in the in-app browser using mocked browser APIs. The setup button transitioned to Ready, and unsupported previews showed no native API choices. These were local UI previews, not real extension captures or live browser translation.
+
+Manual checks still required: install in each intended browser, confirm Translator exposure in extension documents, prepare a real language pair with a direct click, check download progress and cancellation, translate public English/Korean and mixed-language text, prepare a second source/target pair, retry failed blocks, verify inline layout/restoration/cache, and stop/close the runner during work. Test policy-blocked devices, unsupported pairs, worker restarts, and provider switches. Confirm the extension issues no cloud provider requests in this mode; inspect browser-managed processing separately.

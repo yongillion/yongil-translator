@@ -8,6 +8,7 @@ export function validateBlocks(blocks) {
  const ids=new Set();let size=0;
  for(const b of blocks) {
   if(!b||typeof b.id!=='string'||b.id.length>100||ids.has(b.id)||!Array.isArray(b.nodes)||!b.nodes.length||b.nodes.length>300)throw new AppError('INPUT','inputBlockFormat');
+  if(b.sourceLanguage!==undefined&&(typeof b.sourceLanguage!=='string'||b.sourceLanguage.length>100))throw new AppError('INPUT','inputBlockFormat');
   ids.add(b.id);const nodeIds=new Set();
   for(const n of b.nodes) {
    if(!n||typeof n.id!=='string'||n.id.length>100||nodeIds.has(n.id)||typeof n.text!=='string')throw new AppError('INPUT','inputTextFormat');

@@ -2,7 +2,7 @@
   "date": "2026-10-19",
   "version": "0.1.0",
   "automatedTests": {
-    "passed": 243,
+    "passed": 263,
     "failed": 0,
     "suites": [
       {
@@ -64,18 +64,23 @@
         "name": "chrome-ai",
         "passed": 24,
         "failed": 0
+      },
+      {
+        "name": "translator",
+        "passed": 20,
+        "failed": 0
       }
     ],
     "environment": "Local Node VM module runner; mocked browser APIs and provider transport"
   },
   "syntax": {
-    "syntaxFiles": 20
+    "syntaxFiles": 23
   },
   "package": {
     "file": "../dist/yongil-translator-0.1.0.zip",
-    "files": 38,
-    "bytes": 262867,
-    "sha256": "c718738bf50423277223f396d97a3c70ad1128cf3520603e1f0cf569375ac124",
+    "files": 42,
+    "bytes": 288786,
+    "sha256": "c533b49e061f481e76f6c8a710451634f377fa645cadffa61075cabd47d010ce",
     "archiveContentsMatchSource": true,
     "containsStoreFixtures": false
   },
@@ -108,9 +113,9 @@
     "reason": "GET /v1/models was attempted against api.anthropic.com with the supplied key held only in process memory. Outbound access was denied with EACCES before any HTTP response. The key was cleared from memory; source, fixtures, diagnostics, and release files contain no supplied credential or account email."
   },
   "credentialScan": {
-    "files": 64,
+    "files": 81,
     "findings": 0,
-    "scope": "Project source, tests, Markdown, store documents, and generated privacy HTML"
+    "scope": "Project source, tests, documentation, generated privacy HTML and packaged extension"
   },
   "onDeviceAI": {
     "liveModelDownloadVerified": false,
@@ -122,5 +127,16 @@
     "processingLocation": "Determined by the browser; availability does not guarantee on-device execution",
     "noNewPermissions": true,
     "manualChecks": "Follow TESTING.md on each intended browser/device; actual Samsung compatibility is unverified."
+  },
+  "translatorAPI": {
+    "automatedCases": 20,
+    "liveLanguagePackDownloadVerified": false,
+    "liveTranslationVerified": false,
+    "englishUIPreviewReviewed": true,
+    "uiPreviewUsesMocks": true,
+    "availabilityDetection": "Translator.availability per listed language pair, independent of browser identity and Prompt API",
+    "sourceDetection": "chrome.i18n.detectLanguage with a declared page-language fallback",
+    "noNewPermissions": true,
+    "manualChecks": "Follow TESTING.md; actual browser extension/model execution remains unverified."
   }
 }

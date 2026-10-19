@@ -3,6 +3,12 @@ import {LANGUAGES,languageLabel,shortcutLabel,sanitizeSettings,defaults} from '.
 import {displayLanguage as languageDisplay,targetLanguageValue} from './lib/languages.mjs';
 import {paintIcons} from './icons.mjs';
 import {discoverChromeAI,chromeAILanguage} from './lib/chrome-ai.mjs';
+import {discoverTranslator,translatorLanguage} from './lib/translator.mjs';
+let translatorAvailable=false,translatorLanguages=new Set();
+const translatorDiscovery=discoverTranslator();
+function supportedTranslatorLanguage(value){try{return translatorLanguages.has(translatorLanguage(value));}catch{return false;}}
+function nativeProvider(){return ['chrome','translator'].includes(account?.provider);}
+function supportedTarget(value){return account?.provider==='translator'?supportedTranslatorLanguage(value):supportedLocalLanguage(value);}
 let chromeAIAvailable=false,localLanguages=new Set();
 const localDiscovery=discoverChromeAI();
 function supportedLocalLanguage(value){try{return localLanguages.has(chromeAILanguage(value));}catch{return false;}}
@@ -30,14 +36,14 @@ function permissionCardView(){
  $('site-state').textContent=t(unsupported?'siteUnsupportedNote':checking?'siteAccessCheckingNote':'siteAccessNote');
  $('site-host').textContent=/^https?:\/\//.test(tab?.url||'')?new URL(tab.url).hostname:'';
  $('site-host').hidden=!$('site-host').textContent;
- $('translate').disabled=!ready||!state?.modelId||account?.provider==='chrome'&&!supportedLocalLanguage(state?.targetLanguage);
+ $('translate').disabled=!ready||!state?.modelId||nativeProvider()&&!supportedTarget(state?.targetLanguage);
  for(const id of ['select-block','restore','stop','retry'])$(id).disabled=!ready;
  if(!ready){closeLanguage();if(connected)$('feedback').hidden=true;}
  else $('permission-feedback').hidden=true;
 }
 function setAccount(next){
  const changed=next.state!==account?.state||next.connectionId!==account?.connectionId||next.provider!==account?.provider;
- account=next.provider==='chrome'&&!chromeAIAvailable?{...next,state:'signed_out'}:next;
+ account=(next.provider==='chrome'&&!chromeAIAvailable||next.provider==='translator'&&!translatorAvailable)?{...next,state:'signed_out'}:next;
  if(changed){sitePermission=null;permissionRevision++;feedback('');}
  accountView();return changed;
 }
@@ -51,11 +57,13 @@ function accountView(){
  $('account-email').textContent=connected?(account.email||t('connectedSubscription')):busy?t('finishSignIn'):account?.message||t('subscriptionPrompt');
  $('account-dot').classList.toggle('connected',connected);
  $('login').hidden=connected||busy;$('cancel-login').hidden=!busy;$('logout').hidden=!connected;
- const localAI=account?.provider==='chrome'&&chromeAIAvailable,claude=account?.provider==='claude',api=account?.provider==='api'||claude;
+ const translator=account?.provider==='translator'&&translatorAvailable,localAI=account?.provider==='chrome'&&chromeAIAvailable,claude=account?.provider==='claude',api=account?.provider==='api'||claude;
  $('use-chrome').hidden=!chromeAIAvailable;
+ $('use-translator').hidden=!translatorAvailable;
+ $('open-translator').hidden=!translator;$('open-translator').disabled=connectionBusy;
  $('open-chrome-ai').hidden=!localAI;$('open-chrome-ai').disabled=connectionBusy;
- for(const [id,selected]of [['use-subscription',!api&&!localAI],['use-api',api&&!claude],['use-claude',claude],['use-chrome',localAI]]){$(id).setAttribute('aria-pressed',String(selected));$(id).disabled=connectionBusy;}
- $('login').hidden||=api||localAI;$('login').disabled=connectionBusy;$('logout').disabled=connectionBusy;
+ for(const [id,selected]of [['use-subscription',!api&&!localAI&&!translator],['use-api',api&&!claude],['use-claude',claude],['use-chrome',localAI],['use-translator',translator]]){$(id).setAttribute('aria-pressed',String(selected));$(id).disabled=connectionBusy;}
+ $('login').hidden||=api||localAI||translator;$('login').disabled=connectionBusy;$('logout').disabled=connectionBusy;
  $('api-key-form').hidden=!api||connected&&!editingAPIKey;
  $('api-key').disabled=connectionBusy;$('connect-api').disabled=connectionBusy;
  $('connect-api').textContent=t(connectionBusy?'apiConnecting':claude?'connectClaude':'connectAPI');
@@ -72,7 +80,15 @@ function accountView(){
   if($('usage-note'))$('usage-note').textContent=t('chromeAIUsage');
   $('model-note').textContent=t(supportedLocalLanguage(state?.targetLanguage)?'chromeAIExecutionNote':'chromeAILanguages');
  }
- $('usage-link').hidden=localAI||!connected;
+ if(translator){
+  $('account-title').textContent=t(connected?'translatorConnected':'translatorTitle');
+  $('account-email').textContent=t(connected?'translatorReady':'translatorSetupRequired');
+  $('connection-note').textContent=t('translatorNote');
+  if($('usage-note'))$('usage-note').textContent=t('translatorTitle');
+  $('model-note').textContent=t(supportedTranslatorLanguage(state?.targetLanguage)?'translatorExecutionNote':'translatorLanguages');
+ }
+ for(const id of ['edit-instructions','instructions','instructions-nav'])if($(id))$(id).hidden=account?.provider==='translator'||!connected;
+ $('usage-link').hidden=localAI||translator||!connected;
  $('refresh-models').disabled=!connected||(!isOptions&&sitePermission!=='granted');
 }
 async function loadModels(force=false){
@@ -88,7 +104,7 @@ async function loadModels(force=false){
    if(account?.state!=='connected'||account.connectionId!==connectionId)return;
   }
   $('model').replaceChildren();const empty=document.createElement('option');empty.value='';empty.textContent=t('chooseModel');$('model').append(empty);
-  for(const m of modelResult.items){const el=document.createElement('option');el.value=m.id;el.textContent=account?.provider==='chrome'?t('chromeAIModel'):m.name;$('model').append(el);}
+  for(const m of modelResult.items){const el=document.createElement('option');el.value=m.id;el.textContent=account?.provider==='translator'?t('translatorModel'):account?.provider==='chrome'?t('chromeAIModel'):m.name;$('model').append(el);}
   if(state.modelId&&!modelResult.items.some(m=>m.id===state.modelId)){const unavailable=document.createElement('option');unavailable.value=state.modelId;unavailable.textContent=t('modelUnavailable',[state.modelId]);$('model').append(unavailable);}
   $('model').value=state.modelId;$('model-note').textContent=modelResult.stale?t('cachedModelList',[modelResult.warning||'']):'';
  }finally{$('refresh-models').disabled=false;accountView();}
@@ -99,9 +115,9 @@ let choices=[],active=-1;
 function languageItems(query=''){
  const initial=displayLanguage(languageLabel(state.defaultLocale));
  const codes=new Map(LANGUAGES.map(([code,name])=>[displayLanguage(name),code]));
- const labels=[initial,...codes.keys()].filter((x,i,a)=>a.indexOf(x)===i&&(account?.provider!=='chrome'||supportedLocalLanguage(targetValue(x)))),needle=query.trim().toLowerCase();
+ const labels=[initial,...codes.keys()].filter((x,i,a)=>a.indexOf(x)===i&&(!nativeProvider()||supportedTarget(targetValue(x)))),needle=query.trim().toLowerCase();
  choices=labels.filter(label=>!needle||label.toLowerCase().includes(needle)||codes.get(label)?.toLowerCase().includes(needle.replaceAll('_','-')));
- if(query.trim()&&account?.provider!=='chrome'&&!labels.includes(displayLanguage(targetValue(query))))choices.unshift(query.trim());
+ if(query.trim()&&!nativeProvider()&&!labels.includes(displayLanguage(targetValue(query))))choices.unshift(query.trim());
  $('language-list').replaceChildren();active=-1;
  choices.forEach((name,index)=>{
   const li=document.createElement('li');li.id='language-'+index;li.role='option';li.setAttribute('aria-selected','false');
@@ -112,7 +128,7 @@ function languageItems(query=''){
 }
 function openLanguage(filter=false){languageItems(filter?$('target-language').value:'');$('language-list').hidden=false;$('target-language').setAttribute('aria-expanded','true');}
 function closeLanguage(){$('language-list').hidden=true;$('target-language').setAttribute('aria-expanded','false');$('target-language').removeAttribute('aria-activedescendant');}
-async function chooseLanguage(value){try{if(account?.provider==='chrome'&&!supportedLocalLanguage(targetValue(value)))throw new Error(t('chromeAILanguages'));await save({targetLanguage:targetValue(value)});accountView();$('target-language').value=displayLanguage(state.targetLanguage);closeLanguage();return true;}catch(e){feedback(e.message);$('target-language').value=displayLanguage(state.targetLanguage);return false;}}
+async function chooseLanguage(value){try{if(nativeProvider()&&!supportedTarget(targetValue(value)))throw new Error(t(account.provider==='translator'?'translatorLanguages':'chromeAILanguages'));await save({targetLanguage:targetValue(value)});accountView();$('target-language').value=displayLanguage(state.targetLanguage);closeLanguage();return true;}catch(e){feedback(e.message);$('target-language').value=displayLanguage(state.targetLanguage);return false;}}
 $('target-language').addEventListener('input',()=>openLanguage(true));
 $('target-language').addEventListener('keydown',e=>{
  if(e.key==='Escape'){closeLanguage();e.preventDefault();}
@@ -128,7 +144,7 @@ $('target-language').addEventListener('blur',()=>{closeLanguage();if($('target-l
 action('language-toggle',()=>{if($('language-list').hidden)openLanguage();else closeLanguage();$('target-language').focus();});
 $('model').addEventListener('change',()=>save({modelId:$('model').value}).then(accountView).catch(e=>feedback(e.message)));
 action('refresh-models',()=>loadModels(true));
-action('login',async()=>{if(account?.provider==='chrome'&&!chromeAIAvailable)await connectionAction('auth.provider',{provider:'subscription'});await rpc('auth.start');setAccount(await rpc('auth.status'));await connectedView();});
+action('login',async()=>{if(account?.provider==='chrome'&&!chromeAIAvailable||account?.provider==='translator'&&!translatorAvailable)await connectionAction('auth.provider',{provider:'subscription'});await rpc('auth.start');setAccount(await rpc('auth.status'));await connectedView();});
 action('cancel-login',async()=>{await rpc('auth.cancel');setAccount(await rpc('auth.status'));});
 action('logout',async()=>{await rpc('auth.signOut');setAccount(await rpc('auth.status'));$('model').replaceChildren(new Option(t('connectFirst'),''));feedback(t('disconnectedMessage'),true);});
 async function connectionAction(type,data={}){
@@ -140,10 +156,11 @@ async function connectionAction(type,data={}){
  }catch(e){feedback(e.message);}
  finally{connectionBusy=false;accountView();}
 }
-for(const [id,provider]of [['use-subscription','subscription'],['use-api','api'],['use-claude','claude'],['use-chrome','chrome']])action(id,async()=>{
- if(connectionBusy||provider==='chrome'&&!chromeAIAvailable||(account?.provider||'subscription')===provider)return;
+for(const [id,provider]of [['use-subscription','subscription'],['use-api','api'],['use-claude','claude'],['use-chrome','chrome'],['use-translator','translator']])action(id,async()=>{
+ if(connectionBusy||provider==='chrome'&&!chromeAIAvailable||provider==='translator'&&!translatorAvailable||(account?.provider||'subscription')===provider)return;
  $('api-key').value='';await connectionAction('auth.provider',{provider});
 });
+action('open-translator',()=>rpc('translator.open'));
 action('open-chrome-ai',()=>rpc('chromeAI.open'));
 action('replace-api-key',()=>{editingAPIKey=true;accountView();$('api-key').focus();});
 $('api-key-form').addEventListener('submit',event=>{
@@ -344,8 +361,9 @@ async function init(){
  await refreshLogsPanel();
  if(!isOptions)[tab]=await chrome.tabs.query({active:true,currentWindow:true});
  settingsView();setAccount(status);await connectedView();
- const capability=await localDiscovery;chromeAIAvailable=capability.state!=='unavailable';localLanguages=new Set(capability.languages);
- if(account?.provider==='chrome'){setAccount(await rpc('auth.status'));await connectedView();}else accountView();
+ const [capability,translatorSupport]=await Promise.all([localDiscovery,translatorDiscovery]);chromeAIAvailable=capability.state!=='unavailable';localLanguages=new Set(capability.languages);
+ translatorAvailable=translatorSupport.state!=='unavailable';translatorLanguages=new Set(translatorSupport.pairs.map(pair=>pair.targetLanguage));
+ if(nativeProvider()){setAccount(await rpc('auth.status'));await connectedView();}else accountView();
 }
 async function refreshLanguage(){
  await configureLanguage(state.uiLanguage);localizeDocument();closeLanguage();

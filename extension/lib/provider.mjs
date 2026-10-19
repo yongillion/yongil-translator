@@ -4,6 +4,8 @@ import {AppError,readResponseStream,parseTranslation,validateBlocks} from './pro
 import {developerLog} from './logger.mjs';
 import {API_BASE,apiError,apiModels,translationFormat} from './api.mjs';
 import {CLAUDE_BASE,claudeHeaders,claudeError,listClaudeModels,claudePayload,readClaudeStream} from './claude.mjs';
+import {requestTranslator} from './translator-bridge.mjs';
+import {TRANSLATOR_MODEL,translatorLanguage} from './translator.mjs';
 import {requestChromeAI} from './chrome-ai-bridge.mjs';
 import {CHROME_AI_MODEL,chromeAILanguage} from './chrome-ai.mjs';
 const BASE='https://chatgpt.com/backend-api/codex';
@@ -36,6 +38,7 @@ async function request(path,options={},signal,trace={},connectionId){
 }
 export async function models(force=false){
  const auth=await getAuth();
+ if(auth.provider==='translator')return {items:[{id:TRANSLATOR_MODEL,name:'Browser Translator'}],connectionId:auth.connectionId,stale:false};
  if(auth.provider==='chrome')return {items:[{id:CHROME_AI_MODEL,name:'Browser-provided model'}],connectionId:auth.connectionId,stale:false};
  const {modelCache}=await chrome.storage.local.get('modelCache');
  if(!force&&modelCache?.connectionId===auth.connectionId&&modelCache.time>Date.now()-3600000)return {...modelCache,stale:false};
@@ -61,6 +64,8 @@ export async function translate(blocks,settings,connectionId,signal){
  const auth=await getAuth();if(auth.connectionId!==connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');
  if(!settings.modelId)throw new AppError('MODEL_REQUIRED','modelRequired');
  if(auth.provider==='chrome'){chromeAILanguage(settings.targetLanguage);if(settings.modelId!==CHROME_AI_MODEL)throw new AppError('MODEL','modelRequest');}
+ if(auth.provider==='translator'){translatorLanguage(settings.targetLanguage);if(settings.modelId!==TRANSLATOR_MODEL)throw new AppError('MODEL','modelRequest');}
+ else blocks=blocks.map(({id,nodes})=>({id,nodes}));
  let claudeModel,outputLimit;
  if(auth.provider==='claude'){
   claudeModel=(await models()).items.find(item=>item.id===settings.modelId);
@@ -88,11 +93,12 @@ export async function translate(blocks,settings,connectionId,signal){
   const events=[];let responseLog=null,text;
   try{
    const prompt=instructions+(previousError?.code==='RESULT'?'\nYour previous response did not pass JSON validation. Return one complete JSON object in the exact required schema, with no commentary. Keep every requested block and node exactly once. Do not append any characters after the root object closes.':'');
-   if(auth.provider==='chrome'){
-    developerLog.add('local.request',{...trace,instructions:prompt,blocks,targetLanguage:settings.targetLanguage});
+   if(['chrome','translator'].includes(auth.provider)){
+    const nativePayload={blocks,targetLanguage:settings.targetLanguage,...(auth.provider==='chrome'?{instructions:prompt}:{})};
+    developerLog.add('local.request',{...trace,...nativePayload});
     responseLog=developerLog.add('translation.response',{...trace,state:'streaming',text:''});
     let streamed='';
-    text=await requestChromeAI({instructions:prompt,blocks,targetLanguage:settings.targetLanguage},connectionId,controller.signal,chunk=>{
+    text=await (auth.provider==='translator'?requestTranslator:requestChromeAI)(nativePayload,connectionId,controller.signal,chunk=>{
      if(!developerLog.enabled)return;streamed+=chunk;developerLog.update(responseLog,{...trace,state:'streaming',text:streamed});
     });
    }else{

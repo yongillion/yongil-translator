@@ -1,6 +1,6 @@
 # Yongil Translator
 
-A Chromium extension that translates webpages in place using a ChatGPT subscription account, your own OpenAI API key, a Claude API key, or experimental browser-provided On-Device AI. Translate an entire page or selected blocks, then restore the original text at any time.
+A Chromium extension that translates webpages in place using a ChatGPT subscription account, your own OpenAI API key, a Claude API key, experimental browser-provided On-Device AI, or the browser Translator API. Translate an entire page or selected blocks, then restore the original text at any time.
 
 **Current status:** The user has reported successful translation with GPT-6.1 Sol. Automated regression tests cover the implementation, including configurable parallel requests. The latest changes have not yet been verified through browser automation or timed against the live service. Edge/Brave compatibility remains unverified.
 
@@ -30,6 +30,21 @@ Translation processes one block and one request at a time, regardless of the clo
 The name **On-Device AI** describes the intended use with local browser models, but Prompt API availability is not proof of local execution. The API proposal also permits browser-managed cloud implementations and exposes no portable execution-location guarantee. Processing location and model downloads follow the browser's implementation and policies. The extension does not add a network model library or remote fallback.
 
 The bundled extension tab is necessary because the API is not exposed in service workers. No new host or offscreen permission is added. Stored provider/model identifiers are retained for compatibility; the UI uses a generic browser-model label. Real downloads and inference still require testing on each browser/device. See the [Prompt API proposal](https://github.com/webmachinelearning/prompt-api), [Chrome documentation](https://developer.chrome.com/docs/ai/prompt-api), and [Samsung built-in AI policy](https://developer.samsung.com/browser/policy/built-in-aiap-is-enabled.html). Samsung's policy documentation does not by itself establish that a usable model is exposed to extensions.
+
+## Translator API
+
+Translator API is a separate browser translation engine, independent of the Prompt API option. It needs no account or API key. The option starts hidden and appears only when the extension document exposes Translator.availability() and Translator.create() and a probe finds a supported listed language pair. Browser branding is not checked. Probes never create translators or download language packs.
+
+1. Choose **Translator API** and **Open browser translator**.
+2. Click **Prepare language pack** for the displayed pair. Keep this tab open.
+3. Grant site access and choose a supported target language in the popup. Page, block, and selected-text translation use the existing controls and shortcuts.
+4. If another source/target pair requires a download, open the translator tab, prepare the displayed pair with another click, and retry the failed blocks. The extension does not download every language pack in advance.
+
+Source language is detected with the browser extension language detector using the whole block. Short or ambiguous text uses its nearest declared page language where available; detection can be wrong. The picker shows targets with at least one supported source pair, and each actual pair is checked before use. Country variants are passed to the API; Traditional Chinese is kept distinct from Simplified Chinese.
+
+Requests run one block at a time. Each text node is translated separately so inline elements, IDs, surrounding whitespace, restoration snapshots, and cached results remain intact. This can reduce linguistic context across inline boundaries compared with an LLM. Custom instructions are hidden and not passed to this engine; saved instructions remain available for other providers. Browser errors leave the original unchanged, and result validation uses the existing retry limit. Closing the translator tab cancels requests. No automatic cloud fallback is used.
+
+The browser controls downloads, device eligibility, and processing location. No new permissions are requested. Actual browser model download and translation remain unverified in this development environment. See [Chrome Translator API documentation](https://developer.chrome.com/docs/ai/translator-api) and the [Translator API proposal](https://github.com/webmachinelearning/translation-api).
 
 ## Usage
 

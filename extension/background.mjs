@@ -6,7 +6,9 @@ import {models,translate} from './lib/provider.mjs';
 import {developerLog} from './lib/logger.mjs';
 import {attachChromeAI,openChromeAI} from './lib/chrome-ai-bridge.mjs';
 import {chromeAILanguage} from './lib/chrome-ai.mjs';
-attachChromeAI();
+import {attachTranslator,openTranslator} from './lib/translator-bridge.mjs';
+import {translatorLanguage} from './lib/translator.mjs';
+attachChromeAI();attachTranslator();
 
 const queue=new RequestQueue(defaults().maxConcurrentBatches),jobs=new Map();
 const contentFiles=['document-core.js','selection-ui.js','content.js'];
@@ -113,7 +115,7 @@ async function route(message,sender){
    const s=await contentAllowed(sender),auth=await authStatus();
    if(auth.state!=='connected')throw new AppError('AUTH_REQUIRED','connectAccountFirst');
    if(!s.modelId)throw new AppError('MODEL_REQUIRED','selectModelPopup');
-   const localAI=auth.provider==='chrome';if(localAI)chromeAILanguage(s.targetLanguage);
+   const localAI=['chrome','translator'].includes(auth.provider);if(auth.provider==='chrome')chromeAILanguage(s.targetLanguage);if(auth.provider==='translator')translatorLanguage(s.targetLanguage);
    queue.setLimit(localAI?1:s.maxConcurrentBatches);
    const id=crypto.randomUUID(),key=frameKey(sender)+id;
    jobs.set(key,{settings:s,connectionId:auth.connectionId,created:Date.now(),tabId:sender.tab.id,frameId:sender.frameId});
@@ -152,6 +154,7 @@ async function route(message,sender){
   case 'auth.cancel':return changeConnection(async()=>{await cancelLogin();return authStatus();});
   case 'auth.signOut':return changeConnection(async()=>{await signOut();return {};});
   case 'auth.provider':return changeConnection(()=>selectProvider(message.provider));
+  case 'translator.open':if(await selectedProvider()!=='translator')throw new AppError('INPUT','connectionProviderInvalid');return openTranslator();
   case 'chromeAI.open':if(await selectedProvider()!=='chrome')throw new AppError('INPUT','connectionProviderInvalid');return openChromeAI();
   case 'auth.apiKey':return changeConnection(()=>connectAPI(message.apiKey,message.provider));
   case 'models.list':await connectionChanges.catch(()=>{});return models(!!message.force);

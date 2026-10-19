@@ -75,3 +75,9 @@ A compatible browser-provided Prompt API can be used without an extension API ke
 Click Open local model tab, then Prepare local model. Discovery does not download a model; preparation requires a user click. Keep the model tab open. Target languages are queried from the browser, including Korean when supported. Requests run one block at a time and use the existing retries, restoration, cache, and optional developer logs. No new host or offscreen permission is added.
 
 The extension does not route these prompts through OpenAI or Anthropic or automatically switch to those connections. Prompt API availability does not guarantee on-device processing: the browser controls execution location and any model downloads or browser-managed transfers. Review the browser's privacy practices. Real device/browser tests remain required before claiming compatibility.
+
+## Optional Translator API
+
+A separate **Translator API** option appears only when the browser exposes compatible API methods and reports a supported listed language pair. It needs no account or API key and is independent of browser branding and Prompt API support. Open the browser translator tab, click **Prepare language pack**, keep the tab open, grant site access, and use the existing translation controls. Additional pairs may require another preparation click and retry.
+
+Source languages are detected automatically. Text nodes are translated individually with original restoration and page caching preserved. Custom instructions are not applied. No new permissions or automatic cloud fallback are added. The browser controls downloads and processing location. Actual extension/model verification remains pending; test each intended browser and language pair before claiming support.

@@ -208,7 +208,7 @@
       }
       render();if(!batch.length)continue;
       try{
-       const output=await send('job.batch',{jobId:id,blocks:batch.map(t=>({id:t.id,nodes:t.nodes}))});
+       const output=await send('job.batch',{jobId:id,blocks:batch.map(t=>({id:t.id,nodes:t.nodes,sourceLanguage:(store.blocks.get(t.id)?.element?.closest?.('[lang]')?.getAttribute('lang')||document.documentElement.lang||'').slice(0,100)}))});
        for(const t of batch){
         if(!active())break;
         if(store.apply(t,output[t.id])){

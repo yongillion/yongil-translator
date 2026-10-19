@@ -180,7 +180,7 @@
     "message": "Translation connection"
   },
   "privacyNote": {
-    "message": "Text selected for translation and your instructions are sent to your selected provider: OpenAI or Anthropic. Subscription or API usage applies to that connection. You can restore the original text after disconnecting."
+    "message": "Translation text goes to your selected OpenAI or Anthropic connection, or the browser’s built-in API. Subscription and API connections use their respective usage allowances. The browser controls processing for built-in APIs. Original text can still be restored after disconnecting."
   },
   "manageSubscriptionUsage": {
     "message": "Manage subscription usage ↗"
@@ -949,5 +949,65 @@
   },
   "chromeAIModel": {
     "message": "Browser-provided model"
+  },
+  "translatorTitle": {
+    "message": "Translator API"
+  },
+  "translatorBadge": {
+    "message": "BROWSER TRANSLATION"
+  },
+  "translatorConnected": {
+    "message": "Browser translator connected"
+  },
+  "translatorModel": {
+    "message": "Browser translation engine"
+  },
+  "translatorOpen": {
+    "message": "Open browser translator"
+  },
+  "translatorNote": {
+    "message": "Translate with your browser without an account or API key. Keep this tab open. The browser manages language packs and where processing takes place."
+  },
+  "translatorLanguages": {
+    "message": "Language pairs depend on your browser. The original language is detected automatically."
+  },
+  "translatorSetupRequired": {
+    "message": "Open the browser translator tab and prepare the displayed language pack, then retry translation. A new language pair may need another download."
+  },
+  "translatorReady": {
+    "message": "Ready. Keep the browser translator tab open while translating."
+  },
+  "translatorPrepare": {
+    "message": "Prepare language pack"
+  },
+  "translatorPreparing": {
+    "message": "Preparing the language pack…"
+  },
+  "translatorTranslating": {
+    "message": "Translating with the browser…"
+  },
+  "translatorDownload": {
+    "message": "Language pack download progress"
+  },
+  "translatorDownloadPercent": {
+    "message": "Downloading language pack… $1%"
+  },
+  "translatorStop": {
+    "message": "Stop translator"
+  },
+  "translatorUnavailable": {
+    "message": "Translator API is unavailable in this browser or its current configuration."
+  },
+  "translatorFailed": {
+    "message": "Browser translation failed. Open the translator tab to prepare it again."
+  },
+  "translatorContext": {
+    "message": "This text exceeds the browser translator’s input limit."
+  },
+  "translatorSourceUnknown": {
+    "message": "The original language could not be detected for this text."
+  },
+  "translatorExecutionNote": {
+    "message": "Processes one block at a time. Custom instructions are not applied. Closing this tab stops translation. There is no automatic switch to a cloud provider."
   }
 }
