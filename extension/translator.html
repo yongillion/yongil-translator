@@ -4,11 +4,13 @@
 <a class="brand" href="options.html"><img src="icons/brand.svg" width="42" height="42" alt=""><span>Yongil<span class="brand-sub">TRANSLATOR</span></span></a>
 <span class="local-badge" data-i18n="translatorBadge">BROWSER TRANSLATION</span>
 <h1 data-i18n="translatorTitle">Translator API</h1>
-<p class="local-intro" data-i18n="translatorNote">Translate with your browser without an account or API key. Keep this tab open. The browser manages language packs and where processing takes place.</p>
+<p class="local-intro" data-i18n="translatorNote">Translate with your browser without an account or API key. Prepare the language packs here, then close this tab once background readiness is confirmed. The browser manages language packs and where processing takes place.</p>
 <p class="local-language" data-i18n="translatorLanguages">Language pairs depend on your browser. The original language is detected automatically.</p>
+<div class="language-pickers"><label for="source-language"><span data-i18n="translatorSource">Source language</span><select id="source-language" disabled></select></label><label for="target-language"><span data-i18n="translatorTarget">Target language</span><select id="target-language" disabled></select></label></div>
+<p class="small-print" data-i18n="translatorPairNote">Choose a pair to prepare its language pack. Page translation still detects the source automatically and uses the target in Settings.</p>
 <div id="local-status" class="local-status" role="status" aria-live="polite"></div>
 <p id="language-pair" class="local-language"></p>
 <progress id="download-progress" max="1" value="0" hidden aria-label="Language pack download progress" data-i18n-aria-label="translatorDownload"></progress>
 <div class="local-actions"><button id="prepare-local" class="primary" data-i18n="translatorPrepare" disabled hidden>Prepare language pack</button><button id="cancel-local" data-i18n="translatorStop" hidden>Stop translator</button><a href="options.html" data-i18n="settings">Settings</a></div>
-<p class="small-print" data-i18n="translatorExecutionNote">Processes one block at a time. Custom instructions are not applied. Closing this tab stops translation. There is no automatic switch to a cloud provider.</p>
+<p class="small-print" data-i18n="translatorExecutionNote">Processes one block at a time. Custom instructions are not applied. A new language pack may require another preparation click. There is no automatic switch to a cloud provider.</p>
 </main></body></html>

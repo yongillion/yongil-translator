@@ -22,10 +22,10 @@ async function setup(){
  return {...h,port,job:async()=>(await h.send({type:'job.begin'},h.content)).data};
 }
 async function pageHarness(api){
- const nodes=new Map(['prepare-local','cancel-local','local-status','language-pair','download-progress'].map(id=>[id,{hidden:true,disabled:true,textContent:'',listeners:{},addEventListener(type,fn){this.listeners[type]=fn;}}]));
+ const nodes=new Map(['prepare-local','cancel-local','local-status','language-pair','download-progress','source-language','target-language'].map(id=>[id,{hidden:true,disabled:true,textContent:'',value:'',children:[],replaceChildren(...children){this.children=children;},listeners:{},addEventListener(type,fn){this.listeners[type]=fn;}}]));
  const port={onMessage:event(),onDisconnect:event(),sent:[],postMessage(message){this.sent.push(message);},disconnect(){this.onDisconnect.emit();}};
  const chrome={i18n:{...mockI18n('en'),detectLanguage:detection()},storage:{local:{get:async()=>({settings:{uiLanguage:'en',targetLanguage:'한국어'}})},onChanged:event()},runtime:{getURL:p=>'chrome-extension://test/'+p,connect:()=>port}};
- const document={getElementById:id=>nodes.get(id),documentElement:{dataset:{}},querySelectorAll:()=>[]};
+ const document={createElement:()=>({}),getElementById:id=>nodes.get(id),documentElement:{dataset:{}},querySelectorAll:()=>[]};
  const context=vm.createContext({chrome,document,Translator:api,fetch:localeFetch,AbortController,DOMException,URL,setTimeout,clearTimeout,setInterval(){},window:{addEventListener(){}}});
  const modules=new Map(),entry=new vm.SourceTextModule(await readFile(new URL('../extension/translator.mjs',import.meta.url),'utf8'),{context});
  await entry.link(async specifier=>{const name=specifier.split('/').pop();if(!modules.has(name))modules.set(name,readFile(new URL('../extension/lib/'+name,import.meta.url),'utf8').then(source=>new vm.SourceTextModule(source,{context})));return modules.get(name);});await entry.evaluate();
@@ -142,14 +142,38 @@ export async function translatorTests(){
  await test('Setup document calls create directly on click, reports download progress, and stops sessions',async()=>{
   let creates=0,destroys=0;const api={...feature,availability:async()=> 'downloadable',create(options){creates++;options.monitor({addEventListener(type,fn){fn({loaded:0.5});}});return Promise.resolve({translate:async x=>x,destroy(){destroys++;}});}};
   const h=await pageHarness(api);assert.equal(creates,0);h.port.onMessage.emit({type:'connected'});const prepared=h.click('prepare-local');assert.equal(creates,1);assert.equal(h.nodes.get('download-progress').value,0.5);await prepared;
-  assert.ok(h.port.sent.some(x=>x.type==='ready'));assert.equal(h.nodes.get('prepare-local').hidden,true);h.click('cancel-local');assert.equal(destroys,1);assert.ok(h.port.sent.some(x=>x.type==='stopped'));
+  assert.ok(h.port.sent.some(x=>x.type==='ready'));assert.equal(h.nodes.get('prepare-local').hidden,false);h.click('cancel-local');assert.equal(destroys,1);assert.ok(h.port.sent.some(x=>x.type==='stopped'));
  });
  await test('A new source pair requests another explicit click and keeps the connection stable for retry',async()=>{
   let creates=0;const h=await pageHarness({...feature,availability:async()=> 'downloadable',create:async()=>{creates++;return feature.create();}});
   h.port.onMessage.emit({type:'connected'});await h.click('prepare-local');
   h.port.onMessage.emit({type:'translate',id:'new-pair',blocks,targetLanguage:'日本語'});await tick();await tick();
-  assert.ok(h.port.sent.some(x=>x.type==='error'&&x.code==='LOCAL_NOT_READY'));assert.equal(h.nodes.get('prepare-local').hidden,false);assert.equal(h.nodes.get('language-pair').textContent,'en → ja');assert.equal(creates,1);
+  assert.ok(h.port.sent.some(x=>x.type==='error'&&x.code==='LOCAL_NOT_READY'));assert.equal(h.nodes.get('prepare-local').hidden,false);assert.equal(h.nodes.get('source-language').value,'en');assert.equal(h.nodes.get('target-language').value,'ja');assert.equal(creates,1);
   await h.click('prepare-local');assert.equal(creates,2);h.port.onMessage.emit({type:'translate',id:'retry',blocks,targetLanguage:'日本語'});await tick();await tick();assert.ok(h.port.sent.some(x=>x.type==='result'&&x.id==='retry'));h.click('cancel-local');
+ });
+ await test('Language pack selectors prepare the chosen source and target directly on click',async()=>{
+  const pairs=[];const h=await pageHarness({...feature,create:async pair=>{pairs.push(pair);return feature.create();}});
+  h.port.onMessage.emit({type:'connected'});h.nodes.get('source-language').value='fr';h.nodes.get('target-language').value='de';h.nodes.get('source-language').listeners.change();await tick();
+  await h.click('prepare-local');assert.equal(pairs[0].sourceLanguage,'fr');assert.equal(pairs[0].targetLanguage,'de');
+  assert.ok(h.nodes.get('source-language').children.some(x=>x.textContent.includes('한국어')&&x.textContent.includes('Korean')));
+  assert.ok(h.nodes.get('target-language').children.some(x=>x.value==='en-GB'&&x.textContent==='English (United Kingdom)'));
+ });
+ await test('Same and unsupported pairs disable preparation without changing the translation target setting',async()=>{
+  let creates=0;const h=await pageHarness({...feature,availability:async p=>p.sourceLanguage==='ja'&&p.targetLanguage==='ko'?'unavailable':'available',create(){creates++;}});
+  h.port.onMessage.emit({type:'connected'});
+  for(const source of ['ko','ja']){h.nodes.get('source-language').value=source;h.nodes.get('source-language').listeners.change();await tick();assert.equal(h.nodes.get('prepare-local').disabled,true);h.click('prepare-local');}
+  assert.equal(creates,0);
+ });
+ await test('Setup only announces safe tab closure after hidden execution has been verified',async()=>{
+  const h=await pageHarness(feature);h.port.onMessage.emit({type:'connected'});await h.click('prepare-local');
+  assert.ok(!h.nodes.get('local-status').textContent.includes('You can close'));
+  h.port.onMessage.emit({type:'accepted',background:true});assert.ok(h.nodes.get('local-status').textContent.includes('You can close'));
+  h.port.onMessage.emit({type:'accepted',background:false});assert.ok(h.nodes.get('local-status').textContent.includes('keep this tab open'));
+ });
+ await test('Reopening setup shows background readiness and selects a newly required pair',async()=>{
+  const h=await pageHarness(feature);h.port.onMessage.emit({type:'connected'});
+  h.port.onMessage.emit({type:'background-state',background:true,state:'connected',pendingSetup:{sourceLanguage:'ja',targetLanguage:'ko'}});await tick();
+  assert.equal(h.nodes.get('source-language').value,'ja');assert.equal(h.nodes.get('target-language').value,'ko');assert.equal(h.nodes.get('prepare-local').disabled,false);
  });
  return {passed:results.filter(r=>r.passed).length,failed:results.filter(r=>!r.passed).length,results};
 }

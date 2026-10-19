@@ -67,8 +67,8 @@ export async function cancelLogin(expectedState){
 }
 export async function signOut(){
  const provider=await selectedProvider();
- if(provider==='translator'){stopTranslator();await local.remove('modelCache');return;}
- if(provider==='chrome'){stopChromeAI();await local.remove('modelCache');return;}
+ if(provider==='translator'){await stopTranslator();await local.remove('modelCache');return;}
+ if(provider==='chrome'){await stopChromeAI();await local.remove('modelCache');return;}
  if(provider!=='subscription'){await local.remove([provider==='claude'?'claudeAuth':'apiAuth','modelCache']);return;}
  await storageReady;await local.set({authEpoch:randomToken()});
  await local.remove(['auth','authError','modelCache']);await cancelLogin();
@@ -105,8 +105,8 @@ export async function watchLogin(){
 }
 export async function getAuth(force=false){
  const provider=await selectedProvider();
- if(provider==='translator'){const status=translatorStatus();if(status.state!=='connected')throw new AppError('LOCAL_NOT_READY','translatorSetupRequired');return status;}
- if(provider==='chrome'){const status=chromeAIStatus();if(status.state!=='connected')throw new AppError('LOCAL_NOT_READY','chromeAISetupRequired');return status;}
+ if(provider==='translator'){const status=await translatorStatus();if(status.state!=='connected')throw new AppError('LOCAL_NOT_READY','translatorSetupRequired');return status;}
+ if(provider==='chrome'){const status=await chromeAIStatus();if(status.state!=='connected')throw new AppError('LOCAL_NOT_READY','chromeAISetupRequired');return status;}
  if(provider!=='subscription'){
   const key=provider==='claude'?'claudeAuth':'apiAuth',auth=(await local.get(key))[key];if(!auth)throw new AppError('AUTH_REQUIRED',provider==='claude'?'claudeKeyRequired':'apiKeyRequired');
   return {...auth,provider};

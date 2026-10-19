@@ -1,7 +1,7 @@
 import {configureLanguage,localizeDocument,t} from './lib/i18n.mjs';
 import {discoverChromeAI,chromeAILanguage,chromeAIOptions,chromeAIError,promptChromeAI} from './lib/chrome-ai.mjs';
 
-let capability=false,prepareOptions=chromeAIOptions();
+let background=false,capability=false,prepareOptions=chromeAIOptions();
 const $=id=>document.getElementById(id),controllers=new Map();
 let port,connected=false,ready=false,preparing=null,tail=Promise.resolve(),closing=false,statusKey='chromeAISetupRequired',statusValues=[];
 function status(key,values=[]){statusKey=key;statusValues=values;$('local-status').textContent=t(key,values);}
@@ -11,17 +11,23 @@ function controls(){
  $('cancel-local').hidden=!ready&&!preparing;
 }
 function post(message){try{port?.postMessage(message);}catch{}}
-function stop(){
+function stop(explicit=false){
+ background=false;
  ready=false;preparing?.abort();
  for(const controller of controllers.values())controller.abort();
- $('download-progress').hidden=true;controls();status('chromeAISetupRequired');post({type:'stopped'});
+ $('download-progress').hidden=true;controls();status('chromeAISetupRequired');post({type:'stopped',explicit});
 }
 function connect(){
  if(closing||!capability)return;
  port=chrome.runtime.connect({name:'chrome-ai-runner'});
  port.onMessage.addListener(message=>{
-  if(message.type==='connected'){connected=true;controls();if(ready)post({type:'ready'});}
-  if(message.type==='accepted'&&ready){status('chromeAIReady');}
+  if(message.type==='connected'){connected=true;controls();post({type:'inspect'});if(ready&&!background)post({type:'ready',options:prepareOptions});}
+  if(message.type==='accepted'&&ready){background=message.background===true;status(background?'nativeBackgroundReady':'nativeTabRequired');}
+  if(message.type==='background-state'&&message.background){
+   background=true;ready=true;
+   if(message.pendingSetup){prepareOptions=message.pendingSetup;ready=false;status('chromeAISetupRequired');}
+   else status('nativeBackgroundReady');controls();
+  }
   if(message.type==='stop')stop();
   if(message.type==='cancel')controllers.get(message.id)?.abort();
   if(message.type!=='translate')return;
@@ -46,7 +52,7 @@ function connect(){
     const error=chromeAIError(cause);post({type:'error',id:message.id,code:error.name==='AbortError'?'CANCELLED':error.code});
     if(error.code==='LOCAL_NOT_READY'){ready=false;controls();status('chromeAISetupRequired');post({type:'stopped'});}
    }
-   finally{controllers.delete(message.id);if(ready)status('chromeAIReady');}
+   finally{controllers.delete(message.id);if(ready)status(background?'nativeBackgroundReady':'nativeTabRequired');}
   });
  });
  port.onDisconnect.addListener(()=>{
@@ -65,11 +71,11 @@ $('prepare-local').addEventListener('click',()=>{
   $('download-progress').hidden=false;$('download-progress').value=event.loaded;
   status('chromeAIDownloadPercent',[Math.round(event.loaded*100)]);
  });}});}catch(error){operation=Promise.reject(error);}
- void operation.then(session=>{const compatible=typeof session.promptStreaming==='function'&&typeof session.destroy==='function';session.destroy?.();if(!compatible)throw new Error('Incompatible Prompt API session');if(controller.signal.aborted)return;ready=true;post({type:'ready'});status('chromeAIReady');})
+ void operation.then(session=>{const compatible=typeof session.promptStreaming==='function'&&typeof session.destroy==='function';session.destroy?.();if(!compatible)throw new Error('Incompatible Prompt API session');if(controller.signal.aborted)return;ready=true;post({type:'ready',options:prepareOptions});status('nativeBackgroundChecking');})
   .catch(cause=>{ready=false;const error=chromeAIError(cause);status(error.name==='AbortError'?'jobCancelled':error.messageKey);})
   .finally(()=>{preparing=null;$('download-progress').hidden=true;controls();});
 });
-$('cancel-local').addEventListener('click',stop);
+$('cancel-local').addEventListener('click',()=>stop(true));
 window.addEventListener('pagehide',()=>{closing=true;stop();port?.disconnect();});
 const {settings={}}=await chrome.storage.local.get('settings');
 await configureLanguage(settings.uiLanguage);localizeDocument();document.documentElement.dataset.theme=settings.theme||'system';
@@ -82,7 +88,7 @@ else{
 }
 controls();
 // A live document sends traffic to keep the bridge available during long inference.
-setInterval(()=>{if(connected)post({type:'heartbeat'});},20000);
+setInterval(()=>{if(connected){post({type:'heartbeat'});post({type:'inspect'});}},20000);
 
 chrome.storage.onChanged.addListener((changes,area)=>{
  const next=changes.settings?.newValue;if(area!=='local'||!next)return;

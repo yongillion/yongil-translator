@@ -20,6 +20,10 @@ Injects the packaged page translation, block selection, and selected-text popup 
 
 Reads the active tab URL to determine site access and the translation target, identifies the dedicated OAuth sign-in tab, and handles its navigation and lifecycle. It does not read the browser's stored browsing history or send a browsing log to a server.
 
+### offscreen
+
+Hosts and scripts a packaged same-origin iframe that runs the browser's window-only Translator and Prompt APIs after the user closes the preparation tab. The iframe isolates model sessions from the preparation UI. Creation uses IFRAME_SCRIPTING; the host only communicates through runtime messaging. No external pages, remote code, API keys, or new website access are involved. Downloads still begin from an explicit preparation click; hidden execution is confirmed before the UI says the tab can be closed. Readiness identifiers and pending language options, without page text, are stored locally and removed on Disconnect. Unsupported hidden contexts fall back to the indicated visible setup tab.
+
 ### alarms
 
 Checks the pending OAuth sign-in for timeout or a missed callback while the Manifest V3 service worker may be suspended. This alarm does not collect analytics or run periodic translation.
@@ -100,12 +104,12 @@ An equivalent static page is prepared at docs/privacy.html. If GitHub Pages is c
 
 A compatible browser-provided Prompt API can be used without an extension API key. The option is shown based on runtime API availability and language support, with no Chrome-only brand restriction. Unsupported browsers/devices and policy-blocked APIs keep it hidden. Samsung, Edge, and other compatible implementations are eligible, but actual model execution in those browsers has not been verified.
 
-Click Open local model tab, then Prepare local model. Discovery does not download a model; preparation requires a user click. Keep the model tab open. Target languages are queried from the browser, including Korean when supported. Requests run one block at a time and use the existing retries, restoration, cache, and optional developer logs. No new host or offscreen permission is added.
+Click Open local model tab, then Prepare local model. Discovery does not download a model; preparation requires a user click. After background readiness is confirmed, the setup tab can be closed. If the browser cannot run the hidden context, the page explicitly asks to keep the tab open. Target languages are queried from the browser, including Korean when supported. Requests run one block at a time and use the existing retries, restoration, cache, and optional developer logs. The offscreen permission hosts and scripts a bundled same-origin iframe for window-only browser AI APIs; no new host access is added.
 
 The extension does not route these prompts through OpenAI or Anthropic or automatically switch to those connections. Prompt API availability does not guarantee on-device processing: the browser controls execution location and any model downloads or browser-managed transfers. Review the browser's privacy practices. Real device/browser tests remain required before claiming compatibility.
 
 ## Optional Translator API
 
-A separate **Translator API** option appears only when the browser exposes compatible API methods and reports a supported listed language pair. It needs no account or API key and is independent of browser branding and Prompt API support. Open the browser translator tab, click **Prepare language pack**, keep the tab open, grant site access, and use the existing translation controls. Additional pairs may require another preparation click and retry.
+A separate **Translator API** option appears only when the browser exposes compatible API methods and reports a supported listed language pair. It needs no account or API key and is independent of browser branding and Prompt API support. Open the browser translator tab, select Source and Target languages, click **Prepare language pack**, close the tab once background readiness is confirmed, and grant site access, and use the existing translation controls. Additional pairs may require another preparation click and retry.
 
-Source languages are detected automatically. Text nodes are translated individually with original restoration and page caching preserved. Custom instructions are not applied. No new permissions or automatic cloud fallback are added. The browser controls downloads and processing location. Actual extension/model verification remains pending; test each intended browser and language pair before claiming support.
+Source languages are detected automatically. Text nodes are translated individually with original restoration and page caching preserved. Custom instructions are not applied. The two browser modes share the offscreen execution host. No automatic cloud fallback is added. The browser controls downloads and processing location. Actual extension/model verification remains pending; test each intended browser and language pair before claiming support.

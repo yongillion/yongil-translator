@@ -2,7 +2,7 @@
   "date": "2026-10-19",
   "version": "0.1.0",
   "automatedTests": {
-    "passed": 263,
+    "passed": 281,
     "failed": 0,
     "suites": [
       {
@@ -67,20 +67,25 @@
       },
       {
         "name": "translator",
-        "passed": 20,
+        "passed": 24,
+        "failed": 0
+      },
+      {
+        "name": "native-background",
+        "passed": 14,
         "failed": 0
       }
     ],
     "environment": "Local Node VM module runner; mocked browser APIs and provider transport"
   },
   "syntax": {
-    "syntaxFiles": 23
+    "syntaxFiles": 26
   },
   "package": {
     "file": "../dist/yongil-translator-0.1.0.zip",
-    "files": 42,
-    "bytes": 288786,
-    "sha256": "c533b49e061f481e76f6c8a710451634f377fa645cadffa61075cabd47d010ce",
+    "files": 47,
+    "bytes": 309101,
+    "sha256": "238e079ad548e9b266cd7840feab587dee5d3246ec5c8c8005e0f672a39fc858",
     "archiveContentsMatchSource": true,
     "containsStoreFixtures": false
   },
@@ -93,7 +98,7 @@
     "actualScreenshots": false,
     "liveAccountVerification": false,
     "englishUIPreviewReviewed": true,
-    "reason": "English popup and setup layouts were reviewed in the in-app browser with mocked browser/LanguageModel APIs. Compatible Edge profiles show the option; unavailable Chrome profiles hide it. No real extension installation or browser model was verified."
+    "reason": "English Source/Target language selectors, downloaded-pack status, and ready-to-close guidance for both native modes were reviewed in an isolated in-app browser preview using mocked browser APIs. Real extension/model execution remains unverified."
   },
   "publication": {
     "uploaded": false,
@@ -113,7 +118,7 @@
     "reason": "GET /v1/models was attempted against api.anthropic.com with the supplied key held only in process memory. Outbound access was denied with EACCES before any HTTP response. The key was cleared from memory; source, fixtures, diagnostics, and release files contain no supplied credential or account email."
   },
   "credentialScan": {
-    "files": 81,
+    "files": 87,
     "findings": 0,
     "scope": "Project source, tests, documentation, generated privacy HTML and packaged extension"
   },
@@ -125,18 +130,28 @@
     "availabilityDetection": "LanguageModel.availability, independent of browser identity",
     "supportedLanguages": "Queried per target language at runtime",
     "processingLocation": "Determined by the browser; availability does not guarantee on-device execution",
-    "noNewPermissions": true,
+    "noNewPermissions": false,
     "manualChecks": "Follow TESTING.md on each intended browser/device; actual Samsung compatibility is unverified."
   },
   "translatorAPI": {
-    "automatedCases": 20,
+    "automatedCases": 24,
     "liveLanguagePackDownloadVerified": false,
     "liveTranslationVerified": false,
     "englishUIPreviewReviewed": true,
     "uiPreviewUsesMocks": true,
     "availabilityDetection": "Translator.availability per listed language pair, independent of browser identity and Prompt API",
     "sourceDetection": "chrome.i18n.detectLanguage with a declared page-language fallback",
-    "noNewPermissions": true,
+    "noNewPermissions": false,
     "manualChecks": "Follow TESTING.md; actual browser extension/model execution remains unverified."
+  },
+  "nativeBackground": {
+    "automatedCases": 14,
+    "permission": "offscreen",
+    "reason": "IFRAME_SCRIPTING",
+    "execution": "Packaged same-origin iframe controlled by an offscreen runtime-messaging host",
+    "liveOffscreenInferenceVerified": false,
+    "tabClosureAfterReadiness": "Covered for both providers by mocked integration tests",
+    "restartRecovery": "Persistent text-free readiness; lazy host recreation",
+    "fallback": "Explicit visible-tab requirement when hidden preparation fails"
   }
 }

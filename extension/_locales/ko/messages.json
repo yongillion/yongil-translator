@@ -900,7 +900,7 @@
     "message": "온디바이스 · 실험적 기능"
   },
   "chromeAINote": {
-    "message": "API 키 없이 브라우저 내장 모델을 사용합니다. 번역 중에는 모델 탭을 열어 두세요. 준비 과정에서 모델을 다운로드할 수 있으며, 처리 위치는 브라우저가 결정합니다."
+    "message": "계정이나 API 키 없이 브라우저의 On-Device AI를 사용합니다. 여기서 모델을 준비하고 백그라운드 실행 준비가 확인되면 탭을 닫으세요. 모델 다운로드와 처리 위치는 브라우저가 관리합니다."
   },
   "chromeAILanguages": {
     "message": "지원 언어는 브라우저 모델에 따라 달라집니다. 지원되는 대상 언어를 선택하세요. 원문 언어가 지원되지 않으면 번역할 수 없습니다."
@@ -918,7 +918,7 @@
     "message": "로컬 모델이 번역을 완료하지 못했습니다. 로컬 모델 탭을 확인하세요."
   },
   "chromeAIReady": {
-    "message": "준비 완료. 이 탭을 열어 두고 웹페이지에서 번역하세요."
+    "message": "번역할 준비가 되었습니다."
   },
   "chromeAITranslating": {
     "message": "브라우저 모델로 번역 중…"
@@ -945,7 +945,7 @@
     "message": "브라우저 내장 모델 사용"
   },
   "chromeAIExecutionNote": {
-    "message": "한 번에 한 블록씩 처리합니다. 이 탭을 닫으면 번역이 중단됩니다. 확장 프로그램은 이 모드의 요청을 클라우드 API 제공자에게 보내지 않으며, 모델 실행은 브라우저가 관리합니다."
+    "message": "한 번에 한 블록씩 처리합니다. 새 모델 다운로드에는 준비 버튼을 다시 눌러야 할 수 있습니다. 클라우드 서비스로 자동 전환하지 않습니다."
   },
   "chromeAIModel": {
     "message": "브라우저 제공 모델"
@@ -966,7 +966,7 @@
     "message": "브라우저 번역 탭 열기"
   },
   "translatorNote": {
-    "message": "계정이나 API 키 없이 브라우저로 번역합니다. 번역 탭을 열어 두세요. 언어 팩과 번역 처리 위치는 브라우저가 관리합니다."
+    "message": "계정이나 API 키 없이 브라우저에서 번역합니다. 여기서 언어 팩을 준비하고 백그라운드 실행 준비가 확인되면 탭을 닫으세요. 언어 팩 다운로드와 처리 위치는 브라우저가 관리합니다."
   },
   "translatorLanguages": {
     "message": "지원하는 언어 쌍은 브라우저에 따라 다릅니다. 원본 언어는 자동으로 인식합니다."
@@ -975,7 +975,7 @@
     "message": "브라우저 번역 탭에서 표시된 언어 팩을 준비한 뒤 번역을 다시 시도하세요. 새로운 언어 쌍은 추가 다운로드가 필요할 수 있습니다."
   },
   "translatorReady": {
-    "message": "준비되었습니다. 번역 중에는 브라우저 번역 탭을 열어 두세요."
+    "message": "번역할 준비가 되었습니다."
   },
   "translatorPrepare": {
     "message": "언어 팩 준비"
@@ -1008,6 +1008,42 @@
     "message": "이 텍스트의 원본 언어를 인식하지 못했습니다."
   },
   "translatorExecutionNote": {
-    "message": "한 번에 블록 하나씩 처리합니다. 사용자 지시문은 적용되지 않습니다. 이 탭을 닫으면 번역이 중지됩니다. 클라우드 제공자로 자동 전환하지 않습니다."
+    "message": "한 번에 한 블록씩 처리하며 사용자 지정 지침은 적용되지 않습니다. 새 언어 팩은 준비 버튼을 다시 눌러야 할 수 있습니다. 클라우드 서비스로 자동 전환하지 않습니다."
+  },
+  "nativeBackgroundReady": {
+    "message": "준비되었습니다. 이 탭을 닫아도 백그라운드에서 번역이 계속됩니다."
+  },
+  "nativeTabRequired": {
+    "message": "이 탭에서 사용할 준비가 되었습니다. 이 브라우저에서는 백그라운드 실행을 사용할 수 없으므로 탭을 열어 두세요."
+  },
+  "translatorSource": {
+    "message": "Source 언어"
+  },
+  "translatorTarget": {
+    "message": "Target 언어"
+  },
+  "translatorPairNote": {
+    "message": "준비할 언어 팩의 조합을 선택하세요. 페이지 번역에서는 원본 언어를 자동 인식하고 설정의 번역 언어를 사용합니다."
+  },
+  "translatorPairChecking": {
+    "message": "이 언어 조합을 확인하는 중…"
+  },
+  "translatorPairSame": {
+    "message": "서로 다른 두 언어를 선택하세요."
+  },
+  "translatorPairUnavailable": {
+    "message": "이 브라우저에서 지원하지 않는 언어 조합입니다."
+  },
+  "translatorPairAvailable": {
+    "message": "이미 다운로드한 언어 팩입니다."
+  },
+  "translatorPairDownload": {
+    "message": "언어 팩을 다운로드해야 합니다."
+  },
+  "translatorPairDownloading": {
+    "message": "언어 팩을 다운로드하는 중입니다."
+  },
+  "nativeBackgroundChecking": {
+    "message": "백그라운드 실행을 확인하고 있습니다. 준비될 때까지 탭을 열어 두세요."
   }
 }

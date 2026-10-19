@@ -1,25 +1,40 @@
+import {attachNativeBackground,nativeStatus,enableNative,stopNative,requestNative} from './native-background.mjs';
 import {AppError} from './protocol.mjs';
 
 let runner=null,opening=null;
 const pending=new Map();
 const notReady=()=>new AppError('LOCAL_NOT_READY','chromeAISetupRequired');
-export function chromeAIStatus(){
+export async function chromeAIStatus(){
+ const hidden=await nativeStatus('chrome');if(hidden)return hidden;
  return {provider:'chrome',state:runner?.ready?'connected':'signed_out',...(runner?.ready?{connectionId:runner.connectionId}:{})};
 }
-export function stopChromeAI(){
- if(runner){runner.ready=false;runner.port.postMessage({type:'stop'});}
+export async function stopChromeAI(){
+ await stopNative('chrome');
+ if(runner){runner.revision++;runner.ready=false;runner.port.postMessage({type:'stop'});}
  for(const task of [...pending.values()])task.reject(notReady());
 }
 export function attachChromeAI(){
+ attachNativeBackground();
  chrome.runtime.onConnect?.addListener(port=>{
   if(port.name!=='chrome-ai-runner')return;
   const sender=port.sender;
   if(sender?.id!==chrome.runtime.id||sender.url!==chrome.runtime.getURL('chrome-ai.html')||!Number.isInteger(sender.tab?.id)||runner){port.disconnect();return;}
-  const current={port,tabId:sender.tab.id,ready:false,connectionId:'chrome:'+crypto.randomUUID()};runner=current;
+  const current={port,tabId:sender.tab.id,ready:false,revision:0,connectionId:'chrome:'+crypto.randomUUID()};runner=current;
   port.onMessage.addListener(message=>{
    if(runner!==current)return;
-   if(message?.type==='ready'){if(!current.ready)current.connectionId='chrome:'+crypto.randomUUID();current.ready=true;port.postMessage({type:'accepted'});return;}
-   if(message?.type==='stopped'){current.ready=false;return;}
+   if(message?.type==='inspect'){void nativeStatus('chrome').then(state=>{if(runner===current)port.postMessage({type:'background-state',...state});});return;}
+   if(message?.type==='ready'){
+    const revision=++current.revision;
+    if(!current.ready)current.connectionId='chrome:'+crypto.randomUUID();
+    const accept=background=>{if(runner===current&&revision===current.revision){current.ready=true;port.postMessage({type:'accepted',background});}};
+    if(message.options)void enableNative('chrome',message.options,current.connectionId).then(accept).catch(async()=>{
+     if(runner!==current||revision!==current.revision)return;
+     await stopNative('chrome');accept(false);
+    });
+    else accept(false);
+    return;
+   }
+   if(message?.type==='stopped'){current.revision++;current.ready=false;if(message.explicit)void stopNative('chrome');return;}
    const task=pending.get(message?.id);if(!task)return;
    if(message.type==='chunk'&&typeof message.text==='string')task.onChunk?.(message.text);
    if(message.type==='result'&&typeof message.text==='string')task.resolve(message.text);
@@ -45,7 +60,8 @@ export async function openChromeAI(){
   return {};
  })();try{return await opening;}finally{opening=null;}
 }
-export function requestChromeAI(payload,connectionId,signal,onChunk){
+export async function requestChromeAI(payload,connectionId,signal,onChunk){
+ if(await nativeStatus('chrome'))return requestNative('chrome',payload,connectionId,signal,onChunk);
  if(!runner?.ready)throw notReady();
  if(runner.connectionId!==connectionId)throw new AppError('ACCOUNT_CHANGED','accountChangedJob');
  const port=runner.port,id=crypto.randomUUID();

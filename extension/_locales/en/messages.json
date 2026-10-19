@@ -900,7 +900,7 @@
     "message": "ON-DEVICE · EXPERIMENTAL"
   },
   "chromeAINote": {
-    "message": "Use the browser’s built-in model without an API key. Keep the model tab open while translating. Setup may download a model. The browser determines where processing takes place."
+    "message": "Use your browser’s on-device AI without an account or API key. Prepare the model here, then close this tab once background readiness is confirmed. The browser manages model downloads and where processing takes place."
   },
   "chromeAILanguages": {
     "message": "Language support depends on your browser’s model. Choose a supported target language; unsupported source languages cannot be translated."
@@ -918,7 +918,7 @@
     "message": "The local model could not complete this translation. Check the local model tab."
   },
   "chromeAIReady": {
-    "message": "Ready. Keep this tab open and translate from your webpage."
+    "message": "Ready to translate."
   },
   "chromeAITranslating": {
     "message": "Translating with the browser model…"
@@ -945,7 +945,7 @@
     "message": "Uses the browser’s built-in model"
   },
   "chromeAIExecutionNote": {
-    "message": "Processes one block at a time. Closing this tab stops translation. This extension does not send these prompts to its cloud API providers; the browser controls model execution."
+    "message": "Processes one block at a time. New model downloads may require another preparation click. There is no automatic switch to a cloud provider."
   },
   "chromeAIModel": {
     "message": "Browser-provided model"
@@ -966,7 +966,7 @@
     "message": "Open browser translator"
   },
   "translatorNote": {
-    "message": "Translate with your browser without an account or API key. Keep this tab open. The browser manages language packs and where processing takes place."
+    "message": "Translate with your browser without an account or API key. Prepare the language packs here, then close this tab once background readiness is confirmed. The browser manages language packs and where processing takes place."
   },
   "translatorLanguages": {
     "message": "Language pairs depend on your browser. The original language is detected automatically."
@@ -975,7 +975,7 @@
     "message": "Open the browser translator tab and prepare the displayed language pack, then retry translation. A new language pair may need another download."
   },
   "translatorReady": {
-    "message": "Ready. Keep the browser translator tab open while translating."
+    "message": "Ready to translate."
   },
   "translatorPrepare": {
     "message": "Prepare language pack"
@@ -1008,6 +1008,42 @@
     "message": "The original language could not be detected for this text."
   },
   "translatorExecutionNote": {
-    "message": "Processes one block at a time. Custom instructions are not applied. Closing this tab stops translation. There is no automatic switch to a cloud provider."
+    "message": "Processes one block at a time. Custom instructions are not applied. A new language pack may require another preparation click. There is no automatic switch to a cloud provider."
+  },
+  "nativeBackgroundReady": {
+    "message": "Ready. You can close this tab; translation will continue in the background."
+  },
+  "nativeTabRequired": {
+    "message": "Ready in this tab. Background execution is unavailable in this browser; keep this tab open."
+  },
+  "translatorSource": {
+    "message": "Source language"
+  },
+  "translatorTarget": {
+    "message": "Target language"
+  },
+  "translatorPairNote": {
+    "message": "Choose a pair to prepare its language pack. Page translation still detects the source automatically and uses the target in Settings."
+  },
+  "translatorPairChecking": {
+    "message": "Checking this language pair…"
+  },
+  "translatorPairSame": {
+    "message": "Choose two different languages."
+  },
+  "translatorPairUnavailable": {
+    "message": "This language pair is not supported by your browser."
+  },
+  "translatorPairAvailable": {
+    "message": "This language pack is already downloaded."
+  },
+  "translatorPairDownload": {
+    "message": "This language pack needs to be downloaded."
+  },
+  "translatorPairDownloading": {
+    "message": "This language pack is downloading."
+  },
+  "nativeBackgroundChecking": {
+    "message": "Checking background execution. Keep this tab open until ready."
   }
 }

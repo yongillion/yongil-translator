@@ -10,7 +10,8 @@
     "tabs",
     "alarms",
     "webNavigation",
-    "sidePanel"
+    "sidePanel",
+    "offscreen"
   ],
   "host_permissions": [
     "https://auth.openai.com/*",
